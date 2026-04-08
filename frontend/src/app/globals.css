@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --oca-blue: #294D6D;
+    --oca-blue-light: #4A7BA7;
+    --oca-blue-lighter: #E8F1F8;
+    --oca-blue-dark: #1E3A52;
+    --oca-red: #DE473C;
+    --oca-red-light: #FDEAEA;
+    --oca-red-dark: #C73C32;
+    --oca-orange: #F97316;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-oca-blue text-white px-4 py-2 rounded-md font-medium
+           hover:bg-oca-blue-dark transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-oca-blue focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent text-oca-blue border border-oca-blue px-4 py-2 rounded-md font-medium
+           hover:bg-oca-blue-lighter transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-oca-blue focus:ring-offset-2;
+  }
+
+  .btn-danger {
+    @apply bg-oca-red text-white px-4 py-2 rounded-md font-medium
+           hover:bg-oca-red-dark transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-oca-red focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-tremor-card p-6;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md
+           focus:outline-none focus:ring-2 focus:ring-oca-blue focus:border-transparent
+           placeholder:text-gray-400;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .filter-select {
+    @apply text-sm border border-gray-200 rounded-md px-3 py-1.5 bg-white
+           focus:outline-none focus:ring-2 focus:ring-oca-blue focus:border-transparent;
+  }
+
+  .stat-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-100 p-4;
+  }
+
+  .table-header {
+    @apply bg-oca-blue text-white text-xs font-semibold uppercase tracking-wider;
+  }
+
+  .table-row {
+    @apply border-b border-gray-100 hover:bg-gray-50 transition-colors;
+  }
+
+  .kpi-value {
+    @apply text-2xl font-bold text-oca-blue;
+  }
+
+  .kpi-label {
+    @apply text-xs text-gray-500 uppercase tracking-wide;
+  }
+
+  .gauge-container {
+    @apply relative flex items-center justify-center;
+  }
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Fix Tremor Select dropdowns z-index */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+/* Custom table styles */
+.data-table {
+  @apply w-full text-sm;
+}
+
+.data-table th {
+  @apply bg-oca-blue text-white text-left px-3 py-2 font-medium text-xs;
+}
+
+.data-table td {
+  @apply px-3 py-2 border-b border-gray-100;
+}
+
+.data-table tr:hover td {
+  @apply bg-gray-50;
+}
+
+/* Sidebar navigation */
+.nav-item {
+  @apply flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium
+         text-gray-600 hover:bg-oca-blue-lighter hover:text-oca-blue
+         transition-colors duration-200;
+}
+
+.nav-item.active {
+  @apply bg-oca-blue text-white;
+}
