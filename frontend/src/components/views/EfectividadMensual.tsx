@@ -68,7 +68,7 @@ export default function EfectividadMensual({ mensual, kpis }: EfectividadMensual
       header: '% EFECTIVAS',
       align: 'right' as const,
       render: (row: MensualStats) => (
-        <span className="text-green-600 font-medium">{row.pct_efectivas.toFixed(2)}%</span>
+        <span className="text-green-700 font-medium">{row.pct_efectivas.toFixed(2)}%</span>
       ),
     },
     {
@@ -82,12 +82,11 @@ export default function EfectividadMensual({ mensual, kpis }: EfectividadMensual
       header: '% V.FALLIDA',
       align: 'right' as const,
       render: (row: MensualStats) => (
-        <span className="text-orange-500">{row.pct_visita_fallida.toFixed(2)}%</span>
+        <span className="text-amber-600">{row.pct_visita_fallida.toFixed(2)}%</span>
       ),
     },
   ];
 
-  // Prepare line chart data
   const lineData = {
     labels: mensual.map((m) => m.mes),
     series: [
@@ -115,80 +114,65 @@ export default function EfectividadMensual({ mensual, kpis }: EfectividadMensual
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Table */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Efectividad por Mes</h3>
+        <h3 className="section-title mb-3">Efectividad por Mes</h3>
         <DataTable columns={columns} data={mensual} />
       </div>
 
-      {/* Gauges and Line Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Gauges Column */}
-        <div className="space-y-4">
-          <div className="card">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">% EFECTIVAS</h4>
-            <GaugeChart
-              value={kpis.pct_efectivas}
-              title="% EFECTIVAS"
-              target={70}
-              color="green"
-            />
-          </div>
-
-          <div className="card">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">% CNR</h4>
-            <GaugeChart
-              value={kpis.pct_cnr}
-              title="% CNR"
-              max={30}
-              target={25}
-              color="blue"
-            />
-          </div>
-
-          <div className="card">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">% CNR HURTO</h4>
-            <GaugeChart
-              value={kpis.pct_cnr_hurto}
-              title="% CNR HURTO"
-              max={50}
-              target={30}
-              color="orange"
-            />
-          </div>
+      {/* Gauges Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="card">
+          <GaugeChart
+            value={kpis.pct_efectivas}
+            title="% EFECTIVAS"
+            target={70}
+            color="green"
+          />
         </div>
-
-        {/* More Gauges */}
-        <div className="space-y-4">
-          <div className="card">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">% CNR FALLA</h4>
-            <GaugeChart
-              value={kpis.pct_cnr_falla}
-              title="% CNR FALLA"
-              max={80}
-              target={70}
-              color="green"
-            />
-          </div>
-
-          <div className="card">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">% VISITA FALLIDA</h4>
-            <GaugeChart
-              value={kpis.pct_visita_fallida}
-              title="% VISITA FALLIDA"
-              max={50}
-              target={30}
-              color="red"
-            />
-          </div>
+        <div className="card">
+          <GaugeChart
+            value={kpis.pct_cnr}
+            title="% CNR"
+            max={30}
+            target={25}
+            color="blue"
+          />
         </div>
-
-        {/* Line Chart */}
-        <div className="card lg:col-span-1">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">EFECTIVIDAD</h3>
-          <LineChart data={lineData} yAxisFormat="percent" />
+        <div className="card">
+          <GaugeChart
+            value={kpis.pct_cnr_falla}
+            title="% CNR FALLA"
+            max={80}
+            target={70}
+            color="green"
+          />
         </div>
+        <div className="card">
+          <GaugeChart
+            value={kpis.pct_cnr_hurto}
+            title="% CNR HURTO"
+            max={50}
+            target={30}
+            color="orange"
+          />
+        </div>
+        <div className="card">
+          <GaugeChart
+            value={kpis.pct_visita_fallida}
+            title="% V. FALLIDA"
+            max={50}
+            target={30}
+            color="red"
+          />
+        </div>
+      </div>
+
+      {/* Line Chart */}
+      <div className="card">
+        <h3 className="section-title mb-3">EFECTIVIDAD</h3>
+        <LineChart data={lineData} yAxisFormat="percent" />
       </div>
     </div>
   );

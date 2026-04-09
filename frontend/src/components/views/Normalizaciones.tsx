@@ -78,13 +78,13 @@ export default function Normalizaciones({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Normalizations Table */}
         <div className="card lg:col-span-2">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Normalizaciones x Delegación</h3>
+          <h3 className="section-title mb-3">Normalizaciones x Delegación</h3>
           <DataTable columns={columns} data={normalizaciones} />
         </div>
 
         {/* CNR Types Donut */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Tipos de CNR</h3>
+          <h3 className="section-title mb-3">Tipos de CNR</h3>
           <DonutChart
             data={donutData}
             colors={['#294D6D', '#4A7BA7']}
@@ -94,7 +94,7 @@ export default function Normalizaciones({
 
       {/* Treatment Chart */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Resultado Tratamiento</h3>
+        <h3 className="section-title mb-3">Resultado Tratamiento</h3>
         <div className="mb-4 flex gap-4 text-sm">
           <span className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-orange-500"></span>

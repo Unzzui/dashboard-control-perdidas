@@ -88,7 +88,7 @@ export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTec
     <div className="space-y-6">
       {/* KWH Table */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Control KW/H Recuperado por Brigada</h3>
+        <h3 className="section-title mb-3">Control KW/H Recuperado por Brigada</h3>
         <div className="overflow-x-auto">
           <DataTable columns={columns} data={data} />
         </div>
@@ -97,12 +97,12 @@ export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTec
       {/* Gauges */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">kWh Total Recuperado</h3>
+          <h3 className="section-title mb-3">kWh Total Recuperado</h3>
           <div className="text-center">
             <p className="text-4xl font-bold text-oca-blue">
               {totalKWH >= 1000 ? `${(totalKWH / 1000).toFixed(0)} mil` : totalKWH.toLocaleString('es-CL')}
             </p>
-            <div className="mt-4 flex justify-center gap-8 text-sm text-gray-500">
+            <div className="mt-4 flex justify-center gap-8 text-sm text-slate-400">
               <span>0 mil</span>
               <span>153 mil</span>
             </div>
@@ -110,7 +110,7 @@ export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTec
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">% kWh Recuperado del Total por Zona</h3>
+          <h3 className="section-title mb-3">% kWh Recuperado del Total por Zona</h3>
           <GaugeChart
             value={pctKWHZona}
             title="% kWh"
@@ -121,7 +121,7 @@ export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTec
 
       {/* Efectivas Table */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">EFECTIVAS por Técnico</h3>
+        <h3 className="section-title mb-3">EFECTIVAS por Técnico</h3>
         <div className="overflow-x-auto">
           <DataTable columns={efectivasColumns} data={efectivasPorTecnico} />
         </div>

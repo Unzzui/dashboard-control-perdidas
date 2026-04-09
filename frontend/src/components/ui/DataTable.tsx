@@ -14,7 +14,13 @@ interface DataTableProps<T> {
   className?: string;
 }
 
-export default function DataTable<T extends Record<string, unknown>>({
+const alignClass = {
+  left: 'text-left',
+  center: 'text-center',
+  right: 'text-right',
+};
+
+export default function DataTable<T extends Record<string, any>>({
   columns,
   data,
   className = ''
@@ -30,14 +36,14 @@ export default function DataTable<T extends Record<string, unknown>>({
 
   return (
     <div className={`overflow-x-auto ${className}`}>
-      <table className="data-table">
+      <table className="w-full">
         <thead>
-          <tr>
+          <tr className="border-b border-slate-200">
             {columns.map((col) => (
               <th
                 key={String(col.key)}
                 style={{ width: col.width }}
-                className={`text-${col.align || 'left'}`}
+                className={`px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-50/80 ${alignClass[col.align || 'left']}`}
               >
                 {col.header}
               </th>
@@ -46,11 +52,11 @@ export default function DataTable<T extends Record<string, unknown>>({
         </thead>
         <tbody>
           {data.map((row, idx) => (
-            <tr key={idx}>
+            <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
               {columns.map((col) => (
                 <td
                   key={String(col.key)}
-                  className={`text-${col.align || 'left'}`}
+                  className={`px-3 py-2 text-[11px] text-slate-600 ${alignClass[col.align || 'left']}`}
                 >
                   {col.render
                     ? col.render(row)

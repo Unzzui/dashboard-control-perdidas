@@ -131,7 +131,7 @@ export default function ResultadosDelegacion({
     <div className="space-y-6">
       {/* Results by Delegation */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Resultados por Delegación</h3>
+        <h3 className="section-title mb-3">Resultados por Delegación</h3>
         <DataTable columns={zonaColumns} data={zonas} />
       </div>
 
@@ -139,13 +139,13 @@ export default function ResultadosDelegacion({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Daily Activity */}
         <div className="card lg:col-span-2">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Actividades Diarias</h3>
+          <h3 className="section-title mb-3">Actividades Diarias</h3>
           <StackedBarChart data={daily} />
         </div>
 
         {/* CNR Types Donut */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Tipos de CNR</h3>
+          <h3 className="section-title mb-3">Tipos de CNR</h3>
           <DonutChart
             data={donutData}
             colors={['#294D6D', '#4A7BA7']}
@@ -155,7 +155,7 @@ export default function ResultadosDelegacion({
 
       {/* Campaigns Table */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Campañas</h3>
+        <h3 className="section-title mb-3">Campañas</h3>
         <div className="max-h-[400px] overflow-y-auto">
           <DataTable columns={campanaColumns} data={campanas.slice(0, 30)} />
         </div>

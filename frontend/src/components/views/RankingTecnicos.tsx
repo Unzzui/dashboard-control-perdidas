@@ -92,7 +92,7 @@ export default function RankingTecnicos({ tecnicos }: RankingTecnicosProps) {
       {/* Rankings Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Ranking CNR</h3>
+          <h3 className="section-title mb-3">Ranking CNR</h3>
           <HorizontalBarChart
             data={rankingCNR}
             valueLabel="CNR"
@@ -103,7 +103,7 @@ export default function RankingTecnicos({ tecnicos }: RankingTecnicosProps) {
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Ranking Efectivas</h3>
+          <h3 className="section-title mb-3">Ranking Efectivas</h3>
           <HorizontalBarChart
             data={rankingEfectivas}
             valueLabel="EFECTIVAS"
@@ -116,7 +116,7 @@ export default function RankingTecnicos({ tecnicos }: RankingTecnicosProps) {
 
       {/* Table by Zone */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Detalle por Zona</h3>
+        <h3 className="section-title mb-3">Detalle por Zona</h3>
         <div className="max-h-[500px] overflow-y-auto">
           {Object.entries(byZona).map(([zona, tecnicosZona]) => (
             <div key={zona} className="mb-6">

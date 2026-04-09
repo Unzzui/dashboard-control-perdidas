@@ -26,6 +26,8 @@ export default function GaugeChart({ value, title, max = 100, target, color = 'b
         type: 'gauge',
         startAngle: 200,
         endAngle: -20,
+        center: ['50%', '60%'],
+        radius: '90%',
         min: 0,
         max: max,
         splitNumber: 4,
@@ -34,15 +36,17 @@ export default function GaugeChart({ value, title, max = 100, target, color = 'b
         },
         progress: {
           show: true,
-          width: 20,
+          width: 12,
+          roundCap: true,
         },
         pointer: {
           show: false,
         },
         axisLine: {
           lineStyle: {
-            width: 20,
-            color: [[1, '#E5E7EB']],
+            width: 12,
+            color: [[1, '#F1F5F9']],
+            cap: 'round',
           },
         },
         axisTick: {
@@ -52,29 +56,21 @@ export default function GaugeChart({ value, title, max = 100, target, color = 'b
           show: false,
         },
         axisLabel: {
-          distance: 30,
-          fontSize: 10,
-          color: '#9CA3AF',
-          formatter: (value: number) => `${value.toFixed(0)} %`,
+          show: false,
         },
         anchor: {
           show: false,
         },
         title: {
-          show: true,
-          offsetCenter: [0, '30%'],
-          fontSize: 11,
-          color: '#6B7280',
+          show: false,
         },
         detail: {
           valueAnimation: true,
-          width: '60%',
-          lineHeight: 30,
-          borderRadius: 8,
-          offsetCenter: [0, '-10%'],
-          fontSize: 24,
+          offsetCenter: [0, '-5%'],
+          fontSize: 18,
           fontWeight: 'bold',
-          formatter: '{value} %',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          formatter: (val: number) => `${val.toFixed(1)}%`,
           color: mainColor,
         },
         data: [
@@ -87,43 +83,23 @@ export default function GaugeChart({ value, title, max = 100, target, color = 'b
     ],
   };
 
-  // Add target line if provided
-  if (target !== undefined) {
-    const targetAngle = 200 - ((target / max) * 220);
-    option.series.push({
-      type: 'gauge',
-      startAngle: 200,
-      endAngle: -20,
-      min: 0,
-      max: max,
-      itemStyle: { color: 'transparent' },
-      progress: { show: false },
-      pointer: {
-        show: true,
-        length: '90%',
-        width: 2,
-        itemStyle: { color: '#9CA3AF' },
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { show: false },
-      axisLabel: { show: false },
-      detail: { show: false },
-      title: { show: false },
-      data: [{ value: target }],
-    } as never);
-  }
-
   return (
     <div className="text-center">
       <ReactECharts
         option={option}
-        style={{ height: '180px', width: '100%' }}
+        style={{ height: '130px', width: '100%' }}
         notMerge={true}
       />
-      {target !== undefined && (
-        <p className="text-xs text-gray-500 -mt-2">Meta: {target}%</p>
-      )}
+      <div className="-mt-2">
+        <div className="flex items-center justify-center gap-4 text-[9px] text-slate-400">
+          <span>0%</span>
+          <span className="text-[10px] font-medium text-slate-500">{title}</span>
+          <span>{max}%</span>
+        </div>
+        {target !== undefined && (
+          <p className="text-[9px] text-slate-400 mt-0.5">Meta: {target}%</p>
+        )}
+      </div>
     </div>
   );
 }

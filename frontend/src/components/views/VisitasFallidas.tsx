@@ -1,6 +1,6 @@
 'use client';
 
-import { VisitaFallidaResponsabilidad } from '@/types';
+import { VisitaFallidaResponsabilidad, ResultadoFallido } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import DonutChart from '@/components/charts/DonutChart';
 import HorizontalBarChart from '@/components/charts/HorizontalBarChart';
@@ -9,7 +9,7 @@ interface VisitasFallidasProps {
   responsabilidad: VisitaFallidaResponsabilidad[];
   totalCGE: number;
   totalContratista: number;
-  resultadosFallidos: { resultado: string; cantidad: number }[];
+  resultadosFallidos: ResultadoFallido[];
 }
 
 export default function VisitasFallidas({
@@ -74,7 +74,7 @@ export default function VisitasFallidas({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Responsibility Table */}
         <div className="card lg:col-span-2">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Visitas Fallidas por Delegación</h3>
+          <h3 className="section-title mb-3">Visitas Fallidas por Delegación</h3>
           <div className="max-h-[400px] overflow-y-auto">
             <DataTable columns={columns} data={responsabilidad.slice(0, 20)} />
           </div>
@@ -82,7 +82,7 @@ export default function VisitasFallidas({
 
         {/* Donut Chart */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Responsabilidad Visitas Fallidas</h3>
+          <h3 className="section-title mb-3">Responsabilidad Visitas Fallidas</h3>
           <DonutChart
             data={donutData}
             colors={['#294D6D', '#DE473C']}
@@ -92,7 +92,7 @@ export default function VisitasFallidas({
 
       {/* Results Bar Chart */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Tipos de Resultados</h3>
+        <h3 className="section-title mb-3">Tipos de Resultados</h3>
         <HorizontalBarChart
           data={barData.slice(0, 15)}
           valueLabel="VISITA FALLIDA"

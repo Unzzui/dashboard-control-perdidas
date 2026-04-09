@@ -34,7 +34,7 @@ export default function LineChart({ data, title, yAxisFormat = 'percent' }: Line
       borderColor: '#e5e7eb',
       borderWidth: 1,
       textStyle: { color: '#374151', fontSize: 12 },
-      formatter: (params: Array<{ seriesName: string; value: number; marker: string }>) => {
+      formatter: (params: Array<{ seriesName: string; value: number; marker: string; axisValue?: string }>) => {
         let result = `<div class="font-medium">${params[0]?.axisValue || ''}</div>`;
         params.forEach((param) => {
           const value = yAxisFormat === 'percent'

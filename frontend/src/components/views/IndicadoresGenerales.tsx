@@ -111,20 +111,20 @@ export default function IndicadoresGenerales({ kpis, zonas, daily }: Indicadores
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Zona Table */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Resultados por Zona</h3>
+          <h3 className="section-title mb-3">Resultados por Zona</h3>
           <DataTable columns={columns} data={[...zonas, totals]} />
         </div>
 
         {/* Daily Chart */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Indicadores Generales</h3>
+          <h3 className="section-title mb-3">Indicadores Generales</h3>
           <StackedBarChart data={daily} />
         </div>
       </div>
 
       {/* Daily breakdown by zone */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Actividades Diarias</h3>
+        <h3 className="section-title mb-3">Actividades Diarias</h3>
         <StackedBarChart data={daily} title="" />
       </div>
     </div>

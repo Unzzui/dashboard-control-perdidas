@@ -90,13 +90,13 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
     <div className="space-y-6">
       {/* Summary Table */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Cumplimiento por Establecimiento</h3>
+        <h3 className="section-title mb-3">Cumplimiento por Establecimiento</h3>
         <DataTable columns={columns} data={produccion} />
       </div>
 
       {/* Chart */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Cumplimiento por Establecimiento</h3>
+        <h3 className="section-title mb-3">Cumplimiento por Establecimiento</h3>
         <HorizontalBarChart
           data={chartData}
           valueLabel="Suma de Valor Unitario"
@@ -108,7 +108,7 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
 
       {/* Production by Technician */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Producción Mensual</h3>
+        <h3 className="section-title mb-3">Producción Mensual</h3>
         <div className="max-h-[500px] overflow-y-auto">
           {Object.entries(byZona).map(([zona, tecnicos]) => (
             <div key={zona} className="mb-4">
@@ -121,7 +121,7 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
               <div className="space-y-1 px-3">
                 {tecnicos.map((t, idx) => (
                   <div key={idx} className="flex justify-between text-sm py-1 border-b border-gray-50">
-                    <span className="text-gray-600">{t.nombre}</span>
+                    <span className="text-slate-500">{t.nombre}</span>
                     <span className="font-medium">{formatCurrency(t.produccion)}</span>
                   </div>
                 ))}

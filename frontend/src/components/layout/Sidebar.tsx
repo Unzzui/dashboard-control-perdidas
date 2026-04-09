@@ -9,7 +9,9 @@ import {
   Wrench,
   DollarSign,
   Map,
-  FileBarChart
+  FileBarChart,
+  Package,
+  Search
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,33 +28,51 @@ const menuItems = [
   { id: 'normalizaciones', label: 'Normalizaciones', icon: Wrench },
   { id: 'produccion', label: 'Producción Mensual', icon: DollarSign },
   { id: 'kwh', label: 'Control kWh Recuperado', icon: FileBarChart },
+  { id: 'retiro-medidores', label: 'Retiro Medidores', icon: Package },
+  { id: 'detalle-aviso', label: 'Detalle Aviso', icon: Search },
   { id: 'mapa', label: 'Mapa Operaciones', icon: Map },
 ];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
-      <nav className="p-4 space-y-1">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
+    <aside className="fixed left-0 top-0 z-40 w-56 h-screen bg-oca-blue flex flex-col">
+      {/* Header */}
+      <div className="h-14 flex items-center px-4 border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <span className="text-white font-bold text-lg">OCA</span>
+          <span className="text-white/50 font-light text-sm">GLOBAL</span>
+        </div>
+      </div>
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-oca-blue text-white'
-                  : 'text-gray-600 hover:bg-oca-blue-lighter hover:text-oca-blue'
-              }`}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </button>
-          );
-        })}
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <div className="space-y-0.5">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 ${
+                  isActive
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
+
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-white/10">
+        <p className="text-[10px] text-white/40 text-center">Control de Pérdidas v1.0</p>
+      </div>
     </aside>
   );
 }

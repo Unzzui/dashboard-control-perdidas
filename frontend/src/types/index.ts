@@ -137,6 +137,60 @@ export interface DashboardData {
   normalizaciones: NormalizacionStats[];
   visitas_fallidas_responsabilidad: VisitaFallidaResponsabilidad[];
   produccion: ProduccionZona[];
+  resultados_fallidos: ResultadoFallido[];
+}
+
+export interface ResultadoFallido {
+  resultado: string;
+  cantidad: number;
+}
+
+export interface AtrasoZona {
+  zona: string;
+  dentro_plazo: number;
+  entre_3_7: number;
+  mas_7: number;
+  total: number;
+}
+
+export interface ResponsableRetiro {
+  zona: string;
+  id_medida: number;
+  aviso: number;
+  tecnico: string;
+  estado_envio: string;
+  control_atraso: string;
+  dias_atraso: number;
+}
+
+export interface RetiroDiario {
+  fecha: string;
+  dia: number;
+  cantidad: number;
+}
+
+export interface RetiroMedidoresData {
+  atraso_por_zona: AtrasoZona[];
+  responsables: ResponsableRetiro[];
+  retiro_diario: RetiroDiario[];
+}
+
+export interface DetalleAvisoRegistro {
+  [key: string]: string | number | null;
+}
+
+export interface CampanaComuna {
+  comuna: string;
+  cantidad: number;
+}
+
+export interface DetalleAvisoData {
+  registros: DetalleAvisoRegistro[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  campanas_comuna: CampanaComuna[];
 }
 
 export interface GeoPoint {
