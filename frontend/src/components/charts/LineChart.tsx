@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 
 interface LineChartProps {
@@ -15,10 +16,10 @@ interface LineChartProps {
   yAxisFormat?: 'percent' | 'number';
 }
 
-export default function LineChart({ data, title, yAxisFormat = 'percent' }: LineChartProps) {
+const LineChart = memo(function LineChart({ data, title, yAxisFormat = 'percent' }: LineChartProps) {
   const defaultColors = ['#294D6D', '#4A7BA7', '#F97316', '#DE473C', '#10B981'];
 
-  const option = {
+  const option = useMemo(() => ({
     title: title ? {
       text: title,
       left: 'center',
@@ -85,7 +86,7 @@ export default function LineChart({ data, title, yAxisFormat = 'percent' }: Line
         color: s.color || defaultColors[idx % defaultColors.length],
       },
     })),
-  };
+  }), [data, title, yAxisFormat, defaultColors]);
 
   return (
     <ReactECharts
@@ -94,4 +95,6 @@ export default function LineChart({ data, title, yAxisFormat = 'percent' }: Line
       notMerge={true}
     />
   );
-}
+});
+
+export default LineChart;

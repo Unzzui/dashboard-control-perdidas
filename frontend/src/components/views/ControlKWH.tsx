@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import GaugeChart from '@/components/charts/GaugeChart';
 
@@ -18,12 +19,14 @@ interface ControlKWHProps {
 }
 
 export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTecnico }: ControlKWHProps) {
-  // Get unique days
-  const allDays = new Set<string>();
-  data.forEach((d) => Object.keys(d.valores).forEach((k) => allDays.add(k)));
-  const days = Array.from(allDays).sort((a, b) => Number(a) - Number(b));
+  // Memoizar días únicos
+  const days = useMemo(() => {
+    const allDays = new Set<string>();
+    data.forEach((d) => Object.keys(d.valores).forEach((k) => allDays.add(k)));
+    return Array.from(allDays).sort((a, b) => Number(a) - Number(b));
+  }, [data]);
 
-  const columns = [
+  const columns = useMemo(() => [
     { key: 'nombre', header: 'Nombre asignado', width: '220px' },
     ...days.map((day) => ({
       key: `day_${day}`,
@@ -42,9 +45,9 @@ export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTec
         <span className="font-semibold">{row.total.toLocaleString('es-CL')}</span>
       ),
     },
-  ];
+  ], [days]);
 
-  const efectivasColumns = [
+  const efectivasColumns = useMemo(() => [
     { key: 'nombre', header: 'Nombre asignado', width: '220px' },
     ...days.map((day) => ({
       key: `day_${day}`,
@@ -53,13 +56,11 @@ export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTec
       render: (row: { nombre: string; valores: { [dia: string]: number }; total: number }) => {
         const value = row.valores[day];
         if (!value) return '';
-        // Show with status indicator
-        const meta = 10; // Daily meta
+        const meta = 10;
         const isGood = value >= meta;
         return (
-          <span className={`flex items-center justify-end gap-1 ${isGood ? 'text-green-600' : value >= meta * 0.7 ? 'text-yellow-500' : 'text-red-500'}`}>
+          <span className={`font-medium ${isGood ? 'text-green-600' : value >= meta * 0.7 ? 'text-yellow-600' : 'text-red-600'}`}>
             {value}
-            <span className={`w-2 h-2 rounded-full ${isGood ? 'bg-green-500' : value >= meta * 0.7 ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
           </span>
         );
       },
@@ -72,17 +73,17 @@ export default function ControlKWH({ data, totalKWH, pctKWHZona, efectivasPorTec
         <span className="font-semibold">{row.total.toLocaleString('es-CL')}</span>
       ),
     },
-  ];
+  ], [days]);
 
-  // Group by technician and CNR type
-  const grouped = data.reduce((acc, d) => {
+  // Memoizar agrupación por técnico y tipo CNR
+  const grouped = useMemo(() => data.reduce((acc, d) => {
     if (!acc[d.nombre]) {
       acc[d.nombre] = { nombre: d.nombre, items: [], total: 0 };
     }
     acc[d.nombre].items.push(d);
     acc[d.nombre].total += d.total;
     return acc;
-  }, {} as Record<string, { nombre: string; items: KWHData[]; total: number }>);
+  }, {} as Record<string, { nombre: string; items: KWHData[]; total: number }>), [data]);
 
   return (
     <div className="space-y-6">

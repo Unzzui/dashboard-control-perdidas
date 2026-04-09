@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { MensualStats, KPIData } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import GaugeChart from '@/components/charts/GaugeChart';
@@ -11,7 +12,7 @@ interface EfectividadMensualProps {
 }
 
 export default function EfectividadMensual({ mensual, kpis }: EfectividadMensualProps) {
-  const columns = [
+  const columns = useMemo(() => [
     { key: 'mes', header: 'Mes', width: '100px' },
     {
       key: 'normal',
@@ -85,9 +86,9 @@ export default function EfectividadMensual({ mensual, kpis }: EfectividadMensual
         <span className="text-amber-600">{row.pct_visita_fallida.toFixed(2)}%</span>
       ),
     },
-  ];
+  ], []);
 
-  const lineData = {
+  const lineData = useMemo(() => ({
     labels: mensual.map((m) => m.mes),
     series: [
       {
@@ -111,7 +112,7 @@ export default function EfectividadMensual({ mensual, kpis }: EfectividadMensual
         color: '#DE473C',
       },
     ],
-  };
+  }), [mensual]);
 
   return (
     <div className="space-y-4">

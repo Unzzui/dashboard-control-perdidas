@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Filters, DetalleAvisoData } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import { getDetalleAviso } from '@/lib/api';
@@ -34,7 +34,7 @@ export default function DetalleAviso({ filters }: DetalleAvisoProps) {
     setPage(1);
   }, [filters]);
 
-  const columns = [
+  const columns = useMemo(() => [
     { key: 'ID Medida', header: 'ID Medida', width: '100px' },
     { key: 'Aviso', header: 'Aviso', width: '130px' },
     { key: 'Comuna', header: 'Comuna', width: '130px' },
@@ -47,7 +47,7 @@ export default function DetalleAviso({ filters }: DetalleAvisoProps) {
     { key: 'Estado', header: 'Estado', width: '160px' },
     { key: 'Fecha ejecución', header: 'Fecha', width: '100px' },
     { key: 'Dirección Servicio', header: 'Direccion', width: '200px' },
-  ];
+  ], []);
 
   if (isLoading && !data) {
     return (

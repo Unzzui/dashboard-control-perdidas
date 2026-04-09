@@ -1,6 +1,8 @@
-import { Filters, DashboardData, FilterOptions, RetiroMedidoresData, DetalleAvisoData } from '@/types';
+import { Filters, DashboardData, FilterOptions, RetiroMedidoresData, DetalleAvisoData, ControlDiarioData } from '@/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Usar ruta vacía para aprovechar el proxy de Next.js en next.config.js
+// Esto permite que ngrok funcione correctamente para usuarios remotos
+const API_BASE = '';
 
 async function fetchAPI<T>(endpoint: string): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`);
@@ -13,7 +15,17 @@ async function fetchAPI<T>(endpoint: string): Promise<T> {
 function buildQueryString(filters: Partial<Filters>): string {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
-    if (value !== null && value !== undefined && value !== '') {
+    if (value === null || value === undefined) return;
+
+    // Si es un array, agregar como string separado por comas (si tiene elementos)
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        params.append(key, value.join(','));
+      }
+    } else if (typeof value === 'string' && value === '') {
+      // Ignorar strings vacíos
+      return;
+    } else {
       params.append(key, String(value));
     }
   });
@@ -42,6 +54,11 @@ export async function getTecnicosRanking(filters: Partial<Filters>) {
 export async function getGeoData(filters: Partial<Filters>) {
   const qs = buildQueryString(filters);
   return fetchAPI(`/api/v1/geo?${qs}`);
+}
+
+export async function getControlDiario(filters: Partial<Filters>): Promise<ControlDiarioData> {
+  const qs = buildQueryString(filters);
+  return fetchAPI<ControlDiarioData>(qs ? `/api/v1/control-diario?${qs}` : '/api/v1/control-diario');
 }
 
 export async function getRetiroMedidores(filters: Partial<Filters>): Promise<RetiroMedidoresData> {

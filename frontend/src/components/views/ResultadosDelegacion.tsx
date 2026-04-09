@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { ZonaStats, CampanaStats, DailyStats } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import StackedBarChart from '@/components/charts/StackedBarChart';
@@ -20,7 +21,7 @@ export default function ResultadosDelegacion({
   cnrFalla,
   cnrHurto,
 }: ResultadosDelegacionProps) {
-  const zonaColumns = [
+  const zonaColumns = useMemo(() => [
     { key: 'zona', header: 'Zona', width: '180px' },
     {
       key: 'normal',
@@ -68,9 +69,9 @@ export default function ResultadosDelegacion({
         <span className="text-orange-500">{row.pct_visita_fallida.toFixed(2)}%</span>
       ),
     },
-  ];
+  ], []);
 
-  const campanaColumns = [
+  const campanaColumns = useMemo(() => [
     { key: 'descripcion', header: 'Descripción del aviso', width: '250px' },
     {
       key: 'normal',
@@ -120,12 +121,15 @@ export default function ResultadosDelegacion({
       align: 'right' as const,
       render: (row: CampanaStats) => row.cnr_hurto > 0 ? row.cnr_hurto.toLocaleString('es-CL') : '',
     },
-  ];
+  ], []);
 
-  const donutData = [
+  const donutData = useMemo(() => [
     { name: 'CNR FALLA', value: cnrFalla },
     { name: 'CNR HURTO', value: cnrHurto },
-  ];
+  ], [cnrFalla, cnrHurto]);
+
+  // Memoizar datos de campañas limitados
+  const limitedCampanas = useMemo(() => campanas.slice(0, 30), [campanas]);
 
   return (
     <div className="space-y-6">
@@ -157,7 +161,7 @@ export default function ResultadosDelegacion({
       <div className="card">
         <h3 className="section-title mb-3">Campañas</h3>
         <div className="max-h-[400px] overflow-y-auto">
-          <DataTable columns={campanaColumns} data={campanas.slice(0, 30)} />
+          <DataTable columns={campanaColumns} data={limitedCampanas} />
         </div>
       </div>
     </div>

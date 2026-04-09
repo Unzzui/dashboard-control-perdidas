@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import FilterBar from '@/components/ui/FilterBar';
+import ControlDiario from '@/components/views/ControlDiario';
 import IndicadoresGenerales from '@/components/views/IndicadoresGenerales';
 import ResultadosDelegacion from '@/components/views/ResultadosDelegacion';
 import RankingTecnicos from '@/components/views/RankingTecnicos';
@@ -16,14 +17,19 @@ import RetiroMedidores from '@/components/views/RetiroMedidores';
 import DetalleAviso from '@/components/views/DetalleAviso';
 import { useFilters } from '@/hooks/useFilters';
 import { useDashboard } from '@/hooks/useDashboard';
+import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
+import { cn } from '@/lib/utils';
 
-export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('indicadores');
+function DashboardContent() {
+  const [activeTab, setActiveTab] = useState('control-diario');
   const { filters, setFilters, options } = useFilters();
   const { data, isLoading, lastUpdate, handleRefresh } = useDashboard(filters);
+  const { isNormal } = useSidebar();
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'control-diario':
+        return <ControlDiario filters={filters} />;
       case 'indicadores':
         return (
           <IndicadoresGenerales
@@ -111,7 +117,10 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="pl-56 transition-all duration-300">
+      <div className={cn(
+        'transition-all duration-300',
+        isNormal ? 'pl-56' : 'pl-14'
+      )}>
         <Header
           lastUpdate={lastUpdate || 'Cargando...'}
           onRefresh={handleRefresh}
@@ -135,5 +144,13 @@ export default function Dashboard() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <SidebarProvider>
+      <DashboardContent />
+    </SidebarProvider>
   );
 }

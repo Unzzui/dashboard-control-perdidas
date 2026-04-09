@@ -1,14 +1,14 @@
 export interface Filters {
   año: number | null;
-  mes: string | null;
+  mes: string[];
   dia: number | null;
-  zona: string | null;
-  regional: string | null;
-  supervisor: string | null;
-  estado: string | null;
-  tratamiento: string | null;
-  tipo_campana: string | null;
-  nombre_asignado: string | null;
+  zona: string[];
+  regional: string[];
+  supervisor: string[];
+  estado: string[];
+  tratamiento: string[];
+  tipo_campana: string[];
+  nombre_asignado: string[];
 }
 
 export interface ZonaStats {
@@ -33,10 +33,19 @@ export interface DailyStats {
 export interface TecnicoRanking {
   zona: string;
   nombre: string;
+  dias_trabajados: number;
+  acciones_diarias: number;
+  visitas_totales: number;
+  visitas_efectivas: number;
+  pct_efectivas: number;
+  pct_visitas_fallidas: number;
   cnr: number;
   promedio_cnr: number;
   efectivas: number;
   promedio_efectivas: number;
+  pct_hurto: number;
+  pct_falla: number;
+  kwh_estimado: number;
 }
 
 export interface CampanaStats {
@@ -199,4 +208,60 @@ export interface GeoPoint {
   resultado: string;
   zona: string;
   aviso: string;
+}
+
+// Control Diario - Producción del día anterior
+export interface ProduccionDiaria {
+  etiqueta: string;
+  es_zona: boolean;
+  cnr: number;
+  mantenimiento_medidor: number;
+  normal: number;
+  visita_fallida: number;
+  produccion: number;
+  q_efectivo: number;
+  pct_cnr: number;
+  pct_visita_fallida: number;
+}
+
+export interface CierreActividades {
+  zona: string;
+  tecnico: string;
+  primera_actividad: string;
+  ultima_actividad: string;
+  total_actividades: number;
+  duracion_jornada: string;
+}
+
+export interface DetalleCNR {
+  zona: string;
+  tipo_cnr: string;
+  responsable: string;
+  cantidad: number;
+  pct_del_total: number;
+}
+
+export interface CampanaCNR {
+  zona: string;
+  descripcion_aviso: string;
+  cnr: number;
+  normal: number;
+  total: number;
+  pct_cnr: number;
+}
+
+export interface ControlDiarioData {
+  fecha_reporte: string;
+  produccion: ProduccionDiaria[];
+  cierre_actividades: CierreActividades[];
+  detalle_cnr: DetalleCNR[];
+  campanas_cnr: CampanaCNR[];
+  resumen: {
+    total_produccion: number;
+    total_cnr: number;
+    total_normal: number;
+    total_visita_fallida: number;
+    pct_cnr_general: number;
+    pct_visita_fallida_general: number;
+  };
 }

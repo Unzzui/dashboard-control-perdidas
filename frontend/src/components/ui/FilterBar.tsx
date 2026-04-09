@@ -1,6 +1,7 @@
 'use client';
 
 import { Filters, FilterOptions } from '@/types';
+import MultiSelect from './MultiSelect';
 
 interface FilterBarProps {
   filters: Filters;
@@ -9,10 +10,17 @@ interface FilterBarProps {
 }
 
 export default function FilterBar({ filters, options, onChange }: FilterBarProps) {
-  const handleChange = (key: keyof Filters, value: string | number | null) => {
+  const handleSingleChange = (key: keyof Filters, value: string | number | null) => {
     onChange({
       ...filters,
       [key]: value === '' ? null : value,
+    });
+  };
+
+  const handleMultiChange = (key: keyof Filters, values: string[]) => {
+    onChange({
+      ...filters,
+      [key]: values,
     });
   };
 
@@ -21,76 +29,102 @@ export default function FilterBar({ filters, options, onChange }: FilterBarProps
   return (
     <div className="bg-white border-b border-slate-200 px-5 py-2.5">
       <div className="flex flex-wrap items-end gap-2.5">
+        {/* Año - Select simple */}
         <FilterSelect
           label="Año"
           value={filters.año || ''}
-          onChange={(v) => handleChange('año', v ? Number(v) : null)}
+          onChange={(v) => handleSingleChange('año', v ? Number(v) : null)}
           options={options.años.map((a) => ({ value: String(a), label: String(a) }))}
           className={`${selectClass} min-w-[72px]`}
         />
-        <FilterSelect
+
+        {/* Mes - MultiSelect */}
+        <MultiSelect
           label="Mes"
-          value={filters.mes || ''}
-          onChange={(v) => handleChange('mes', v || null)}
+          selected={filters.mes}
+          onChange={(v) => handleMultiChange('mes', v)}
           options={options.meses.map((m) => ({ value: m, label: m }))}
-          className={`${selectClass} min-w-[96px]`}
+          placeholder="Todos"
+          className="min-w-[120px]"
         />
+
+        {/* Día - Select simple */}
         <FilterSelect
           label="Día"
           value={filters.dia || ''}
-          onChange={(v) => handleChange('dia', v ? Number(v) : null)}
+          onChange={(v) => handleSingleChange('dia', v ? Number(v) : null)}
           options={options.dias.map((d) => ({ value: String(d), label: String(d) }))}
           className={`${selectClass} min-w-[64px]`}
         />
-        <FilterSelect
+
+        {/* Regional - MultiSelect */}
+        <MultiSelect
           label="Regional"
-          value={filters.regional || ''}
-          onChange={(v) => handleChange('regional', v || null)}
+          selected={filters.regional}
+          onChange={(v) => handleMultiChange('regional', v)}
           options={options.regionales.map((r) => ({ value: r, label: r }))}
-          className={`${selectClass} min-w-[96px]`}
+          placeholder="Todas"
+          className="min-w-[120px]"
         />
-        <FilterSelect
+
+        {/* Zona - MultiSelect */}
+        <MultiSelect
           label="Zona"
-          value={filters.zona || ''}
-          onChange={(v) => handleChange('zona', v || null)}
+          selected={filters.zona}
+          onChange={(v) => handleMultiChange('zona', v)}
           options={options.zonas.map((z) => ({ value: z, label: z }))}
-          placeholder="Todas las zonas"
-          className={`${selectClass} min-w-[170px]`}
+          placeholder="Todas"
+          className="min-w-[180px]"
         />
-        <FilterSelect
+
+        {/* Supervisor - MultiSelect */}
+        <MultiSelect
           label="Supervisor"
-          value={filters.supervisor || ''}
-          onChange={(v) => handleChange('supervisor', v || null)}
+          selected={filters.supervisor}
+          onChange={(v) => handleMultiChange('supervisor', v)}
           options={options.supervisores.map((s) => ({ value: s, label: s }))}
-          className={`${selectClass} min-w-[130px]`}
+          placeholder="Todos"
+          className="min-w-[140px]"
         />
-        <FilterSelect
+
+        {/* Estado - MultiSelect */}
+        <MultiSelect
           label="Estado"
-          value={filters.estado || ''}
-          onChange={(v) => handleChange('estado', v || null)}
+          selected={filters.estado}
+          onChange={(v) => handleMultiChange('estado', v)}
           options={options.estados.map((e) => ({ value: e, label: e }))}
-          className={`${selectClass} min-w-[150px]`}
+          placeholder="Todos"
+          className="min-w-[150px]"
         />
-        <FilterSelect
+
+        {/* Tratamiento - MultiSelect */}
+        <MultiSelect
           label="Tratamiento"
-          value={filters.tratamiento || ''}
-          onChange={(v) => handleChange('tratamiento', v || null)}
+          selected={filters.tratamiento}
+          onChange={(v) => handleMultiChange('tratamiento', v)}
           options={options.tratamientos.map((t) => ({ value: t, label: t }))}
-          className={`${selectClass} min-w-[110px]`}
+          placeholder="Todos"
+          className="min-w-[120px]"
         />
-        <FilterSelect
+
+        {/* Campaña - MultiSelect */}
+        <MultiSelect
           label="Campaña"
-          value={filters.tipo_campana || ''}
-          onChange={(v) => handleChange('tipo_campana', v || null)}
+          selected={filters.tipo_campana}
+          onChange={(v) => handleMultiChange('tipo_campana', v)}
           options={options.tipos_campana.map((t) => ({ value: t, label: t }))}
-          className={`${selectClass} min-w-[150px]`}
+          placeholder="Todas"
+          className="min-w-[160px]"
         />
-        <FilterSelect
-          label="Nombre asignado"
-          value={filters.nombre_asignado || ''}
-          onChange={(v) => handleChange('nombre_asignado', v || null)}
-          options={options.nombres_asignados.slice(0, 50).map((n) => ({ value: n, label: n }))}
-          className={`${selectClass} min-w-[170px]`}
+
+        {/* Nombre asignado - MultiSelect */}
+        <MultiSelect
+          label="Técnico"
+          selected={filters.nombre_asignado}
+          onChange={(v) => handleMultiChange('nombre_asignado', v)}
+          options={options.nombres_asignados.slice(0, 100).map((n) => ({ value: n, label: n }))}
+          placeholder="Todos"
+          className="min-w-[180px]"
         />
       </div>
     </div>
@@ -102,7 +136,7 @@ function FilterSelect({
   value,
   onChange,
   options,
-  placeholder = 'Todas',
+  placeholder = 'Todos',
   className,
 }: {
   label: string;

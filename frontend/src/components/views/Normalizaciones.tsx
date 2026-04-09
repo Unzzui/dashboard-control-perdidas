@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { NormalizacionStats, DailyStats } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import DonutChart from '@/components/charts/DonutChart';
@@ -18,7 +19,7 @@ export default function Normalizaciones({
   cnrHurto,
   dailyTratamiento,
 }: NormalizacionesProps) {
-  const columns = [
+  const columns = useMemo(() => [
     { key: 'zona', header: 'Zona', width: '200px' },
     {
       key: 'no_normalizado',
@@ -56,21 +57,20 @@ export default function Normalizaciones({
         <span className="font-semibold">{row.total.toLocaleString('es-CL')}</span>
       ),
     },
-  ];
+  ], []);
 
-  const donutData = [
+  const donutData = useMemo(() => [
     { name: 'CNR FALLA', value: cnrFalla },
     { name: 'CNR HURTO', value: cnrHurto },
-  ];
+  ], [cnrFalla, cnrHurto]);
 
   // Convert daily to tratamiento format
-  const tratamientoDaily = dailyTratamiento.map((d) => ({
+  const tratamientoDaily = useMemo(() => dailyTratamiento.map((d) => ({
     ...d,
-    // Reuse fields for tratamiento display
-    cnr: d.cnr, // No normalizado
-    normal: d.normal, // Normalizado
+    cnr: d.cnr,
+    normal: d.normal,
     visita_fallida: 0,
-  }));
+  })), [dailyTratamiento]);
 
   return (
     <div className="space-y-6">

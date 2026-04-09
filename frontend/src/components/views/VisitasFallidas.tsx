@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { VisitaFallidaResponsabilidad, ResultadoFallido } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import DonutChart from '@/components/charts/DonutChart';
@@ -18,7 +19,7 @@ export default function VisitasFallidas({
   totalContratista,
   resultadosFallidos,
 }: VisitasFallidasProps) {
-  const columns = [
+  const columns = useMemo(() => [
     { key: 'descripcion', header: 'Descripción del aviso', width: '280px' },
     {
       key: 'responsabilidad_cge',
@@ -56,17 +57,20 @@ export default function VisitasFallidas({
         <span className="font-semibold">{row.total.toLocaleString('es-CL')}</span>
       ),
     },
-  ];
+  ], []);
 
-  const donutData = [
+  const donutData = useMemo(() => [
     { name: 'Responsabilidad Contratista', value: totalContratista },
     { name: 'Responsabilidad CGE', value: totalCGE },
-  ];
+  ], [totalContratista, totalCGE]);
 
-  const barData = resultadosFallidos.map((r) => ({
+  const barData = useMemo(() => resultadosFallidos.map((r) => ({
     name: r.resultado,
     value: r.cantidad,
-  }));
+  })), [resultadosFallidos]);
+
+  const limitedResponsabilidad = useMemo(() => responsabilidad.slice(0, 20), [responsabilidad]);
+  const limitedBarData = useMemo(() => barData.slice(0, 15), [barData]);
 
   return (
     <div className="space-y-6">
@@ -76,7 +80,7 @@ export default function VisitasFallidas({
         <div className="card lg:col-span-2">
           <h3 className="section-title mb-3">Visitas Fallidas por Delegación</h3>
           <div className="max-h-[400px] overflow-y-auto">
-            <DataTable columns={columns} data={responsabilidad.slice(0, 20)} />
+            <DataTable columns={columns} data={limitedResponsabilidad} />
           </div>
         </div>
 
@@ -94,7 +98,7 @@ export default function VisitasFallidas({
       <div className="card">
         <h3 className="section-title mb-3">Tipos de Resultados</h3>
         <HorizontalBarChart
-          data={barData.slice(0, 15)}
+          data={limitedBarData}
           valueLabel="VISITA FALLIDA"
           color="#DE473C"
         />

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 
 interface DonutChartProps {
@@ -8,13 +9,13 @@ interface DonutChartProps {
   colors?: string[];
 }
 
-export default function DonutChart({ data, title, colors }: DonutChartProps) {
+const DonutChart = memo(function DonutChart({ data, title, colors }: DonutChartProps) {
   const defaultColors = ['#294D6D', '#4A7BA7', '#F97316', '#DE473C', '#10B981'];
   const chartColors = colors || defaultColors;
 
-  const total = data.reduce((acc, item) => acc + item.value, 0);
+  const total = useMemo(() => data.reduce((acc, item) => acc + item.value, 0), [data]);
 
-  const option = {
+  const option = useMemo(() => ({
     title: title ? {
       text: title,
       left: 'center',
@@ -92,7 +93,7 @@ export default function DonutChart({ data, title, colors }: DonutChartProps) {
         textAlign: 'center',
       },
     },
-  };
+  }), [data, title, chartColors, total]);
 
   return (
     <ReactECharts
@@ -101,4 +102,6 @@ export default function DonutChart({ data, title, colors }: DonutChartProps) {
       notMerge={true}
     />
   );
-}
+});
+
+export default DonutChart;

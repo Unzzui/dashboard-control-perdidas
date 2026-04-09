@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: [
+    'noncomprehendible-stickiest-coral.ngrok-free.dev',
+    '*.ngrok-free.dev',
+    '*.ngrok.io',
+  ],
   async rewrites() {
     return [
       {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Filters, DashboardData } from '@/types';
 import { getDashboardData } from '@/lib/api';
 
@@ -29,31 +29,66 @@ const defaultData: DashboardData = {
   resultados_fallidos: [],
 };
 
+// Generar clave única para los filtros
+function getFilterKey(filters: Filters): string {
+  return JSON.stringify({
+    año: filters.año,
+    mes: filters.mes.sort(),
+    dia: filters.dia,
+    zona: filters.zona.sort(),
+    regional: filters.regional.sort(),
+    supervisor: filters.supervisor.sort(),
+  });
+}
+
 export function useDashboard(filters: Filters) {
   const [data, setData] = useState<DashboardData>(defaultData);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
+  const lastFilterKey = useRef<string>('');
+  const abortController = useRef<AbortController | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
+    // Evitar fetch si los filtros no han cambiado
+    const currentKey = getFilterKey(filters);
+    if (!force && currentKey === lastFilterKey.current && data !== defaultData) {
+      return;
+    }
+
+    // Cancelar request anterior si existe
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+    abortController.current = new AbortController();
+
+    // No hacer fetch si no hay año seleccionado
+    if (!filters.año) {
+      return;
+    }
+
+    lastFilterKey.current = currentKey;
     setIsLoading(true);
+
     try {
       const dashboardData = await getDashboardData(filters);
       setData(dashboardData);
       setLastUpdate(new Date().toLocaleString('es-CL'));
     } catch (error) {
-      console.error('Error fetching data:', error);
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Error fetching data:', error);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [filters]);
+  }, [filters, data]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [filters.año, filters.mes.join(','), filters.zona.join(','), filters.dia]);
 
-  const handleRefresh = () => {
-    fetchData();
-  };
+  const handleRefresh = useCallback(() => {
+    fetchData(true);
+  }, [fetchData]);
 
   return { data, isLoading, lastUpdate, handleRefresh };
 }

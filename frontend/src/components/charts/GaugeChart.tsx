@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 
 interface GaugeChartProps {
@@ -17,10 +18,10 @@ const colorMap = {
   orange: '#F97316',
 };
 
-export default function GaugeChart({ value, title, max = 100, target, color = 'blue' }: GaugeChartProps) {
+const GaugeChart = memo(function GaugeChart({ value, title, max = 100, target, color = 'blue' }: GaugeChartProps) {
   const mainColor = colorMap[color];
 
-  const option = {
+  const option = useMemo(() => ({
     series: [
       {
         type: 'gauge',
@@ -81,7 +82,7 @@ export default function GaugeChart({ value, title, max = 100, target, color = 'b
         ],
       },
     ],
-  };
+  }), [value, title, max, mainColor]);
 
   return (
     <div className="text-center">
@@ -102,4 +103,6 @@ export default function GaugeChart({ value, title, max = 100, target, color = 'b
       </div>
     </div>
   );
-}
+});
+
+export default GaugeChart;
