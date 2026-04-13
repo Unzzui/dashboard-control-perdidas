@@ -15,6 +15,9 @@ import ProduccionMensual from '@/components/views/ProduccionMensual';
 import ControlKWH from '@/components/views/ControlKWH';
 import RetiroMedidores from '@/components/views/RetiroMedidores';
 import DetalleAviso from '@/components/views/DetalleAviso';
+import AnalisisComparativo from '@/components/views/AnalisisComparativo';
+import AnalisisJornada from '@/components/views/AnalisisJornada';
+import ControlMetas from '@/components/views/ControlMetas';
 import { useFilters } from '@/hooks/useFilters';
 import { useDashboard } from '@/hooks/useDashboard';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
@@ -30,6 +33,14 @@ function DashboardContent() {
     switch (activeTab) {
       case 'control-diario':
         return <ControlDiario filters={filters} />;
+      case 'control-metas':
+        return (
+          <ControlMetas
+            tecnicos={data.tecnicos}
+            daily={data.daily}
+            mesesSeleccionados={filters.mes}
+          />
+        );
       case 'indicadores':
         return (
           <IndicadoresGenerales
@@ -41,11 +52,7 @@ function DashboardContent() {
       case 'delegacion':
         return (
           <ResultadosDelegacion
-            zonas={data.zonas}
             campanas={data.campanas}
-            daily={data.daily}
-            cnrFalla={data.kpis.cnr_falla}
-            cnrHurto={data.kpis.cnr_hurto}
           />
         );
       case 'ranking':
@@ -89,14 +96,30 @@ function DashboardContent() {
       case 'kwh':
         return (
           <ControlKWH
-            data={[]}
+            tecnicos={data.tecnicos}
+            zonas={data.zonas}
+            daily={data.daily}
             totalKWH={data.kpis.kwh_recuperado}
-            pctKWHZona={12.25}
-            efectivasPorTecnico={[]}
           />
         );
       case 'retiro-medidores':
         return <RetiroMedidores filters={filters} />;
+      case 'comparativo':
+        return (
+          <AnalisisComparativo
+            mensual={data.mensual}
+            zonas={data.zonas}
+            tecnicos={data.tecnicos}
+            mesesSeleccionados={filters.mes || []}
+          />
+        );
+      case 'jornada':
+        return (
+          <AnalisisJornada
+            filters={filters}
+            daily={data.daily}
+          />
+        );
       case 'detalle-aviso':
         return <DetalleAviso filters={filters} />;
       case 'mapa':

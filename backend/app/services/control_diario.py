@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
+from datetime import date, timedelta
 
 
 def calculate_control_diario(filtered: pd.DataFrame, dia_especifico: int = None) -> dict:
@@ -21,13 +22,28 @@ def calculate_control_diario(filtered: pd.DataFrame, dia_especifico: int = None)
 
     # Determinar fecha a reportar
     if dia_especifico is not None:
+        # Si se especifica un día, buscar esa fecha en los datos
         fechas_con_dia = [f for f in fechas_unicas if f.day == dia_especifico]
         if fechas_con_dia:
             fecha_reporte_date = max(fechas_con_dia)
         else:
             return _empty_response()
     else:
-        fecha_reporte_date = fechas_unicas[-2] if len(fechas_unicas) >= 2 else fechas_unicas[-1]
+        # Buscar el día anterior a hoy que tenga datos
+        hoy = date.today()
+        ayer = hoy - timedelta(days=1)
+
+        # Filtrar fechas anteriores o iguales a ayer
+        fechas_anteriores = [f for f in fechas_unicas if f <= ayer]
+
+        if fechas_anteriores:
+            # Tomar la fecha más reciente anterior o igual a ayer
+            fecha_reporte_date = max(fechas_anteriores)
+        elif fechas_unicas:
+            # Si no hay fechas anteriores a ayer, tomar la última disponible
+            fecha_reporte_date = fechas_unicas[-1]
+        else:
+            return _empty_response()
 
     # Formatear fecha
     meses = {1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril', 5: 'mayo', 6: 'junio',

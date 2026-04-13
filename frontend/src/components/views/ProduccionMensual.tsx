@@ -4,7 +4,6 @@ import { useMemo, useCallback, useState } from 'react';
 import { ProduccionZona } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import HorizontalBarChart from '@/components/charts/HorizontalBarChart';
-import KPICard from '@/components/ui/KPICard';
 
 interface ProduccionMensualProps {
   produccion: ProduccionZona[];
@@ -38,6 +37,9 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
       key: 'brigadas_activas',
       header: 'Brigadas',
       align: 'right' as const,
+      render: (row: ProduccionZona) => (
+        <span className="text-slate-600">{row.brigadas_activas}</span>
+      ),
     },
     {
       key: 'meta_produccion',
@@ -52,7 +54,7 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
       header: 'Producción',
       align: 'right' as const,
       render: (row: ProduccionZona) => (
-        <span className="font-semibold text-oca-blue">{formatCompact(row.produccion)}</span>
+        <span className="font-semibold text-slate-800">{formatCompact(row.produccion)}</span>
       ),
     },
     {
@@ -78,20 +80,24 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
       header: 'CNR',
       align: 'right' as const,
       render: (row: ProduccionZona) => (
-        <span className="font-medium">{row.cnr}</span>
+        <span className="font-medium text-slate-800">{row.cnr}</span>
       ),
     },
     {
       key: 'monto_cnr',
       header: 'Monto CNR',
       align: 'right' as const,
-      render: (row: ProduccionZona) => formatCompact(row.monto_cnr),
+      render: (row: ProduccionZona) => (
+        <span className="text-slate-600">{formatCompact(row.monto_cnr)}</span>
+      ),
     },
     {
       key: 'promedio_monto_cnr',
       header: 'Prom. CNR',
       align: 'right' as const,
-      render: (row: ProduccionZona) => formatCompact(row.promedio_monto_cnr),
+      render: (row: ProduccionZona) => (
+        <span className="text-slate-600">{formatCompact(row.promedio_monto_cnr)}</span>
+      ),
     },
   ], [formatCompact]);
 
@@ -153,50 +159,54 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
   return (
     <div className="space-y-6">
       {/* KPIs de Resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KPICard
-          title="Producción Total"
-          value={formatCompact(totales.totalProduccion)}
-          color="blue"
-        />
-        <KPICard
-          title="Meta Total"
-          value={formatCompact(totales.totalMeta)}
-          color="gray"
-        />
-        <KPICard
-          title="% Cumplimiento"
-          value={`${totales.pctCumplimiento.toFixed(1)}%`}
-          color={totales.pctCumplimiento >= 100 ? 'green' : totales.pctCumplimiento >= 70 ? 'orange' : 'red'}
-        />
-        <KPICard
-          title="Total CNR"
-          value={totales.totalCNR}
-          color="blue"
-        />
-        <KPICard
-          title="Monto CNR"
-          value={formatCompact(totales.totalMontoCNR)}
-          color="green"
-        />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Producción Total</p>
+          <p className="text-2xl font-bold text-slate-800">{formatCompact(totales.totalProduccion)}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Meta Total</p>
+          <p className="text-2xl font-bold text-slate-600">{formatCompact(totales.totalMeta)}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% Cumplimiento</p>
+          <p className={`text-2xl font-bold ${
+            totales.pctCumplimiento >= 100 ? 'text-green-600' :
+            totales.pctCumplimiento >= 70 ? 'text-amber-600' : 'text-red-600'
+          }`}>
+            {totales.pctCumplimiento.toFixed(1)}%
+          </p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total CNR</p>
+          <p className="text-2xl font-bold text-slate-800">{totales.totalCNR.toLocaleString('es-CL')}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Monto CNR</p>
+          <p className="text-2xl font-bold text-green-600">{formatCompact(totales.totalMontoCNR)}</p>
+        </div>
       </div>
 
       {/* Tabla y Gráfico lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Summary Table */}
-        <div className="card">
-          <h3 className="section-title mb-3">Cumplimiento por Zona</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Cumplimiento por Zona
+          </h3>
           <DataTable columns={columns} data={produccion} />
         </div>
 
         {/* Chart */}
-        <div className="card">
-          <h3 className="section-title mb-3">Producción vs Meta</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Producción vs Meta
+          </h3>
           <HorizontalBarChart
             data={chartData}
             valueLabel="Producción"
             metaLabel="Meta"
-            color="#294D6D"
+            color="#475569"
             metaColor="#94A3B8"
           />
         </div>
@@ -205,7 +215,9 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
       {/* Production by Technician - Cards por zona */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="section-title">Producción por Técnico</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Producción por Técnico
+          </h3>
           <div className="flex items-center gap-3">
             <span className="text-[10px] text-slate-400">
               {tecnicosPorZona.length} zonas · {produccionTecnicos.length} técnicos
@@ -213,13 +225,13 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
             <div className="flex gap-1 text-[10px]">
               <button
                 onClick={() => handleTecnicoSort('nombre')}
-                className={`px-2 py-1 rounded ${tecnicoSort.key === 'nombre' ? 'bg-oca-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-2 py-1 rounded ${tecnicoSort.key === 'nombre' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 A-Z {tecnicoSort.key === 'nombre' && (tecnicoSort.direction === 'asc' ? '↑' : '↓')}
               </button>
               <button
                 onClick={() => handleTecnicoSort('produccion')}
-                className={`px-2 py-1 rounded ${tecnicoSort.key === 'produccion' ? 'bg-oca-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-2 py-1 rounded ${tecnicoSort.key === 'produccion' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 $ {tecnicoSort.key === 'produccion' && (tecnicoSort.direction === 'asc' ? '↑' : '↓')}
               </button>
@@ -227,11 +239,11 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {tecnicosPorZona.map(({ zona, tecnicos, totalProduccion }) => (
-            <div key={zona} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div key={zona} className="bg-white rounded-lg border border-slate-200/60 overflow-hidden">
               {/* Header de zona */}
-              <div className="bg-oca-blue text-white px-3 py-2 flex justify-between items-center">
+              <div className="bg-slate-800 text-white px-3 py-2 flex justify-between items-center">
                 <span className="font-semibold text-xs truncate">{zona}</span>
                 <span className="font-bold text-xs">{formatCompact(totalProduccion)}</span>
               </div>
@@ -243,14 +255,14 @@ export default function ProduccionMensual({ produccion, produccionTecnicos }: Pr
                     className="flex justify-between items-center px-3 py-1.5 border-b border-slate-50 last:border-0 hover:bg-slate-50"
                   >
                     <span className="text-[11px] text-slate-700 truncate pr-2">{t.nombre}</span>
-                    <span className="text-[11px] font-semibold text-oca-blue whitespace-nowrap">
+                    <span className="text-[11px] font-semibold text-slate-800 whitespace-nowrap">
                       {formatCompact(t.produccion)}
                     </span>
                   </div>
                 ))}
               </div>
               {/* Footer con cantidad */}
-              <div className="bg-slate-50 px-3 py-1 text-[10px] text-slate-400 text-center">
+              <div className="bg-slate-50 px-3 py-1 text-[10px] text-slate-400 text-center border-t border-slate-100">
                 {tecnicos.length} técnico{tecnicos.length !== 1 ? 's' : ''}
               </div>
             </div>

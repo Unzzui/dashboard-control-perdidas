@@ -1,4 +1,4 @@
-import { Filters, DashboardData, FilterOptions, RetiroMedidoresData, DetalleAvisoData, ControlDiarioData } from '@/types';
+import { Filters, DashboardData, FilterOptions, RetiroMedidoresData, DetalleAvisoData, ControlDiarioData, AnalisisComparativoData, AnalisisJornadaData } from '@/types';
 
 // Usar ruta vacía para aprovechar el proxy de Next.js en next.config.js
 // Esto permite que ngrok funcione correctamente para usuarios remotos
@@ -70,4 +70,14 @@ export async function getDetalleAviso(filters: Partial<Filters>, page: number = 
   const qs = buildQueryString(filters);
   const base = qs ? `/api/v1/detalle-aviso?${qs}` : '/api/v1/detalle-aviso';
   return fetchAPI<DetalleAvisoData>(`${base}${qs ? '&' : '?'}page=${page}&page_size=${pageSize}`);
+}
+
+export async function getAnalisisComparativo(filters: Partial<Filters>): Promise<AnalisisComparativoData> {
+  const qs = buildQueryString(filters);
+  return fetchAPI<AnalisisComparativoData>(qs ? `/api/v1/analisis-comparativo?${qs}` : '/api/v1/analisis-comparativo');
+}
+
+export async function getAnalisisJornada(filters: Partial<Filters>): Promise<AnalisisJornadaData> {
+  const qs = buildQueryString(filters);
+  return fetchAPI<AnalisisJornadaData>(qs ? `/api/v1/analisis-jornada?${qs}` : '/api/v1/analisis-jornada');
 }

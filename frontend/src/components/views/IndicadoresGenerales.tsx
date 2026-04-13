@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { ZonaStats, DailyStats, KPIData } from '@/types';
-import KPICard from '@/components/ui/KPICard';
 import DataTable from '@/components/ui/DataTable';
 import StackedBarChart from '@/components/charts/StackedBarChart';
 import DonutChart from '@/components/charts/DonutChart';
@@ -15,58 +14,72 @@ interface IndicadoresGeneralesProps {
 
 export default function IndicadoresGenerales({ kpis, zonas, daily }: IndicadoresGeneralesProps) {
   const columns = useMemo(() => [
-    { key: 'zona', header: 'Zona', width: '200px' },
+    { key: 'zona', header: 'Zona', width: '180px' },
     {
       key: 'normal',
-      header: 'NORMAL',
+      header: 'Normal',
       align: 'right' as const,
-      render: (row: ZonaStats) => row.normal.toLocaleString('es-CL'),
+      render: (row: ZonaStats) => (
+        <span className="text-slate-600">{row.normal.toLocaleString('es-CL')}</span>
+      ),
     },
     {
       key: 'cnr',
       header: 'CNR',
       align: 'right' as const,
-      render: (row: ZonaStats) => row.cnr.toLocaleString('es-CL'),
+      render: (row: ZonaStats) => (
+        <span className="font-medium text-slate-800">{row.cnr.toLocaleString('es-CL')}</span>
+      ),
     },
     {
       key: 'pct_cnr',
       header: '% CNR',
       align: 'right' as const,
       render: (row: ZonaStats) => (
-        <span className="font-medium text-oca-blue">{row.pct_cnr.toFixed(2)}%</span>
+        <span className={row.pct_cnr >= 50 ? 'text-green-600' : 'text-slate-600'}>
+          {row.pct_cnr.toFixed(1)}%
+        </span>
       ),
     },
     {
       key: 'efectivas',
-      header: 'EFECTIVAS',
+      header: 'Efectivas',
       align: 'right' as const,
-      render: (row: ZonaStats) => row.efectivas.toLocaleString('es-CL'),
+      render: (row: ZonaStats) => (
+        <span className="font-medium text-slate-800">{row.efectivas.toLocaleString('es-CL')}</span>
+      ),
     },
     {
       key: 'pct_efectivas',
-      header: '% EFECT.',
+      header: '% Efect.',
       align: 'right' as const,
       render: (row: ZonaStats) => (
-        <span className="text-green-600 font-medium">{row.pct_efectivas.toFixed(2)}%</span>
+        <span className={row.pct_efectivas >= 70 ? 'text-green-600' : row.pct_efectivas >= 50 ? 'text-amber-600' : 'text-red-600'}>
+          {row.pct_efectivas.toFixed(1)}%
+        </span>
       ),
     },
     {
       key: 'visita_fallida',
-      header: 'V. FALLIDA',
+      header: 'V. Fallida',
       align: 'right' as const,
-      render: (row: ZonaStats) => row.visita_fallida.toLocaleString('es-CL'),
+      render: (row: ZonaStats) => (
+        <span className="text-slate-500">{row.visita_fallida.toLocaleString('es-CL')}</span>
+      ),
     },
     {
       key: 'pct_visita_fallida',
       header: '% V.F.',
       align: 'right' as const,
       render: (row: ZonaStats) => (
-        <span className="text-orange-500">{row.pct_visita_fallida.toFixed(2)}%</span>
+        <span className={row.pct_visita_fallida > 30 ? 'text-red-600' : 'text-slate-500'}>
+          {row.pct_visita_fallida.toFixed(1)}%
+        </span>
       ),
     },
   ], []);
 
-  // Memoizar cálculo de totales
+  // Totales
   const totals = useMemo(() => {
     const result: ZonaStats = {
       zona: 'Total',
@@ -86,125 +99,114 @@ export default function IndicadoresGenerales({ kpis, zonas, daily }: Indicadores
     return result;
   }, [zonas]);
 
-  // Memoizar datos del donut chart
+  // Datos del donut
   const donutData = useMemo(() => [
     { name: 'CNR', value: kpis.total_cnr },
     { name: 'Normal', value: kpis.total_normal },
-    { name: 'Visita Fallida', value: kpis.total_visita_fallida },
+    { name: 'V. Fallida', value: kpis.total_visita_fallida },
   ], [kpis.total_cnr, kpis.total_normal, kpis.total_visita_fallida]);
 
-  // Memoizar cálculos de promedio diario y mejor/peor día
-  const { promedioDiario, mejorDia, diasTrabajados } = useMemo(() => {
-    const prom = daily.length > 0 ? {
-      cnr: Math.round(daily.reduce((acc, d) => acc + d.cnr, 0) / daily.length),
-      normal: Math.round(daily.reduce((acc, d) => acc + d.normal, 0) / daily.length),
-      visita_fallida: Math.round(daily.reduce((acc, d) => acc + d.visita_fallida, 0) / daily.length),
-      total: Math.round(daily.reduce((acc, d) => acc + d.cnr + d.normal + d.visita_fallida, 0) / daily.length),
-    } : { cnr: 0, normal: 0, visita_fallida: 0, total: 0 };
+  // Estadísticas diarias
+  const stats = useMemo(() => {
+    if (daily.length === 0) return { promedio: 0, efectivasPromedio: 0, mejorDia: null, diasTrabajados: 0 };
 
-    const diasConTotal = daily.map(d => ({
-      ...d,
-      total: d.cnr + d.normal + d.visita_fallida,
-      efectivas: d.cnr + d.normal,
-    }));
-    const mejor = diasConTotal.length > 0
-      ? diasConTotal.reduce((best, d) => d.efectivas > best.efectivas ? d : best, diasConTotal[0])
-      : null;
-    const trabajados = daily.filter(d => (d.cnr + d.normal + d.visita_fallida) > 0).length;
+    const promedio = Math.round(daily.reduce((acc, d) => acc + d.cnr + d.normal + d.visita_fallida, 0) / daily.length);
+    const efectivasPromedio = Math.round(daily.reduce((acc, d) => acc + d.cnr + d.normal, 0) / daily.length);
 
-    return { promedioDiario: prom, mejorDia: mejor, diasTrabajados: trabajados };
+    const diasConTotal = daily.map(d => ({ ...d, efectivas: d.cnr + d.normal }));
+    const mejorDia = diasConTotal.reduce((best, d) => d.efectivas > best.efectivas ? d : best, diasConTotal[0]);
+    const diasTrabajados = daily.filter(d => (d.cnr + d.normal + d.visita_fallida) > 0).length;
+
+    return { promedio, efectivasPromedio, mejorDia, diasTrabajados };
   }, [daily]);
 
-  // Memoizar datos de la tabla
   const tableData = useMemo(() => [...zonas, totals], [zonas, totals]);
 
   return (
     <div className="space-y-6">
-      {/* KPIs Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <KPICard
-          title="Total Registros"
-          value={kpis.total_registros}
-          color="gray"
-        />
-        <KPICard
-          title="Normal"
-          value={kpis.total_normal}
-          subtitle={`${kpis.pct_efectivas.toFixed(2)}% efectivas`}
-          color="blue"
-        />
-        <KPICard
-          title="CNR"
-          value={kpis.total_cnr}
-          subtitle={`${kpis.pct_cnr.toFixed(2)}%`}
-          color="blue"
-        />
-        <KPICard
-          title="CNR Falla"
-          value={kpis.cnr_falla}
-          subtitle={`${kpis.pct_cnr_falla.toFixed(2)}%`}
-          color="green"
-        />
-        <KPICard
-          title="CNR Hurto"
-          value={kpis.cnr_hurto}
-          subtitle={`${kpis.pct_cnr_hurto.toFixed(2)}%`}
-          color="red"
-        />
-        <KPICard
-          title="Visita Fallida"
-          value={kpis.total_visita_fallida}
-          subtitle={`${kpis.pct_visita_fallida.toFixed(2)}%`}
-          color="orange"
-        />
+      {/* KPIs Principales */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Registros</p>
+          <p className="text-2xl font-bold text-slate-800">{kpis.total_registros.toLocaleString('es-CL')}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Normal</p>
+          <p className="text-2xl font-bold text-slate-800">{kpis.total_normal.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_efectivas.toFixed(1)}% efectivas</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR</p>
+          <p className="text-2xl font-bold text-slate-800">{kpis.total_cnr.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_cnr.toFixed(1)}%</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Falla</p>
+          <p className="text-2xl font-bold text-green-600">{kpis.cnr_falla.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_cnr_falla.toFixed(1)}%</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Hurto</p>
+          <p className="text-2xl font-bold text-red-600">{kpis.cnr_hurto.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_cnr_hurto.toFixed(1)}%</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Visita Fallida</p>
+          <p className="text-2xl font-bold text-amber-600">{kpis.total_visita_fallida.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_visita_fallida.toFixed(1)}%</p>
+        </div>
       </div>
 
       {/* Resumen Operativo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Promedio Diario</p>
-          <p className="text-2xl font-bold text-slate-700">{promedioDiario.total.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-500 mt-1">registros/día</p>
+          <p className="text-2xl font-bold text-slate-800">{stats.promedio.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">registros/día</p>
         </div>
-        <div className="card bg-gradient-to-br from-green-50 to-green-100">
-          <p className="text-[10px] uppercase tracking-wider text-green-600 mb-1">Efectivas Promedio</p>
-          <p className="text-2xl font-bold text-green-700">{(promedioDiario.cnr + promedioDiario.normal).toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-green-600 mt-1">CNR + Normal/día</p>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectivas Promedio</p>
+          <p className="text-2xl font-bold text-slate-800">{stats.efectivasPromedio.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">CNR + Normal/día</p>
         </div>
-        <div className="card bg-gradient-to-br from-blue-50 to-blue-100">
-          <p className="text-[10px] uppercase tracking-wider text-blue-600 mb-1">Mejor Día</p>
-          <p className="text-2xl font-bold text-blue-700">{mejorDia ? mejorDia.efectivas.toLocaleString('es-CL') : '-'}</p>
-          <p className="text-[10px] text-blue-600 mt-1">{mejorDia ? `Día ${mejorDia.dia}` : ''} efectivas</p>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Mejor Día</p>
+          <p className="text-2xl font-bold text-slate-800">{stats.mejorDia ? stats.mejorDia.efectivas.toLocaleString('es-CL') : '-'}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{stats.mejorDia ? `Día ${stats.mejorDia.dia}` : ''}</p>
         </div>
-        <div className="card bg-gradient-to-br from-orange-50 to-orange-100">
-          <p className="text-[10px] uppercase tracking-wider text-orange-600 mb-1">Días Trabajados</p>
-          <p className="text-2xl font-bold text-orange-700">{diasTrabajados}</p>
-          <p className="text-[10px] text-orange-600 mt-1">días con actividad</p>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Días Trabajados</p>
+          <p className="text-2xl font-bold text-slate-800">{stats.diasTrabajados}</p>
+          <p className="text-[10px] text-slate-400 mt-1">con actividad</p>
         </div>
       </div>
 
-      {/* Main Content - Tabla y Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Zona Table */}
-        <div className="card lg:col-span-2">
-          <h3 className="section-title mb-3">Resultados por Zona</h3>
+      {/* Tabla y Donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4 lg:col-span-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Resultados por Zona
+          </h3>
           <DataTable columns={columns} data={tableData} />
         </div>
 
-        {/* Donut Chart */}
-        <div className="card">
-          <h3 className="section-title mb-3">Distribución de Resultados</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Distribución
+          </h3>
           <DonutChart
             data={donutData}
-            colors={['#294D6D', '#4A7BA7', '#F97316']}
+            colors={['#475569', '#94a3b8', '#f59e0b']}
           />
         </div>
       </div>
 
-      {/* Daily Chart - Gráfico principal más grande */}
-      <div className="card">
-        <h3 className="section-title mb-3">Actividad Diaria del Mes</h3>
-        <StackedBarChart data={daily} height="350px" />
+      {/* Gráfico Diario */}
+      <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+          Actividad Diaria
+        </h3>
+        <StackedBarChart data={daily} height="300px" />
       </div>
     </div>
   );

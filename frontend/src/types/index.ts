@@ -210,6 +210,97 @@ export interface GeoPoint {
   aviso: string;
 }
 
+// Análisis Comparativo
+export interface ComparativoZona {
+  zona: string;
+  actual: {
+    cnr: number;
+    efectivas: number;
+    visita_fallida: number;
+    pct_cnr: number;
+    pct_efectivas: number;
+  };
+  anterior: {
+    cnr: number;
+    efectivas: number;
+    visita_fallida: number;
+    pct_cnr: number;
+    pct_efectivas: number;
+  };
+  variacion: {
+    cnr: number;
+    efectivas: number;
+    visita_fallida: number;
+    pct_cnr: number;
+    pct_efectivas: number;
+  };
+}
+
+export interface ComparativoTecnico {
+  zona: string;
+  nombre: string;
+  actual_cnr: number;
+  anterior_cnr: number;
+  variacion_cnr: number;
+  actual_efectivas: number;
+  anterior_efectivas: number;
+  variacion_efectivas: number;
+  tendencia: 'mejorando' | 'estable' | 'cayendo';
+}
+
+export interface AnalisisComparativoData {
+  periodo_actual: string;
+  periodo_anterior: string;
+  resumen: {
+    total_cnr_actual: number;
+    total_cnr_anterior: number;
+    variacion_cnr: number;
+    total_efectivas_actual: number;
+    total_efectivas_anterior: number;
+    variacion_efectivas: number;
+    total_vf_actual: number;
+    total_vf_anterior: number;
+    variacion_vf: number;
+  };
+  zonas: ComparativoZona[];
+  tecnicos_mejorando: ComparativoTecnico[];
+  tecnicos_cayendo: ComparativoTecnico[];
+}
+
+// Análisis de Jornada
+export interface ActividadPorHora {
+  hora: number;
+  cnr: number;
+  normal: number;
+  visita_fallida: number;
+  total: number;
+}
+
+export interface JornadaTecnico {
+  zona: string;
+  tecnico: string;
+  hora_inicio: string;
+  hora_fin: string;
+  duracion_minutos: number;
+  actividades: number;
+  cnr: number;
+  efectivas: number;
+  productividad_hora: number;
+}
+
+export interface AnalisisJornadaData {
+  fecha: string;
+  actividad_por_hora: ActividadPorHora[];
+  jornadas: JornadaTecnico[];
+  resumen: {
+    duracion_promedio: number;
+    hora_pico_cnr: number;
+    hora_pico_vf: number;
+    tecnicos_jornada_corta: number;
+    productividad_promedio: number;
+  };
+}
+
 // Control Diario - Producción del día anterior
 export interface ProduccionDiaria {
   etiqueta: string;

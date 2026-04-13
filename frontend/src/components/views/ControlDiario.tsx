@@ -1,22 +1,24 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
+import { X, ChevronRight, Check, AlertTriangle } from 'lucide-react';
 import { Filters, ControlDiarioData, CierreActividades, DetalleCNR, CampanaCNR } from '@/types';
 import { getControlDiario } from '@/lib/api';
-import KPICard from '@/components/ui/KPICard';
 
 interface ControlDiarioProps {
   filters: Filters;
 }
 
+type ModalType = 'cnr' | 'efectivas' | 'ambas' | 'ninguna' | null;
+
 // Componente para barra de progreso visual - memoizado
-const ProgressBar = memo(function ProgressBar({ value, max, color = 'blue' }: { value: number; max: number; color?: string }) {
+const ProgressBar = memo(function ProgressBar({ value, max, color = 'slate' }: { value: number; max: number; color?: string }) {
   const pct = Math.min((value / max) * 100, 100);
   const colorClasses: Record<string, string> = {
-    blue: 'bg-oca-blue',
+    slate: 'bg-slate-600',
     green: 'bg-green-500',
     red: 'bg-red-500',
-    orange: 'bg-orange-500',
+    amber: 'bg-amber-500',
   };
   return (
     <div className="w-full bg-slate-200 rounded-full h-2">
@@ -36,6 +38,7 @@ function getFilterKey(filters: Filters): string {
 export default function ControlDiario({ filters }: ControlDiarioProps) {
   const [data, setData] = useState<ControlDiarioData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState<ModalType>(null);
   const lastFilterKey = useRef<string>('');
 
   const fetchData = useCallback(async () => {
@@ -99,7 +102,7 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
 
   // Memoizar cálculos derivados
   const { resumenPorZona, tecnicosData, tecnicosCumplenCNR, tecnicosCumplenEfectivas,
-          tecnicosCumplenAmbas, totalTecnicos, topTecnicos, tecnicosAlerta } = useMemo(() => {
+          tecnicosCumplenAmbas, totalTecnicos, topTecnicos, tecnicosAlerta, tecnicosNoCumplenNinguna } = useMemo(() => {
     const produccion = data?.produccion || [];
 
     const resumenPorZona = produccion
@@ -122,19 +125,70 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
       .sort((a, b) => b.q_efectivo - a.q_efectivo)
       .slice(0, 5);
 
+    // Todos los técnicos que no cumplen ninguna meta (sin límite)
     const tecnicosAlerta = tecnicosDataFiltered
-      .filter(t => t.cnr < 2 && t.q_efectivo < 8)
-      .slice(0, 5);
+      .filter(t => t.cnr < 2 && t.q_efectivo < 8);
+
+    const tecnicosNoCumplenNinguna = tecnicosAlerta.length;
 
     return { resumenPorZona, tecnicosData: tecnicosDataFiltered, tecnicosCumplenCNR, tecnicosCumplenEfectivas,
-             tecnicosCumplenAmbas, totalTecnicos, topTecnicos, tecnicosAlerta };
+             tecnicosCumplenAmbas, totalTecnicos, topTecnicos, tecnicosAlerta, tecnicosNoCumplenNinguna };
+  }, [data?.produccion]);
+
+  // Técnicos agrupados por zona para el modal
+  const tecnicosPorZona = useMemo(() => {
+    const produccion = data?.produccion || [];
+    const zonas: Record<string, {
+      nombre: string;
+      tecnicos: Array<{
+        nombre: string;
+        cnr: number;
+        qEfectivo: number;
+        cumpleCNR: boolean;
+        cumpleEfectivas: boolean;
+        cumpleAmbas: boolean;
+      }>;
+      totales: { cumplenCNR: number; cumplenEfectivas: number; cumplenAmbas: number; total: number };
+    }> = {};
+
+    let currentZona = '';
+    produccion.forEach(p => {
+      if (p.es_zona) {
+        currentZona = p.etiqueta;
+        zonas[currentZona] = {
+          nombre: currentZona,
+          tecnicos: [],
+          totales: { cumplenCNR: 0, cumplenEfectivas: 0, cumplenAmbas: 0, total: 0 }
+        };
+      } else if (currentZona && zonas[currentZona]) {
+        const cumpleCNR = p.cnr >= 2;
+        const cumpleEfectivas = p.q_efectivo >= 8;
+        const cumpleAmbas = cumpleCNR && cumpleEfectivas;
+
+        zonas[currentZona].tecnicos.push({
+          nombre: p.etiqueta,
+          cnr: p.cnr,
+          qEfectivo: p.q_efectivo,
+          cumpleCNR,
+          cumpleEfectivas,
+          cumpleAmbas
+        });
+
+        zonas[currentZona].totales.total++;
+        if (cumpleCNR) zonas[currentZona].totales.cumplenCNR++;
+        if (cumpleEfectivas) zonas[currentZona].totales.cumplenEfectivas++;
+        if (cumpleAmbas) zonas[currentZona].totales.cumplenAmbas++;
+      }
+    });
+
+    return Object.values(zonas);
   }, [data?.produccion]);
 
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-oca-blue"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
       </div>
     );
   }
@@ -158,93 +212,119 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Control Diario de Operaciones</h2>
           <p className="text-sm text-slate-500">
-            Reporte del día anterior: <span className="font-medium text-oca-blue">{data.fecha_reporte}</span>
+            Reporte del día anterior: <span className="font-medium text-slate-700">{data.fecha_reporte}</span>
           </p>
         </div>
       </div>
 
-      {/* KPIs Principales */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard
-          title="Producción Total"
-          value={data.resumen.total_produccion}
-          color="gray"
-        />
-        <KPICard
-          title="Total CNR"
-          value={data.resumen.total_cnr}
-          subtitle={`${data.resumen.pct_cnr_general.toFixed(1)}% del efectivo`}
-          color="blue"
-        />
-        <KPICard
-          title="Total Normal"
-          value={data.resumen.total_normal}
-          color="green"
-        />
-        <KPICard
-          title="Visita Fallida"
-          value={data.resumen.total_visita_fallida}
-          subtitle={`${data.resumen.pct_visita_fallida_general.toFixed(1)}% del total`}
-          color="orange"
-        />
-        <KPICard
-          title="% CNR General"
-          value={`${data.resumen.pct_cnr_general.toFixed(1)}%`}
-          color="blue"
-        />
-        <KPICard
-          title="% V. Fallida"
-          value={`${data.resumen.pct_visita_fallida_general.toFixed(1)}%`}
-          color="red"
-        />
+      {/* KPIs Principales - Solo los 4 más críticos */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Producción Total</p>
+          <p className="text-2xl font-bold text-slate-800">{data.resumen.total_produccion.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">CNR: {data.resumen.total_cnr} | Normal: {data.resumen.total_normal}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% CNR</p>
+          <p className={`text-2xl font-bold ${data.resumen.pct_cnr_general >= 25 ? 'text-green-600' : 'text-slate-800'}`}>
+            {data.resumen.pct_cnr_general.toFixed(1)}%
+          </p>
+          <p className="text-[10px] text-slate-400 mt-1">Meta: 25%</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% V. Fallida</p>
+          <p className={`text-2xl font-bold ${data.resumen.pct_visita_fallida_general <= 25 ? 'text-green-600' : 'text-red-600'}`}>
+            {data.resumen.pct_visita_fallida_general.toFixed(1)}%
+          </p>
+          <p className="text-[10px] text-slate-400 mt-1">Meta: {'<'}25% | {data.resumen.total_visita_fallida.toLocaleString('es-CL')} casos</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Técnicos Activos</p>
+          <p className="text-2xl font-bold text-slate-800">{totalTecnicos}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{tecnicosCumplenAmbas} cumplen ambas metas</p>
+        </div>
       </div>
 
       {/* Panel de Cumplimiento de Metas y Alertas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Resumen de Cumplimiento */}
-        <div className="card">
-          <h3 className="section-title mb-3">Cumplimiento de Metas</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">Cumplimiento de Metas</h3>
+          <p className="text-[9px] text-slate-400 mb-3">Click para ver detalle por zona</p>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
-              <div>
+            <button
+              onClick={() => setModalOpen('cnr')}
+              className="w-full flex items-center justify-between p-2 bg-slate-50 rounded hover:bg-slate-100 transition-colors cursor-pointer group"
+            >
+              <div className="text-left">
                 <p className="text-[10px] text-slate-500 uppercase">Meta CNR/día {'>='} 2</p>
                 <p className="text-lg font-bold text-slate-700">{tecnicosCumplenCNR} / {totalTecnicos}</p>
               </div>
-              <div className={`text-2xl font-bold ${tecnicosCumplenCNR >= totalTecnicos * 0.7 ? 'text-green-600' : 'text-red-600'}`}>
-                {totalTecnicos > 0 ? Math.round((tecnicosCumplenCNR / totalTecnicos) * 100) : 0}%
+              <div className="flex items-center gap-2">
+                <span className={`text-2xl font-bold ${tecnicosCumplenCNR >= totalTecnicos * 0.7 ? 'text-green-600' : 'text-red-600'}`}>
+                  {totalTecnicos > 0 ? Math.round((tecnicosCumplenCNR / totalTecnicos) * 100) : 0}%
+                </span>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
               </div>
-            </div>
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
-              <div>
+            </button>
+            <button
+              onClick={() => setModalOpen('efectivas')}
+              className="w-full flex items-center justify-between p-2 bg-slate-50 rounded hover:bg-slate-100 transition-colors cursor-pointer group"
+            >
+              <div className="text-left">
                 <p className="text-[10px] text-slate-500 uppercase">Meta Efectivas/día {'>='} 8</p>
                 <p className="text-lg font-bold text-slate-700">{tecnicosCumplenEfectivas} / {totalTecnicos}</p>
               </div>
-              <div className={`text-2xl font-bold ${tecnicosCumplenEfectivas >= totalTecnicos * 0.7 ? 'text-green-600' : 'text-red-600'}`}>
-                {totalTecnicos > 0 ? Math.round((tecnicosCumplenEfectivas / totalTecnicos) * 100) : 0}%
+              <div className="flex items-center gap-2">
+                <span className={`text-2xl font-bold ${tecnicosCumplenEfectivas >= totalTecnicos * 0.7 ? 'text-green-600' : 'text-red-600'}`}>
+                  {totalTecnicos > 0 ? Math.round((tecnicosCumplenEfectivas / totalTecnicos) * 100) : 0}%
+                </span>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
               </div>
-            </div>
-            <div className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200">
-              <div>
+            </button>
+            <button
+              onClick={() => setModalOpen('ambas')}
+              className="w-full flex items-center justify-between p-2 bg-green-50 rounded border border-green-200 hover:bg-green-100 transition-colors cursor-pointer group"
+            >
+              <div className="text-left">
                 <p className="text-[10px] text-green-700 uppercase font-medium">Cumplen ambas metas</p>
                 <p className="text-lg font-bold text-green-700">{tecnicosCumplenAmbas} / {totalTecnicos}</p>
               </div>
-              <div className="text-2xl font-bold text-green-600">
-                {totalTecnicos > 0 ? Math.round((tecnicosCumplenAmbas / totalTecnicos) * 100) : 0}%
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-green-600">
+                  {totalTecnicos > 0 ? Math.round((tecnicosCumplenAmbas / totalTecnicos) * 100) : 0}%
+                </span>
+                <ChevronRight className="w-4 h-4 text-green-500 group-hover:text-green-700" />
               </div>
-            </div>
+            </button>
+            <button
+              onClick={() => setModalOpen('ninguna')}
+              className="w-full flex items-center justify-between p-2 bg-red-50 rounded border border-red-200 hover:bg-red-100 transition-colors cursor-pointer group"
+            >
+              <div className="text-left">
+                <p className="text-[10px] text-red-700 uppercase font-medium">No cumplen ninguna meta</p>
+                <p className="text-lg font-bold text-red-700">{tecnicosNoCumplenNinguna} / {totalTecnicos}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-red-600">
+                  {totalTecnicos > 0 ? Math.round((tecnicosNoCumplenNinguna / totalTecnicos) * 100) : 0}%
+                </span>
+                <ChevronRight className="w-4 h-4 text-red-500 group-hover:text-red-700" />
+              </div>
+            </button>
           </div>
         </div>
 
         {/* Top Técnicos */}
-        <div className="card">
-          <h3 className="section-title mb-3">Top 5 Técnicos del Día</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">Top 5 Técnicos del Día</h3>
           <div className="space-y-2">
             {topTecnicos.map((t, idx) => (
               <div key={idx} className="flex items-center gap-3 p-2 bg-slate-50 rounded">
                 <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold ${
-                  idx === 0 ? 'bg-yellow-400 text-yellow-900' :
-                  idx === 1 ? 'bg-slate-300 text-slate-700' :
-                  idx === 2 ? 'bg-orange-300 text-orange-900' :
+                  idx === 0 ? 'bg-slate-800 text-white' :
+                  idx === 1 ? 'bg-slate-600 text-white' :
+                  idx === 2 ? 'bg-slate-400 text-white' :
                   'bg-slate-200 text-slate-600'
                 }`}>
                   {idx + 1}
@@ -260,8 +340,15 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
         </div>
 
         {/* Alertas */}
-        <div className="card">
-          <h3 className="section-title mb-3 text-red-600">Técnicos en Alerta</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-red-600">Técnicos en Alerta</h3>
+            {tecnicosAlerta.length > 0 && (
+              <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                {tecnicosAlerta.length}
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-slate-400 mb-3">No cumplen ninguna meta (CNR {'<'} 2 y Efect {'<'} 8)</p>
           {tecnicosAlerta.length === 0 ? (
             <div className="p-4 bg-green-50 rounded text-center">
@@ -269,14 +356,14 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
               <p className="text-[10px] text-green-600">Todos los técnicos cumplen al menos una meta</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[280px] overflow-y-auto">
               {tecnicosAlerta.map((t, idx) => (
                 <div key={idx} className="flex items-center gap-2 p-2 bg-red-50 rounded border border-red-200">
-                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-medium text-red-700 truncate">{t.etiqueta}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <span className="text-[10px] text-red-600">CNR: {t.cnr}</span>
                     <span className="text-[10px] text-red-600 ml-2">Efect: {t.q_efectivo.toFixed(0)}</span>
                   </div>
@@ -288,15 +375,15 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
       </div>
 
       {/* Resumen Visual por Zona */}
-      <div className="card">
-        <h3 className="section-title mb-4">Resumen por Zona</h3>
+      <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">Resumen por Zona</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {resumenPorZona.map((zona) => {
             const cumpleQEfectivo = zona.qEfectivo >= 8;
             const cumpleVF = zona.pctVF <= 25;
             return (
               <div key={zona.zona} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                <h4 className="text-xs font-bold text-oca-blue mb-3 truncate" title={zona.zona}>
+                <h4 className="text-xs font-bold text-slate-800 mb-3 truncate" title={zona.zona}>
                   {zona.zona}
                 </h4>
 
@@ -307,16 +394,16 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
                       <span>Producción</span>
                       <span className="font-semibold text-slate-700">{zona.produccion}</span>
                     </div>
-                    <ProgressBar value={zona.produccion} max={maxProduccion} color="blue" />
+                    <ProgressBar value={zona.produccion} max={maxProduccion} color="slate" />
                   </div>
 
                   {/* CNR */}
                   <div>
                     <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                       <span>CNR</span>
-                      <span className="font-semibold text-oca-blue">{zona.cnr}</span>
+                      <span className="font-semibold text-slate-800">{zona.cnr}</span>
                     </div>
-                    <ProgressBar value={zona.cnr} max={maxCNR} color="blue" />
+                    <ProgressBar value={zona.cnr} max={maxCNR} color="slate" />
                   </div>
 
                   {/* Q Efectivo y % VF */}
@@ -341,18 +428,17 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
         </div>
       </div>
 
-      {/* Producción por Técnico + Panel lateral */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Tabla de Producción - 2/3 del ancho */}
-        <div className="card lg:col-span-2">
+      {/* Producción por Técnico */}
+      <div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="section-title">Producción por Técnico</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Producción por Técnico</h3>
             <div className="flex items-center gap-2 text-[9px]">
               <span className="flex items-center gap-1">
-                <span className="px-1 rounded bg-green-100 text-green-700">✓</span> Meta
+                <span className="px-1 rounded bg-green-100 text-green-700">OK</span> Meta
               </span>
               <span className="flex items-center gap-1">
-                <span className="px-1 rounded bg-red-100 text-red-700">✗</span> Bajo
+                <span className="px-1 rounded bg-red-100 text-red-700">X</span> Bajo
               </span>
             </div>
           </div>
@@ -379,7 +465,7 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
                     <tr
                       key={idx}
                       className={isZona
-                        ? 'bg-oca-blue text-white font-semibold'
+                        ? 'bg-slate-800 text-white font-semibold'
                         : 'border-b border-slate-50 hover:bg-slate-50'
                       }
                     >
@@ -413,91 +499,31 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
           </div>
         </div>
 
-        {/* Panel lateral - 1/3 del ancho */}
-        <div className="space-y-4">
-          {/* Resumen del día */}
-          <div className="card">
-            <h3 className="section-title mb-3">Resumen del Día</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center p-2 bg-slate-50 rounded">
-                <span className="text-[10px] text-slate-500">Total Producción</span>
-                <span className="text-lg font-bold text-slate-700">{data.resumen.total_produccion}</span>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                <span className="text-[10px] text-blue-600">Total CNR</span>
-                <span className="text-lg font-bold text-oca-blue">{data.resumen.total_cnr}</span>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-green-50 rounded">
-                <span className="text-[10px] text-green-600">Total Normal</span>
-                <span className="text-lg font-bold text-green-600">{data.resumen.total_normal}</span>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-orange-50 rounded">
-                <span className="text-[10px] text-orange-600">Visita Fallida</span>
-                <span className="text-lg font-bold text-orange-600">{data.resumen.total_visita_fallida}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Indicadores */}
-          <div className="card">
-            <h3 className="section-title mb-3">Indicadores</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-center p-2 bg-slate-50 rounded">
-                <p className="text-2xl font-bold text-oca-blue">{data.resumen.pct_cnr_general.toFixed(1)}%</p>
-                <p className="text-[9px] text-slate-500 uppercase">% CNR</p>
-              </div>
-              <div className="text-center p-2 bg-slate-50 rounded">
-                <p className={`text-2xl font-bold ${data.resumen.pct_visita_fallida_general <= 25 ? 'text-green-600' : 'text-red-600'}`}>
-                  {data.resumen.pct_visita_fallida_general.toFixed(1)}%
-                </p>
-                <p className="text-[9px] text-slate-500 uppercase">% V. Fallida</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Técnicos destacados */}
-          <div className="card">
-            <h3 className="section-title mb-2">Top Técnicos</h3>
-            <div className="space-y-1">
-              {topTecnicos.slice(0, 3).map((t, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-1.5 bg-slate-50 rounded">
-                  <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[9px] font-bold ${
-                    idx === 0 ? 'bg-yellow-400 text-yellow-900' :
-                    idx === 1 ? 'bg-slate-300 text-slate-700' :
-                    'bg-orange-300 text-orange-900'
-                  }`}>{idx + 1}</span>
-                  <span className="text-[10px] truncate flex-1">{t.etiqueta}</span>
-                  <span className="text-[10px] font-bold text-green-600">{t.q_efectivo.toFixed(0)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Grid de 2 columnas para Cierre y CNR */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Cierre de Actividades */}
-        <div className="card">
-          <h3 className="section-title mb-3">Cierre de Actividades</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">Cierre de Actividades</h3>
           <p className="text-[10px] text-slate-400 mb-4">
             Primera y última actividad registrada por técnico
           </p>
           <div className="max-h-[450px] overflow-y-auto space-y-3">
             {Object.entries(cierreByZona).map(([zona, items]) => (
               <div key={zona}>
-                <div className="bg-oca-blue text-white text-xs font-bold px-3 py-2 rounded-t">
+                <div className="bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-t">
                   {zona}
                 </div>
                 <div className="border border-t-0 border-slate-200 rounded-b overflow-hidden">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">TÉCNICO</th>
-                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-center">INICIO</th>
-                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-center">FIN</th>
-                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-center">DURACIÓN</th>
-                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right">ACT.</th>
+                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">Técnico</th>
+                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-center">Inicio</th>
+                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-center">Fin</th>
+                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-center">Duración</th>
+                        <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right">Act.</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -510,7 +536,7 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
                             </span>
                           </td>
                           <td className="px-3 py-2 text-center">
-                            <span className="inline-block bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded">
+                            <span className="inline-block bg-slate-100 text-slate-700 text-[10px] font-medium px-2 py-0.5 rounded">
                               {item.ultima_actividad}
                             </span>
                           </td>
@@ -527,8 +553,8 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
         </div>
 
         {/* Detalle de CNR */}
-        <div className="card">
-          <h3 className="section-title mb-3">Detalle de CNR</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">Detalle de CNR</h3>
           <p className="text-[10px] text-slate-400 mb-4">
             Tipos de CNR por zona y responsable
           </p>
@@ -537,7 +563,7 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
               const totalZona = items.reduce((acc, i) => acc + i.cantidad, 0);
               return (
                 <div key={zona}>
-                  <div className="bg-oca-blue text-white text-xs font-bold px-3 py-2 rounded-t flex justify-between items-center">
+                  <div className="bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-t flex justify-between items-center">
                     <span>{zona}</span>
                     <span className="bg-white/20 px-2 py-0.5 rounded text-[10px]">{totalZona} CNR</span>
                   </div>
@@ -545,9 +571,9 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
                     <table className="w-full">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
-                          <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">TIPO CNR</th>
-                          <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">RESPONSABLE</th>
-                          <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-16">CANT.</th>
+                          <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">Tipo CNR</th>
+                          <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">Responsable</th>
+                          <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-16">Cant.</th>
                           <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-16">%</th>
                         </tr>
                       </thead>
@@ -558,7 +584,7 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
                               <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded ${
                                 item.tipo_cnr.includes('Hurto')
                                   ? 'bg-red-100 text-red-700'
-                                  : 'bg-orange-100 text-orange-700'
+                                  : 'bg-green-100 text-green-700'
                               }`}>
                                 {item.tipo_cnr}
                               </span>
@@ -579,8 +605,8 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
       </div>
 
       {/* Campañas con CNR */}
-      <div className="card">
-        <h3 className="section-title mb-3">Campañas con CNR por Zona</h3>
+      <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">Campañas con CNR por Zona</h3>
         <p className="text-[10px] text-slate-400 mb-4">
           Detalle de campañas que generaron CNR
         </p>
@@ -589,25 +615,25 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
             const totalCNRZona = items.reduce((acc, i) => acc + i.cnr, 0);
             return (
               <div key={zona} className="border border-slate-200 rounded-lg overflow-hidden">
-                <div className="bg-oca-blue text-white text-xs font-bold px-3 py-2 flex justify-between items-center">
+                <div className="bg-slate-800 text-white text-xs font-bold px-3 py-2 flex justify-between items-center">
                   <span>{zona}</span>
                   <span className="bg-white/20 px-2 py-0.5 rounded text-[10px]">{totalCNRZona} CNR</span>
                 </div>
                 <table className="w-full">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">DESCRIPCIÓN DEL AVISO</th>
-                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-16">CNR</th>
-                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-16">NORMAL</th>
-                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-16">TOTAL</th>
-                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-16">% CNR</th>
+                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-left">Descripción</th>
+                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-12">CNR</th>
+                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-12">Norm</th>
+                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-12">Total</th>
+                      <th className="px-3 py-1.5 text-[9px] font-semibold text-slate-500 text-right w-14">%CNR</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((item, idx) => (
                       <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50">
                         <td className="px-3 py-2 text-[11px] text-slate-700">{item.descripcion_aviso}</td>
-                        <td className="px-3 py-2 text-[11px] font-bold text-oca-blue text-right">{item.cnr}</td>
+                        <td className="px-3 py-2 text-[11px] font-bold text-slate-800 text-right">{item.cnr}</td>
                         <td className="px-3 py-2 text-[11px] text-right">{item.normal}</td>
                         <td className="px-3 py-2 text-[11px] text-right">{item.total}</td>
                         <td className="px-3 py-2 text-[11px] text-right">
@@ -624,6 +650,169 @@ export default function ControlDiario({ filters }: ControlDiarioProps) {
           })}
         </div>
       </div>
+
+      {/* Modal de Cumplimiento de Metas */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setModalOpen(null)}
+          />
+
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] m-4 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  {modalOpen === 'cnr' && 'Detalle Meta CNR >= 2'}
+                  {modalOpen === 'efectivas' && 'Detalle Meta Efectivas >= 8'}
+                  {modalOpen === 'ambas' && 'Detalle Cumplen Ambas Metas'}
+                  {modalOpen === 'ninguna' && 'Técnicos que No Cumplen Ninguna Meta'}
+                </h2>
+                <p className="text-sm text-slate-500">{data.fecha_reporte}</p>
+              </div>
+              <button
+                onClick={() => setModalOpen(null)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Summary */}
+            {modalOpen === 'ninguna' ? (
+              <div className="px-6 py-3 bg-red-50 border-b border-red-200">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                  <span className="text-sm text-red-800">
+                    <strong>{tecnicosNoCumplenNinguna}</strong>
+                    {' '}de {totalTecnicos} técnicos no cumplen ninguna meta
+                    {' '}
+                    <span className="text-red-600">
+                      ({totalTecnicos > 0 ? Math.round((tecnicosNoCumplenNinguna / totalTecnicos) * 100) : 0}%)
+                    </span>
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="px-6 py-3 bg-green-50 border-b border-green-200">
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-sm text-green-800">
+                    <strong>
+                      {modalOpen === 'cnr' ? tecnicosCumplenCNR :
+                       modalOpen === 'efectivas' ? tecnicosCumplenEfectivas :
+                       tecnicosCumplenAmbas}
+                    </strong>
+                    {' '}de {totalTecnicos} técnicos cumplen esta meta
+                    {' '}
+                    <span className="text-green-600">
+                      ({totalTecnicos > 0 ? Math.round(((modalOpen === 'cnr' ? tecnicosCumplenCNR :
+                       modalOpen === 'efectivas' ? tecnicosCumplenEfectivas :
+                       tecnicosCumplenAmbas) / totalTecnicos) * 100) : 0}%)
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
+                {tecnicosPorZona.map((zona) => {
+                  // Filtrar técnicos según la meta seleccionada
+                  const tecnicosFiltrados = zona.tecnicos.filter(t => {
+                    if (modalOpen === 'cnr') return t.cumpleCNR;
+                    if (modalOpen === 'efectivas') return t.cumpleEfectivas;
+                    if (modalOpen === 'ambas') return t.cumpleAmbas;
+                    if (modalOpen === 'ninguna') return !t.cumpleCNR && !t.cumpleEfectivas;
+                    return true;
+                  });
+
+                  // Si no hay técnicos en esta zona, no mostrar la zona
+                  if (tecnicosFiltrados.length === 0) return null;
+
+                  const esAlerta = modalOpen === 'ninguna';
+
+                  return (
+                    <div key={zona.nombre} className="border border-slate-200 rounded-lg overflow-hidden">
+                      {/* Zona Header */}
+                      <div className={`${esAlerta ? 'bg-red-700' : 'bg-slate-800'} text-white px-4 py-2 flex items-center justify-between`}>
+                        <span className="font-semibold text-sm">{zona.nombre}</span>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={`flex items-center gap-1 ${esAlerta ? 'bg-red-500/30' : 'bg-green-500/20'} px-2 py-0.5 rounded`}>
+                            {esAlerta ? (
+                              <AlertTriangle className="w-3.5 h-3.5 text-red-300" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 text-green-400" />
+                            )}
+                            <span className={`${esAlerta ? 'text-red-200' : 'text-green-300'} font-medium`}>{tecnicosFiltrados.length} técnicos</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Técnicos Table */}
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="px-4 py-2 text-[10px] font-semibold uppercase text-slate-500 text-left">Técnico</th>
+                            <th className="px-4 py-2 text-[10px] font-semibold uppercase text-slate-500 text-center w-24">CNR</th>
+                            <th className="px-4 py-2 text-[10px] font-semibold uppercase text-slate-500 text-center w-24">Efectivas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tecnicosFiltrados.map((tecnico, idx) => (
+                            <tr
+                              key={idx}
+                              className="border-b border-slate-50 hover:bg-slate-50"
+                            >
+                              <td className="px-4 py-2 text-sm text-slate-700">{tecnico.nombre}</td>
+                              <td className="px-4 py-2 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+                                  tecnico.cumpleCNR ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {tecnico.cnr}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+                                  tecnico.cumpleEfectivas ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {tecnico.qEfectivo.toFixed(0)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-slate-500">
+                  {modalOpen === 'cnr' && 'Meta: >= 2 CNR por día'}
+                  {modalOpen === 'efectivas' && 'Meta: >= 8 Efectivas por día'}
+                  {modalOpen === 'ambas' && 'Técnicos que cumplen ambas metas simultáneamente'}
+                  {modalOpen === 'ninguna' && 'Técnicos con CNR < 2 y Efectivas < 8'}
+                </p>
+                <button
+                  onClick={() => setModalOpen(null)}
+                  className="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import dashboard, filters, geo, retiro_medidores, detalle_aviso, control_diario
+from app.dependencies import clear_filter_cache, reload_dataframe
 
 app = FastAPI(
     title="Control de Pérdidas API",
@@ -39,3 +40,17 @@ def root():
         "version": "1.0.0",
         "docs": "/docs"
     }
+
+
+@app.post("/api/v1/cache/clear")
+def clear_cache():
+    """Limpia el caché de filtros."""
+    clear_filter_cache()
+    return {"message": "Cache cleared"}
+
+
+@app.post("/api/v1/data/reload")
+def reload_data():
+    """Recarga el DataFrame y limpia el caché."""
+    reload_dataframe()
+    return {"message": "Data reloaded"}

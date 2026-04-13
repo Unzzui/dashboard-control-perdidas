@@ -1,167 +1,260 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ZonaStats, CampanaStats, DailyStats } from '@/types';
+import { CampanaStats } from '@/types';
 import DataTable from '@/components/ui/DataTable';
-import StackedBarChart from '@/components/charts/StackedBarChart';
-import DonutChart from '@/components/charts/DonutChart';
 
 interface ResultadosDelegacionProps {
-  zonas: ZonaStats[];
   campanas: CampanaStats[];
-  daily: DailyStats[];
-  cnrFalla: number;
-  cnrHurto: number;
 }
 
 export default function ResultadosDelegacion({
-  zonas,
   campanas,
-  daily,
-  cnrFalla,
-  cnrHurto,
 }: ResultadosDelegacionProps) {
-  const zonaColumns = useMemo(() => [
-    { key: 'zona', header: 'Zona', width: '180px' },
-    {
-      key: 'normal',
-      header: 'Normal',
-      align: 'right' as const,
-      render: (row: ZonaStats) => row.normal.toLocaleString('es-CL'),
-    },
-    {
-      key: 'cnr',
-      header: 'CNR',
-      align: 'right' as const,
-      render: (row: ZonaStats) => row.cnr.toLocaleString('es-CL'),
-    },
-    {
-      key: 'pct_cnr',
-      header: '% CNR',
-      align: 'right' as const,
-      render: (row: ZonaStats) => `${row.pct_cnr.toFixed(2)}%`,
-    },
-    {
-      key: 'efectivas',
-      header: 'EFECTIVAS',
-      align: 'right' as const,
-      render: (row: ZonaStats) => row.efectivas.toLocaleString('es-CL'),
-    },
-    {
-      key: 'pct_efectivas',
-      header: '% EFECTIVAS',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className="text-green-600 font-medium">{row.pct_efectivas.toFixed(2)}%</span>
-      ),
-    },
-    {
-      key: 'visita_fallida',
-      header: 'Visita fallida',
-      align: 'right' as const,
-      render: (row: ZonaStats) => row.visita_fallida.toLocaleString('es-CL'),
-    },
-    {
-      key: 'pct_visita_fallida',
-      header: '% VF',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className="text-orange-500">{row.pct_visita_fallida.toFixed(2)}%</span>
-      ),
-    },
-  ], []);
+  // Totales de campañas
+  const totals = useMemo(() => {
+    const totalCNR = campanas.reduce((acc, c) => acc + c.cnr, 0);
+    const totalEfectivas = campanas.reduce((acc, c) => acc + c.efectivas, 0);
+    const totalVF = campanas.reduce((acc, c) => acc + c.visita_fallida, 0);
+    const totalCNRFalla = campanas.reduce((acc, c) => acc + c.cnr_falla, 0);
+    const totalCNRHurto = campanas.reduce((acc, c) => acc + c.cnr_hurto, 0);
+    const total = totalEfectivas + totalVF;
+    const pctCNR = totalEfectivas > 0 ? (totalCNR / totalEfectivas * 100) : 0;
+    const pctFalla = totalCNR > 0 ? (totalCNRFalla / totalCNR * 100) : 0;
+    return { totalCNR, totalEfectivas, totalVF, totalCNRFalla, totalCNRHurto, total, pctCNR, pctFalla };
+  }, [campanas]);
+
+  // Top campañas por CNR
+  const topCampanasCNR = useMemo(() => {
+    return [...campanas]
+      .sort((a, b) => b.cnr - a.cnr)
+      .slice(0, 10);
+  }, [campanas]);
+
+  // Top campañas por efectividad (con mínimo de registros)
+  const topCampanasEfectividad = useMemo(() => {
+    return [...campanas]
+      .filter(c => c.efectivas + c.visita_fallida >= 10) // Mínimo 10 registros
+      .sort((a, b) => b.pct_efectivas - a.pct_efectivas)
+      .slice(0, 10);
+  }, [campanas]);
+
+  // Campañas con problemas (alta V. Fallida)
+  const campanasProblematicas = useMemo(() => {
+    return [...campanas]
+      .filter(c => c.visita_fallida > 0 && c.efectivas + c.visita_fallida >= 5)
+      .map(c => ({
+        ...c,
+        pct_vf: (c.visita_fallida / (c.efectivas + c.visita_fallida)) * 100,
+      }))
+      .sort((a, b) => b.pct_vf - a.pct_vf)
+      .slice(0, 10);
+  }, [campanas]);
 
   const campanaColumns = useMemo(() => [
-    { key: 'descripcion', header: 'Descripción del aviso', width: '250px' },
-    {
-      key: 'normal',
-      header: 'NORMAL',
-      align: 'right' as const,
-      render: (row: CampanaStats) => row.normal > 0 ? row.normal.toLocaleString('es-CL') : '',
-    },
+    { key: 'descripcion', header: 'Campaña', width: '280px' },
     {
       key: 'cnr',
       header: 'CNR',
       align: 'right' as const,
-      render: (row: CampanaStats) => row.cnr > 0 ? row.cnr.toLocaleString('es-CL') : '',
+      render: (row: CampanaStats) => row.cnr > 0 ? (
+        <span className="font-medium text-slate-800">{row.cnr.toLocaleString('es-CL')}</span>
+      ) : <span className="text-slate-300">-</span>,
     },
     {
       key: 'pct_cnr',
       header: '% CNR',
       align: 'right' as const,
-      render: (row: CampanaStats) => row.pct_cnr > 0 ? `${row.pct_cnr.toFixed(2)}%` : '',
+      render: (row: CampanaStats) => row.pct_cnr > 0 ? (
+        <span className={row.pct_cnr >= 50 ? 'text-green-600 font-medium' : 'text-slate-500'}>
+          {row.pct_cnr.toFixed(1)}%
+        </span>
+      ) : <span className="text-slate-300">-</span>,
     },
     {
       key: 'efectivas',
-      header: 'EFECTIVAS',
+      header: 'Efectivas',
       align: 'right' as const,
-      render: (row: CampanaStats) => row.efectivas > 0 ? row.efectivas.toLocaleString('es-CL') : '',
-    },
-    {
-      key: 'pct_efectivas',
-      header: '% EFECTIVAS',
-      align: 'right' as const,
-      render: (row: CampanaStats) => row.pct_efectivas > 0 ? `${row.pct_efectivas.toFixed(2)}%` : '',
+      render: (row: CampanaStats) => row.efectivas > 0 ? (
+        <span className="text-slate-600">{row.efectivas.toLocaleString('es-CL')}</span>
+      ) : <span className="text-slate-300">-</span>,
     },
     {
       key: 'visita_fallida',
-      header: 'VISITA FALLIDA',
+      header: 'V. Fallida',
       align: 'right' as const,
-      render: (row: CampanaStats) => row.visita_fallida > 0 ? row.visita_fallida.toLocaleString('es-CL') : '',
+      render: (row: CampanaStats) => row.visita_fallida > 0 ? (
+        <span className="text-amber-600">{row.visita_fallida.toLocaleString('es-CL')}</span>
+      ) : <span className="text-slate-300">-</span>,
     },
     {
       key: 'cnr_falla',
-      header: 'CNR FALLA',
+      header: 'Falla',
       align: 'right' as const,
-      render: (row: CampanaStats) => row.cnr_falla > 0 ? row.cnr_falla.toLocaleString('es-CL') : '',
+      render: (row: CampanaStats) => row.cnr_falla > 0 ? (
+        <span className="text-green-600">{row.cnr_falla.toLocaleString('es-CL')}</span>
+      ) : <span className="text-slate-300">-</span>,
     },
     {
       key: 'cnr_hurto',
-      header: 'CNR HURTO',
+      header: 'Hurto',
       align: 'right' as const,
-      render: (row: CampanaStats) => row.cnr_hurto > 0 ? row.cnr_hurto.toLocaleString('es-CL') : '',
+      render: (row: CampanaStats) => row.cnr_hurto > 0 ? (
+        <span className="text-red-600">{row.cnr_hurto.toLocaleString('es-CL')}</span>
+      ) : <span className="text-slate-300">-</span>,
     },
   ], []);
 
-  const donutData = useMemo(() => [
-    { name: 'CNR FALLA', value: cnrFalla },
-    { name: 'CNR HURTO', value: cnrHurto },
-  ], [cnrFalla, cnrHurto]);
-
-  // Memoizar datos de campañas limitados
-  const limitedCampanas = useMemo(() => campanas.slice(0, 30), [campanas]);
-
   return (
     <div className="space-y-6">
-      {/* Results by Delegation */}
-      <div className="card">
-        <h3 className="section-title mb-3">Resultados por Delegación</h3>
-        <DataTable columns={zonaColumns} data={zonas} />
+      {/* KPIs específicos de campañas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Campañas</p>
+          <p className="text-2xl font-bold text-slate-800">{campanas.length}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Total</p>
+          <p className="text-2xl font-bold text-slate-800">{totals.totalCNR.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{totals.pctCNR.toFixed(1)}% efectividad</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Falla</p>
+          <p className="text-2xl font-bold text-green-600">{totals.totalCNRFalla.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{totals.pctFalla.toFixed(1)}% del CNR</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Hurto</p>
+          <p className="text-2xl font-bold text-red-600">{totals.totalCNRHurto.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{(100 - totals.pctFalla).toFixed(1)}% del CNR</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectivas</p>
+          <p className="text-2xl font-bold text-slate-800">{totals.totalEfectivas.toLocaleString('es-CL')}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">V. Fallidas</p>
+          <p className="text-2xl font-bold text-amber-600">{totals.totalVF.toLocaleString('es-CL')}</p>
+        </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Daily Activity */}
-        <div className="card lg:col-span-2">
-          <h3 className="section-title mb-3">Actividades Diarias</h3>
-          <StackedBarChart data={daily} />
+      {/* Rankings de campañas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Top CNR */}
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Top 10 Campañas por CNR
+          </h3>
+          <div className="space-y-2">
+            {topCampanasCNR.map((c, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${
+                  idx < 3 ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-slate-700 truncate" title={c.descripcion}>
+                    {c.descripcion}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex-1 bg-slate-200 rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full bg-slate-600"
+                        style={{ width: `${Math.min((c.cnr / topCampanasCNR[0].cnr) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-medium text-slate-700 w-10 text-right">
+                      {c.cnr.toLocaleString('es-CL')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* CNR Types Donut */}
-        <div className="card">
-          <h3 className="section-title mb-3">Tipos de CNR</h3>
-          <DonutChart
-            data={donutData}
-            colors={['#294D6D', '#4A7BA7']}
-          />
+        {/* Top Efectividad */}
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Top 10 por Efectividad
+          </h3>
+          <div className="space-y-2">
+            {topCampanasEfectividad.map((c, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${
+                  idx < 3 ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-slate-700 truncate" title={c.descripcion}>
+                    {c.descripcion}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex-1 bg-slate-200 rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full bg-green-500"
+                        style={{ width: `${c.pct_efectivas}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-medium text-green-700 w-10 text-right">
+                      {c.pct_efectivas.toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[9px] text-slate-400 mt-3">*Mínimo 10 registros</p>
+        </div>
+
+        {/* Campañas problemáticas */}
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-red-600 mb-4">
+            Mayor % Visitas Fallidas
+          </h3>
+          <div className="space-y-2">
+            {campanasProblematicas.map((c, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${
+                  idx < 3 ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-slate-700 truncate" title={c.descripcion}>
+                    {c.descripcion}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex-1 bg-slate-200 rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full bg-red-500"
+                        style={{ width: `${c.pct_vf}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-medium text-red-700 w-10 text-right">
+                      {c.pct_vf.toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[9px] text-slate-400 mt-3">*Mínimo 5 registros</p>
         </div>
       </div>
 
-      {/* Campaigns Table */}
-      <div className="card">
-        <h3 className="section-title mb-3">Campañas</h3>
+      {/* Tabla completa de campañas */}
+      <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Detalle de Campañas
+          </h3>
+          <span className="text-[10px] text-slate-400">{campanas.length} campañas</span>
+        </div>
         <div className="max-h-[400px] overflow-y-auto">
-          <DataTable columns={campanaColumns} data={limitedCampanas} />
+          <DataTable columns={campanaColumns} data={campanas} />
         </div>
       </div>
     </div>

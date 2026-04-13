@@ -20,51 +20,58 @@ export default function Normalizaciones({
   dailyTratamiento,
 }: NormalizacionesProps) {
   const columns = useMemo(() => [
-    { key: 'zona', header: 'Zona', width: '200px' },
+    { key: 'zona', header: 'Zona', width: '180px' },
     {
       key: 'no_normalizado',
-      header: 'No normalizado Visita',
+      header: 'No Normalizado',
       align: 'right' as const,
-      render: (row: NormalizacionStats) => row.no_normalizado.toLocaleString('es-CL'),
+      render: (row: NormalizacionStats) => (
+        <span className="text-slate-600">{row.no_normalizado.toLocaleString('es-CL')}</span>
+      ),
     },
     {
       key: 'pct_no_normalizado',
-      header: '% Visita',
+      header: '%',
       align: 'right' as const,
       render: (row: NormalizacionStats) => (
-        <span className="text-orange-500">{row.pct_no_normalizado.toFixed(2)}%</span>
+        <span className={row.pct_no_normalizado > 50 ? 'text-amber-600' : 'text-slate-500'}>
+          {row.pct_no_normalizado.toFixed(1)}%
+        </span>
       ),
     },
     {
       key: 'normalizado',
-      header: 'Normalizado Visita',
+      header: 'Normalizado',
       align: 'right' as const,
-      render: (row: NormalizacionStats) => row.normalizado.toLocaleString('es-CL'),
+      render: (row: NormalizacionStats) => (
+        <span className="text-slate-600">{row.normalizado.toLocaleString('es-CL')}</span>
+      ),
     },
     {
       key: 'pct_normalizado',
-      header: '% Visita',
+      header: '%',
       align: 'right' as const,
       render: (row: NormalizacionStats) => (
-        <span className="text-green-600">{row.pct_normalizado.toFixed(2)}%</span>
+        <span className={row.pct_normalizado >= 50 ? 'text-green-600' : 'text-slate-500'}>
+          {row.pct_normalizado.toFixed(1)}%
+        </span>
       ),
     },
     {
       key: 'total',
-      header: 'Total Visita',
+      header: 'Total',
       align: 'right' as const,
       render: (row: NormalizacionStats) => (
-        <span className="font-semibold">{row.total.toLocaleString('es-CL')}</span>
+        <span className="font-medium text-slate-800">{row.total.toLocaleString('es-CL')}</span>
       ),
     },
   ], []);
 
   const donutData = useMemo(() => [
-    { name: 'CNR FALLA', value: cnrFalla },
-    { name: 'CNR HURTO', value: cnrHurto },
+    { name: 'CNR Falla', value: cnrFalla },
+    { name: 'CNR Hurto', value: cnrHurto },
   ], [cnrFalla, cnrHurto]);
 
-  // Convert daily to tratamiento format
   const tratamientoDaily = useMemo(() => dailyTratamiento.map((d) => ({
     ...d,
     cnr: d.cnr,
@@ -72,40 +79,73 @@ export default function Normalizaciones({
     visita_fallida: 0,
   })), [dailyTratamiento]);
 
+  const totals = useMemo(() => {
+    const totalNorm = normalizaciones.reduce((acc, n) => acc + n.normalizado, 0);
+    const totalNoNorm = normalizaciones.reduce((acc, n) => acc + n.no_normalizado, 0);
+    const total = totalNorm + totalNoNorm;
+    return {
+      normalizado: totalNorm,
+      noNormalizado: totalNoNorm,
+      total,
+      pctNorm: total > 0 ? (totalNorm / total * 100).toFixed(1) : '0',
+    };
+  }, [normalizaciones]);
+
+  const totalCNR = cnrFalla + cnrHurto;
+  const pctFalla = totalCNR > 0 ? (cnrFalla / totalCNR * 100).toFixed(1) : '0';
+  const pctHurto = totalCNR > 0 ? (cnrHurto / totalCNR * 100).toFixed(1) : '0';
+
   return (
     <div className="space-y-6">
-      {/* Table and Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Normalizations Table */}
-        <div className="card lg:col-span-2">
-          <h3 className="section-title mb-3">Normalizaciones x Delegación</h3>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total CNR</p>
+          <p className="text-2xl font-bold text-slate-800">{totalCNR.toLocaleString('es-CL')}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Falla</p>
+          <p className="text-2xl font-bold text-green-600">{cnrFalla.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{pctFalla}%</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Hurto</p>
+          <p className="text-2xl font-bold text-red-600">{cnrHurto.toLocaleString('es-CL')}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{pctHurto}%</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% Normalizado</p>
+          <p className="text-2xl font-bold text-slate-800">{totals.pctNorm}%</p>
+          <p className="text-[10px] text-slate-400 mt-1">{totals.normalizado.toLocaleString('es-CL')} de {totals.total.toLocaleString('es-CL')}</p>
+        </div>
+      </div>
+
+      {/* Tabla y Donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4 lg:col-span-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Normalizaciones por Zona
+          </h3>
           <DataTable columns={columns} data={normalizaciones} />
         </div>
 
-        {/* CNR Types Donut */}
-        <div className="card">
-          <h3 className="section-title mb-3">Tipos de CNR</h3>
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            Tipos de CNR
+          </h3>
           <DonutChart
             data={donutData}
-            colors={['#294D6D', '#4A7BA7']}
+            colors={['#16a34a', '#dc2626']}
           />
         </div>
       </div>
 
-      {/* Treatment Chart */}
-      <div className="card">
-        <h3 className="section-title mb-3">Resultado Tratamiento</h3>
-        <div className="mb-4 flex gap-4 text-sm">
-          <span className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-            No normalizado
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-green-500"></span>
-            Normalizado
-          </span>
-        </div>
-        <StackedBarChart data={tratamientoDaily} />
+      {/* Gráfico de Tratamiento */}
+      <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+          Resultado Tratamiento
+        </h3>
+        <StackedBarChart data={tratamientoDaily} height="300px" />
       </div>
     </div>
   );

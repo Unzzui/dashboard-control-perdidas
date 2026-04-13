@@ -16,6 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  GitCompare,
+  Clock,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -41,6 +44,7 @@ const menuSections: MenuSection[] = [
     title: 'Operación Diaria',
     items: [
       { id: 'control-diario', label: 'Control Diario', icon: ClipboardCheck },
+      { id: 'control-metas', label: 'Control de Metas', icon: Target },
     ],
   },
   {
@@ -57,6 +61,8 @@ const menuSections: MenuSection[] = [
       { id: 'efectividad', label: 'Efectividad Mensual', icon: TrendingUp },
       { id: 'produccion', label: 'Producción Mensual', icon: DollarSign },
       { id: 'kwh', label: 'Control kWh Recuperado', icon: FileBarChart },
+      { id: 'comparativo', label: 'Análisis Comparativo', icon: GitCompare },
+      { id: 'jornada', label: 'Análisis de Jornada', icon: Clock },
     ],
   },
   {

@@ -8,8 +8,10 @@ df_global: pd.DataFrame = None
 
 
 def get_dataframe() -> pd.DataFrame:
-    global df_global
+    global df_global, _filter_cache
     if df_global is None:
+        # Limpiar caché al recargar datos
+        _filter_cache = {}
         df_global = pd.read_parquet(DATA_PATH)
 
         # Convertir fechas
@@ -142,8 +144,8 @@ def apply_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
         if nombres:
             mask &= df['Nombre asignado'].isin(nombres)
 
-    # Aplicar máscara (sin copy - usa vista)
-    filtered = df.loc[mask]
+    # Aplicar máscara y crear una copia para evitar problemas con vistas
+    filtered = df.loc[mask].copy()
 
     # Guardar en caché (limpiar si es muy grande)
     if len(_filter_cache) >= _cache_max_size:
@@ -161,3 +163,11 @@ def clear_filter_cache():
     """Limpia el caché de filtros."""
     global _filter_cache
     _filter_cache = {}
+
+
+def reload_dataframe():
+    """Fuerza la recarga del DataFrame y limpia el caché."""
+    global df_global, _filter_cache
+    df_global = None
+    _filter_cache = {}
+    return get_dataframe()
