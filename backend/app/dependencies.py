@@ -94,7 +94,7 @@ def apply_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
     if cache_key in _filter_cache:
         return _filter_cache[cache_key]
 
-    # Construir máscara booleana (más eficiente que filtrar secuencialmente)
+    # Construir máscara booleana 
     mask = pd.Series([True] * len(df), index=df.index)
 
     if params.año:
@@ -107,7 +107,10 @@ def apply_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
             mask &= df['mes_nombre_lower'].isin(meses_lower)
 
     if params.dia:
-        mask &= (df['dia'] == params.dia)
+        dias = _parse_list_param(str(params.dia))
+        if dias:
+            dias_int = [int(d) for d in dias]
+            mask &= df['dia'].isin(dias_int)
 
     if params.zona:
         zonas = _parse_list_param(params.zona)

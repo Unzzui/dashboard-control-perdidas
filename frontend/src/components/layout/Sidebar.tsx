@@ -19,6 +19,7 @@ import {
   GitCompare,
   Clock,
   Target,
+  Presentation,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -83,7 +84,7 @@ const menuSections: MenuSection[] = [
 ];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
-  const { isNormal, toggleCollapse } = useSidebar();
+  const { isNormal, toggleCollapse, setPresentation } = useSidebar();
   const isExpanded = isNormal;
 
   return (
@@ -162,6 +163,22 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           ))}
         </div>
       </nav>
+
+      {/* Modo Presentación */}
+      <div className="px-2 py-2 border-t border-white/10">
+        <button
+          onClick={setPresentation}
+          className={cn(
+            'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors duration-150',
+            'bg-white/10 text-white hover:bg-white/20',
+            !isExpanded && 'justify-center px-0'
+          )}
+          title="Modo Presentación (ESC para salir)"
+        >
+          <Presentation className="w-4 h-4 flex-shrink-0" />
+          {isExpanded && <span className="truncate">Modo Presentación</span>}
+        </button>
+      </div>
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-white/10">

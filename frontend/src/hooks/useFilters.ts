@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Filters, FilterOptions } from '@/types';
-import { getFilterOptions } from '@/lib/api';
+import { getFilterOptions, getCascadeFilterOptions } from '@/lib/api';
 
 const MESES_NOMBRES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -16,13 +16,11 @@ function getCurrentMonthName(): string {
 }
 
 function findMonthInOptions(monthName: string, options: string[]): string | null {
-  // Buscar coincidencia exacta (case insensitive)
   const found = options.find(opt =>
     opt.toLowerCase() === monthName.toLowerCase()
   );
   if (found) return found;
 
-  // Buscar si el mes está contenido en alguna opción
   const partial = options.find(opt =>
     opt.toLowerCase().includes(monthName.toLowerCase()) ||
     monthName.toLowerCase().includes(opt.toLowerCase())
@@ -32,7 +30,6 @@ function findMonthInOptions(monthName: string, options: string[]): string | null
   return null;
 }
 
-// Filtros iniciales con año y mes actuales para evitar cargar todos los datos
 const currentYear = new Date().getFullYear();
 const currentMonthIdx = new Date().getMonth();
 const currentMonthName = MESES_NOMBRES[currentMonthIdx];
@@ -40,7 +37,7 @@ const currentMonthName = MESES_NOMBRES[currentMonthIdx];
 const initialFilters: Filters = {
   año: currentYear,
   mes: [currentMonthName.toLowerCase()],
-  dia: null,
+  dia: [],
   zona: [],
   regional: [],
   supervisor: [],
@@ -67,9 +64,11 @@ export function useFilters() {
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [options, setOptions] = useState<FilterOptions>(initialOptions);
   const [initialized, setInitialized] = useState(false);
+  const cascadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastCascadeKeyRef = useRef<string>('');
 
+  // Inicialización
   useEffect(() => {
-    // Solo ejecutar una vez al montar el componente
     if (initialized) return;
 
     const fetchOptions = async () => {
@@ -80,15 +79,11 @@ export function useFilters() {
         const currentYear = getCurrentYear();
         const currentMonthName = getCurrentMonthName();
 
-        // Buscar el mes actual en las opciones disponibles
         let selectedMonth = findMonthInOptions(currentMonthName, opts.meses);
-
-        // Si no se encuentra el mes actual, usar el último mes disponible
         if (!selectedMonth && opts.meses.length > 0) {
           selectedMonth = opts.meses[opts.meses.length - 1];
         }
 
-        // Buscar el año actual, si no existe usar el último disponible
         let selectedYear = currentYear;
         if (!opts.años.includes(currentYear) && opts.años.length > 0) {
           selectedYear = opts.años[opts.años.length - 1];
@@ -108,6 +103,82 @@ export function useFilters() {
 
     fetchOptions();
   }, [initialized]);
+
+  // Actualizar opciones en cascada cuando cambien los filtros principales
+  useEffect(() => {
+    if (!initialized) return;
+
+    // Cancelar timeout anterior
+    if (cascadeTimeoutRef.current) {
+      clearTimeout(cascadeTimeoutRef.current);
+    }
+
+    // Debounce de 400ms para dar tiempo a selecciones múltiples
+    cascadeTimeoutRef.current = setTimeout(async () => {
+      try {
+        const cascadeFilters = {
+          año: filters.año,
+          mes: filters.mes,
+          zona: filters.zona,
+          regional: filters.regional,
+          supervisor: filters.supervisor,
+        };
+
+        // Evitar llamadas duplicadas
+        const cascadeKey = JSON.stringify(cascadeFilters);
+        if (cascadeKey === lastCascadeKeyRef.current) {
+          return;
+        }
+        lastCascadeKeyRef.current = cascadeKey;
+
+        const opts = await getCascadeFilterOptions(cascadeFilters);
+
+        setOptions(prev => ({
+          ...prev,
+          dias: opts.dias,
+          zonas: opts.zonas,
+          regionales: opts.regionales,
+          supervisores: opts.supervisores,
+          estados: opts.estados,
+          tratamientos: opts.tratamientos,
+          tipos_campana: opts.tipos_campana,
+          nombres_asignados: opts.nombres_asignados,
+        }));
+
+        // Solo limpiar selecciones de campos dependientes (días, técnicos)
+        // NO limpiar zona, regional, supervisor - el usuario debe poder seleccionar múltiples
+        setFilters(prev => {
+          const newFilters = { ...prev };
+          let changed = false;
+
+          // Filtrar días que ya no existen (dependiente de mes)
+          const validDias = prev.dia.filter(d => opts.dias.includes(d));
+          if (validDias.length !== prev.dia.length) {
+            newFilters.dia = validDias;
+            changed = true;
+          }
+
+          // Filtrar técnicos que ya no existen (dependiente de supervisor)
+          const validTecnicos = prev.nombre_asignado.filter(t => opts.nombres_asignados.includes(t));
+          if (validTecnicos.length !== prev.nombre_asignado.length) {
+            newFilters.nombre_asignado = validTecnicos;
+            changed = true;
+          }
+
+          return changed ? newFilters : prev;
+        });
+
+      } catch (error) {
+        console.error('Error fetching cascade options:', error);
+      }
+    }, 400);
+
+    return () => {
+      if (cascadeTimeoutRef.current) {
+        clearTimeout(cascadeTimeoutRef.current);
+      }
+    };
+  }, [initialized, filters.año, filters.mes.join(','), filters.zona.join(','), filters.regional.join(','), filters.supervisor.join(',')]);
 
   return { filters, setFilters, options };
 }

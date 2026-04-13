@@ -1,18 +1,53 @@
 'use client';
 
-import { useMemo } from 'react';
-import { MensualStats, KPIData } from '@/types';
+import { useMemo, useCallback } from 'react';
+import { MensualStats, KPIData, Filters } from '@/types';
 import DataTable from '@/components/ui/DataTable';
-import LineChart from '@/components/charts/LineChart';
+import LineChart, { LineChartClickEvent } from '@/components/charts/LineChart';
 
 interface EfectividadMensualProps {
   mensual: MensualStats[];
   kpis: KPIData;
+  onFilterByMes?: (mes: string) => void;
+  currentFilters?: Filters;
 }
 
-export default function EfectividadMensual({ mensual, kpis }: EfectividadMensualProps) {
+export default function EfectividadMensual({
+  mensual,
+  kpis,
+  onFilterByMes,
+  currentFilters
+}: EfectividadMensualProps) {
+
+  const handleChartClick = useCallback((event: LineChartClickEvent) => {
+    if (onFilterByMes) {
+      onFilterByMes(event.label);
+    }
+  }, [onFilterByMes]);
+
+  const handleMesClick = useCallback((mes: string) => {
+    if (onFilterByMes) {
+      onFilterByMes(mes);
+    }
+  }, [onFilterByMes]);
+
   const columns = useMemo(() => [
-    { key: 'mes', header: 'Mes', width: '100px' },
+    {
+      key: 'mes',
+      header: 'Mes',
+      width: '100px',
+      render: (row: MensualStats) => (
+        <span
+          onClick={() => handleMesClick(row.mes)}
+          className={`
+            ${onFilterByMes ? 'cursor-pointer hover:text-oca-blue hover:underline' : ''}
+            ${currentFilters?.mes.includes(row.mes.toLowerCase()) ? 'text-oca-blue font-semibold' : ''}
+          `}
+        >
+          {row.mes}
+        </span>
+      ),
+    },
     {
       key: 'normal',
       header: 'Normal',
@@ -107,7 +142,7 @@ export default function EfectividadMensual({ mensual, kpis }: EfectividadMensual
         </span>
       ),
     },
-  ], []);
+  ], [handleMesClick, onFilterByMes, currentFilters?.mes]);
 
   const lineData = useMemo(() => ({
     labels: mensual.map((m) => m.mes),
@@ -186,18 +221,32 @@ export default function EfectividadMensual({ mensual, kpis }: EfectividadMensual
       {/* Table and Chart side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Efectividad por Mes
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Efectividad por Mes
+            </h3>
+            {onFilterByMes && (
+              <span className="text-[10px] text-slate-400">Click en mes para filtrar</span>
+            )}
+          </div>
           <DataTable columns={columns} data={mensual} />
         </div>
 
         {/* Line Chart */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Tendencia de Efectividad
-          </h3>
-          <LineChart data={lineData} yAxisFormat="percent" />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Tendencia de Efectividad
+            </h3>
+            {onFilterByMes && (
+              <span className="text-[10px] text-slate-400">Click en punto para filtrar</span>
+            )}
+          </div>
+          <LineChart
+            data={lineData}
+            yAxisFormat="percent"
+            onElementClick={onFilterByMes ? handleChartClick : undefined}
+          />
         </div>
       </div>
     </div>

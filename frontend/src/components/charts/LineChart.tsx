@@ -1,7 +1,15 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
+
+export interface LineChartClickEvent {
+  type: 'point';
+  label: string;
+  seriesName: string;
+  value: number;
+  dataIndex: number;
+}
 
 interface LineChartProps {
   data: {
@@ -14,10 +22,31 @@ interface LineChartProps {
   };
   title?: string;
   yAxisFormat?: 'percent' | 'number';
+  onElementClick?: (event: LineChartClickEvent) => void;
 }
 
-const LineChart = memo(function LineChart({ data, title, yAxisFormat = 'percent' }: LineChartProps) {
+const LineChart = memo(function LineChart({
+  data,
+  title,
+  yAxisFormat = 'percent',
+  onElementClick
+}: LineChartProps) {
   const defaultColors = ['#294D6D', '#4A7BA7', '#F97316', '#DE473C', '#10B981'];
+
+  const handleClick = useCallback((params: { name: string; seriesName: string; value: number; dataIndex: number }) => {
+    if (!onElementClick) return;
+    onElementClick({
+      type: 'point',
+      label: params.name,
+      seriesName: params.seriesName,
+      value: params.value,
+      dataIndex: params.dataIndex,
+    });
+  }, [onElementClick]);
+
+  const onEvents = useMemo(() => onElementClick ? {
+    click: handleClick,
+  } : undefined, [handleClick, onElementClick]);
 
   const option = useMemo(() => ({
     title: title ? {
@@ -43,6 +72,9 @@ const LineChart = memo(function LineChart({ data, title, yAxisFormat = 'percent'
             : param.value.toLocaleString('es-CL');
           result += `<div>${param.marker} ${param.seriesName}: ${value}</div>`;
         });
+        if (onElementClick) {
+          result += `<div style="margin-top:4px;font-size:10px;color:#6b7280;text-align:center">Click para filtrar por mes</div>`;
+        }
         return result;
       },
     },
@@ -63,6 +95,7 @@ const LineChart = memo(function LineChart({ data, title, yAxisFormat = 'percent'
       data: data.labels,
       boundaryGap: false,
       axisLabel: { fontSize: 10 },
+      triggerEvent: true,
     },
     yAxis: {
       type: 'value',
@@ -77,7 +110,7 @@ const LineChart = memo(function LineChart({ data, title, yAxisFormat = 'percent'
       data: s.data,
       smooth: true,
       symbol: 'circle',
-      symbolSize: 6,
+      symbolSize: onElementClick ? 8 : 6,
       lineStyle: {
         width: 2,
         color: s.color || defaultColors[idx % defaultColors.length],
@@ -85,14 +118,24 @@ const LineChart = memo(function LineChart({ data, title, yAxisFormat = 'percent'
       itemStyle: {
         color: s.color || defaultColors[idx % defaultColors.length],
       },
+      cursor: onElementClick ? 'pointer' : 'default',
+      emphasis: onElementClick ? {
+        scale: true,
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.3)',
+        },
+      } : undefined,
     })),
-  }), [data, title, yAxisFormat, defaultColors]);
+  }), [data, title, yAxisFormat, onElementClick, defaultColors]);
 
   return (
     <ReactECharts
       option={option}
       style={{ height: '300px', width: '100%' }}
       notMerge={true}
+      onEvents={onEvents}
     />
   );
 });

@@ -1,7 +1,7 @@
 export interface Filters {
   año: number | null;
   mes: string[];
-  dia: number | null;
+  dia: number[];
   zona: string[];
   regional: string[];
   supervisor: string[];
@@ -140,6 +140,7 @@ export interface DashboardData {
   kpis: KPIData;
   zonas: ZonaStats[];
   daily: DailyStats[];
+  daily_por_zona: Record<string, DailyStats[]>;
   mensual: MensualStats[];
   tecnicos: TecnicoRanking[];
   campanas: CampanaStats[];
@@ -147,6 +148,7 @@ export interface DashboardData {
   visitas_fallidas_responsabilidad: VisitaFallidaResponsabilidad[];
   produccion: ProduccionZona[];
   resultados_fallidos: ResultadoFallido[];
+  resultados_fallidos_por_zona: Record<string, ResultadoFallido[]>;
 }
 
 export interface ResultadoFallido {

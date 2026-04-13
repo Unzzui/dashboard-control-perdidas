@@ -1,19 +1,41 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
+
+export interface DonutClickEvent {
+  type: 'segment';
+  name: string;
+  value: number;
+  percent: number;
+}
 
 interface DonutChartProps {
   data: { name: string; value: number }[];
   title?: string;
   colors?: string[];
+  onElementClick?: (event: DonutClickEvent) => void;
 }
 
-const DonutChart = memo(function DonutChart({ data, title, colors }: DonutChartProps) {
+const DonutChart = memo(function DonutChart({ data, title, colors, onElementClick }: DonutChartProps) {
   const defaultColors = ['#294D6D', '#4A7BA7', '#F97316', '#DE473C', '#10B981'];
   const chartColors = colors || defaultColors;
 
   const total = useMemo(() => data.reduce((acc, item) => acc + item.value, 0), [data]);
+
+  const handleClick = useCallback((params: { name: string; value: number; percent: number }) => {
+    if (!onElementClick) return;
+    onElementClick({
+      type: 'segment',
+      name: params.name,
+      value: params.value,
+      percent: params.percent,
+    });
+  }, [onElementClick]);
+
+  const onEvents = useMemo(() => onElementClick ? {
+    click: handleClick,
+  } : undefined, [handleClick, onElementClick]);
 
   const option = useMemo(() => ({
     title: title ? {
@@ -29,7 +51,11 @@ const DonutChart = memo(function DonutChart({ data, title, colors }: DonutChartP
     tooltip: {
       trigger: 'item',
       formatter: (params: { name: string; value: number; percent: number }) => {
-        return `${params.name}: ${params.value.toLocaleString('es-CL')} (${params.percent.toFixed(2)}%)`;
+        let html = `${params.name}: ${params.value.toLocaleString('es-CL')} (${params.percent.toFixed(2)}%)`;
+        if (onElementClick) {
+          html += `<div style="margin-top:4px;font-size:10px;color:#6b7280;text-align:center">Click para filtrar</div>`;
+        }
+        return html;
       },
       backgroundColor: '#fff',
       borderColor: '#e5e7eb',
@@ -74,7 +100,13 @@ const DonutChart = memo(function DonutChart({ data, title, colors }: DonutChartP
             fontSize: 12,
             fontWeight: 'bold',
           },
+          itemStyle: onElementClick ? {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+          } : undefined,
         },
+        cursor: onElementClick ? 'pointer' : 'default',
         data: data.map((item, idx) => ({
           ...item,
           itemStyle: { color: chartColors[idx % chartColors.length] },
@@ -93,13 +125,14 @@ const DonutChart = memo(function DonutChart({ data, title, colors }: DonutChartP
         textAlign: 'center',
       },
     },
-  }), [data, title, chartColors, total]);
+  }), [data, title, chartColors, total, onElementClick]);
 
   return (
     <ReactECharts
       option={option}
       style={{ height: '280px', width: '100%' }}
       notMerge={true}
+      onEvents={onEvents}
     />
   );
 });

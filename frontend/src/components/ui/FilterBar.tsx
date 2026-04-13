@@ -24,111 +24,174 @@ export default function FilterBar({ filters, options, onChange }: FilterBarProps
     });
   };
 
+  const handleDiaChange = (values: string[]) => {
+    onChange({
+      ...filters,
+      dia: values.map(v => Number(v)),
+    });
+  };
+
   const selectClass = "text-[11px] border border-slate-200 rounded-md px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-oca-blue/30 focus:border-oca-blue/40";
 
+  // Contar filtros activos
+  const activeFiltersCount = [
+    filters.mes.length > 0,
+    filters.dia.length > 0,
+    filters.zona.length > 0,
+    filters.regional.length > 0,
+    filters.supervisor.length > 0,
+    filters.estado.length > 0,
+    filters.tratamiento.length > 0,
+    filters.tipo_campana.length > 0,
+    filters.nombre_asignado.length > 0,
+  ].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    onChange({
+      ...filters,
+      mes: [],
+      dia: [],
+      zona: [],
+      regional: [],
+      supervisor: [],
+      estado: [],
+      tratamiento: [],
+      tipo_campana: [],
+      nombre_asignado: [],
+    });
+  };
+
   return (
-    <div className="bg-white border-b border-slate-200 px-5 py-2.5">
-      <div className="flex flex-wrap items-end gap-2.5">
-        {/* Año - Select simple */}
-        <FilterSelect
-          label="Año"
-          value={filters.año || ''}
-          onChange={(v) => handleSingleChange('año', v ? Number(v) : null)}
-          options={options.años.map((a) => ({ value: String(a), label: String(a) }))}
-          className={`${selectClass} min-w-[72px]`}
-        />
+    <div className="bg-white border-b border-slate-200/80">
+      <div className="px-4 py-2">
+        <div className="flex flex-wrap items-end gap-2">
+          {/* Año - Select simple */}
+          <FilterSelect
+            label="Año"
+            value={filters.año || ''}
+            onChange={(v) => handleSingleChange('año', v ? Number(v) : null)}
+            options={options.años.map((a) => ({ value: String(a), label: String(a) }))}
+            className={`${selectClass} min-w-[70px]`}
+          />
 
-        {/* Mes - MultiSelect */}
-        <MultiSelect
-          label="Mes"
-          selected={filters.mes}
-          onChange={(v) => handleMultiChange('mes', v)}
-          options={options.meses.map((m) => ({ value: m, label: m }))}
-          placeholder="Todos"
-          className="min-w-[120px]"
-        />
+          {/* Mes - MultiSelect */}
+          <MultiSelect
+            label="Mes"
+            selected={filters.mes}
+            onChange={(v) => handleMultiChange('mes', v)}
+            options={options.meses.map((m) => ({ value: m, label: capitalizeFirst(m) }))}
+            placeholder="Todos"
+            className="min-w-[110px]"
+          />
 
-        {/* Día - Select simple */}
-        <FilterSelect
-          label="Día"
-          value={filters.dia || ''}
-          onChange={(v) => handleSingleChange('dia', v ? Number(v) : null)}
-          options={options.dias.map((d) => ({ value: String(d), label: String(d) }))}
-          className={`${selectClass} min-w-[64px]`}
-        />
+          {/* Día - MultiSelect */}
+          <MultiSelect
+            label="Día"
+            selected={filters.dia.map(String)}
+            onChange={handleDiaChange}
+            options={options.dias.map((d) => ({ value: String(d), label: String(d) }))}
+            placeholder="Todos"
+            className="min-w-[90px]"
+          />
 
-        {/* Regional - MultiSelect */}
-        <MultiSelect
-          label="Regional"
-          selected={filters.regional}
-          onChange={(v) => handleMultiChange('regional', v)}
-          options={options.regionales.map((r) => ({ value: r, label: r }))}
-          placeholder="Todas"
-          className="min-w-[120px]"
-        />
+          <div className="w-px h-6 bg-slate-200 mx-1 self-center" />
 
-        {/* Zona - MultiSelect */}
-        <MultiSelect
-          label="Zona"
-          selected={filters.zona}
-          onChange={(v) => handleMultiChange('zona', v)}
-          options={options.zonas.map((z) => ({ value: z, label: z }))}
-          placeholder="Todas"
-          className="min-w-[180px]"
-        />
+          {/* Regional - MultiSelect */}
+          <MultiSelect
+            label="Regional"
+            selected={filters.regional}
+            onChange={(v) => handleMultiChange('regional', v)}
+            options={options.regionales.map((r) => ({ value: r, label: r }))}
+            placeholder="Todas"
+            className="min-w-[110px]"
+            disabled={options.regionales.length === 0}
+          />
 
-        {/* Supervisor - MultiSelect */}
-        <MultiSelect
-          label="Supervisor"
-          selected={filters.supervisor}
-          onChange={(v) => handleMultiChange('supervisor', v)}
-          options={options.supervisores.map((s) => ({ value: s, label: s }))}
-          placeholder="Todos"
-          className="min-w-[140px]"
-        />
+          {/* Zona - MultiSelect */}
+          <MultiSelect
+            label="Zona"
+            selected={filters.zona}
+            onChange={(v) => handleMultiChange('zona', v)}
+            options={options.zonas.map((z) => ({ value: z, label: z }))}
+            placeholder="Todas"
+            className="min-w-[160px]"
+            disabled={options.zonas.length === 0}
+          />
 
-        {/* Estado - MultiSelect */}
-        <MultiSelect
-          label="Estado"
-          selected={filters.estado}
-          onChange={(v) => handleMultiChange('estado', v)}
-          options={options.estados.map((e) => ({ value: e, label: e }))}
-          placeholder="Todos"
-          className="min-w-[150px]"
-        />
+          {/* Supervisor - MultiSelect */}
+          <MultiSelect
+            label="Supervisor"
+            selected={filters.supervisor}
+            onChange={(v) => handleMultiChange('supervisor', v)}
+            options={options.supervisores.map((s) => ({ value: s, label: s }))}
+            placeholder="Todos"
+            className="min-w-[130px]"
+            disabled={options.supervisores.length === 0}
+          />
 
-        {/* Tratamiento - MultiSelect */}
-        <MultiSelect
-          label="Tratamiento"
-          selected={filters.tratamiento}
-          onChange={(v) => handleMultiChange('tratamiento', v)}
-          options={options.tratamientos.map((t) => ({ value: t, label: t }))}
-          placeholder="Todos"
-          className="min-w-[120px]"
-        />
+          <div className="w-px h-6 bg-slate-200 mx-1 self-center" />
 
-        {/* Campaña - MultiSelect */}
-        <MultiSelect
-          label="Campaña"
-          selected={filters.tipo_campana}
-          onChange={(v) => handleMultiChange('tipo_campana', v)}
-          options={options.tipos_campana.map((t) => ({ value: t, label: t }))}
-          placeholder="Todas"
-          className="min-w-[160px]"
-        />
+          {/* Estado - MultiSelect */}
+          <MultiSelect
+            label="Estado"
+            selected={filters.estado}
+            onChange={(v) => handleMultiChange('estado', v)}
+            options={options.estados.map((e) => ({ value: e, label: e }))}
+            placeholder="Todos"
+            className="min-w-[130px]"
+            disabled={options.estados.length === 0}
+          />
 
-        {/* Nombre asignado - MultiSelect */}
-        <MultiSelect
-          label="Técnico"
-          selected={filters.nombre_asignado}
-          onChange={(v) => handleMultiChange('nombre_asignado', v)}
-          options={options.nombres_asignados.slice(0, 100).map((n) => ({ value: n, label: n }))}
-          placeholder="Todos"
-          className="min-w-[180px]"
-        />
+          {/* Tratamiento - MultiSelect */}
+          <MultiSelect
+            label="Tratamiento"
+            selected={filters.tratamiento}
+            onChange={(v) => handleMultiChange('tratamiento', v)}
+            options={options.tratamientos.map((t) => ({ value: t, label: t }))}
+            placeholder="Todos"
+            className="min-w-[110px]"
+            disabled={options.tratamientos.length === 0}
+          />
+
+          {/* Campaña - MultiSelect */}
+          <MultiSelect
+            label="Campaña"
+            selected={filters.tipo_campana}
+            onChange={(v) => handleMultiChange('tipo_campana', v)}
+            options={options.tipos_campana.map((t) => ({ value: t, label: t }))}
+            placeholder="Todas"
+            className="min-w-[140px]"
+            disabled={options.tipos_campana.length === 0}
+          />
+
+          {/* Técnico - MultiSelect */}
+          <MultiSelect
+            label="Técnico"
+            selected={filters.nombre_asignado}
+            onChange={(v) => handleMultiChange('nombre_asignado', v)}
+            options={options.nombres_asignados.map((n) => ({ value: n, label: n }))}
+            placeholder="Todos"
+            className="min-w-[160px]"
+            disabled={options.nombres_asignados.length === 0}
+          />
+
+          {/* Botón limpiar filtros */}
+          {activeFiltersCount > 0 && (
+            <button
+              onClick={clearAllFilters}
+              className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1.5 hover:bg-slate-50 rounded transition-colors self-end"
+            >
+              Limpiar ({activeFiltersCount})
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
+}
+
+function capitalizeFirst(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 function FilterSelect({

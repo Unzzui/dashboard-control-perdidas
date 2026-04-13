@@ -36,6 +36,11 @@ export async function getFilterOptions(): Promise<FilterOptions> {
   return fetchAPI<FilterOptions>('/api/v1/filters');
 }
 
+export async function getCascadeFilterOptions(filters: Partial<Filters>): Promise<FilterOptions> {
+  const qs = buildQueryString(filters);
+  return fetchAPI<FilterOptions>(qs ? `/api/v1/filters/cascade?${qs}` : '/api/v1/filters/cascade');
+}
+
 export async function getDashboardData(filters: Partial<Filters>): Promise<DashboardData> {
   const qs = buildQueryString(filters);
   return fetchAPI<DashboardData>(qs ? `/api/v1/dashboard?${qs}` : '/api/v1/dashboard');

@@ -1,16 +1,23 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { DailyStats } from '@/types';
+
+export interface ChartClickEvent {
+  type: 'day' | 'series';
+  value: string | number;
+  seriesName?: string;
+  data?: DailyStats;
+}
 
 interface StackedBarChartProps {
   data: DailyStats[];
   title?: string;
   height?: string;
+  onElementClick?: (event: ChartClickEvent) => void;
 }
 
-// Formatear fecha para mostrar día/mes
 function formatDate(fecha: string, dia: number): string {
   if (fecha) {
     try {
@@ -25,8 +32,31 @@ function formatDate(fecha: string, dia: number): string {
   return String(dia);
 }
 
-const StackedBarChart = memo(function StackedBarChart({ data, title, height = '300px' }: StackedBarChartProps) {
+const StackedBarChart = memo(function StackedBarChart({
+  data,
+  title,
+  height = '300px',
+  onElementClick
+}: StackedBarChartProps) {
   const labels = useMemo(() => data.map((d) => formatDate(d.fecha, d.dia)), [data]);
+
+  const handleClick = useCallback((params: { dataIndex: number; seriesName: string }) => {
+    if (!onElementClick) return;
+
+    const clickedData = data[params.dataIndex];
+    if (clickedData) {
+      onElementClick({
+        type: 'day',
+        value: clickedData.dia,
+        seriesName: params.seriesName,
+        data: clickedData,
+      });
+    }
+  }, [data, onElementClick]);
+
+  const onEvents = useMemo(() => onElementClick ? {
+    click: handleClick,
+  } : undefined, [handleClick, onElementClick]);
 
   const option = useMemo(() => ({
     title: title ? {
@@ -61,6 +91,9 @@ const StackedBarChart = memo(function StackedBarChart({ data, title, height = '3
           <span style="font-weight:600">Total</span>
           <span style="font-weight:600">${total.toLocaleString('es-CL')}</span>
         </div>`;
+        if (onElementClick) {
+          html += `<div style="margin-top:4px;font-size:10px;color:#6b7280;text-align:center">Click para filtrar por este día</div>`;
+        }
         return html;
       },
     },
@@ -83,6 +116,7 @@ const StackedBarChart = memo(function StackedBarChart({ data, title, height = '3
         fontSize: 10,
         rotate: data.length > 15 ? 45 : 0,
       },
+      triggerEvent: true,
     },
     yAxis: {
       type: 'value',
@@ -101,6 +135,14 @@ const StackedBarChart = memo(function StackedBarChart({ data, title, height = '3
           fontSize: 10,
           color: '#fff',
         },
+        cursor: onElementClick ? 'pointer' : 'default',
+        emphasis: onElementClick ? {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+          },
+        } : undefined,
       },
       {
         name: 'NORMAL',
@@ -114,6 +156,14 @@ const StackedBarChart = memo(function StackedBarChart({ data, title, height = '3
           fontSize: 10,
           color: '#fff',
         },
+        cursor: onElementClick ? 'pointer' : 'default',
+        emphasis: onElementClick ? {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+          },
+        } : undefined,
       },
       {
         name: 'VISITA FALLIDA',
@@ -127,15 +177,24 @@ const StackedBarChart = memo(function StackedBarChart({ data, title, height = '3
           fontSize: 10,
           color: '#fff',
         },
+        cursor: onElementClick ? 'pointer' : 'default',
+        emphasis: onElementClick ? {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+          },
+        } : undefined,
       },
     ],
-  }), [data, title, labels]);
+  }), [data, title, labels, onElementClick]);
 
   return (
     <ReactECharts
       option={option}
       style={{ height, width: '100%' }}
       notMerge={true}
+      onEvents={onEvents}
     />
   );
 });

@@ -3,14 +3,14 @@ from app.dependencies import get_dataframe, apply_filters
 from app.models.filters import FilterParams
 from app.services.kpis import calculate_kpis
 from app.services.zonas import calculate_zonas
-from app.services.daily import calculate_daily
+from app.services.daily import calculate_daily, calculate_daily_por_zona
 from app.services.mensual import calculate_mensual
 from app.services.tecnicos import calculate_tecnicos
 from app.services.campanas import calculate_campanas
 from app.services.normalizaciones import calculate_normalizaciones
 from app.services.visitas_fallidas import calculate_visitas_fallidas
 from app.services.produccion import calculate_produccion
-from app.services.resultados_fallidos import calculate_resultados_fallidos
+from app.services.resultados_fallidos import calculate_resultados_fallidos, calculate_resultados_fallidos_por_zona
 
 router = APIRouter()
 
@@ -24,6 +24,7 @@ def get_dashboard(params: FilterParams = Depends()):
         "kpis": calculate_kpis(filtered),
         "zonas": calculate_zonas(filtered),
         "daily": calculate_daily(filtered),
+        "daily_por_zona": calculate_daily_por_zona(filtered),
         "mensual": calculate_mensual(filtered),
         "tecnicos": calculate_tecnicos(filtered),
         "campanas": calculate_campanas(filtered),
@@ -31,4 +32,5 @@ def get_dashboard(params: FilterParams = Depends()):
         "visitas_fallidas_responsabilidad": calculate_visitas_fallidas(filtered),
         "produccion": calculate_produccion(filtered),
         "resultados_fallidos": calculate_resultados_fallidos(filtered),
+        "resultados_fallidos_por_zona": calculate_resultados_fallidos_por_zona(filtered),
     }

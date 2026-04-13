@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import FilterBar from '@/components/ui/FilterBar';
@@ -18,16 +18,59 @@ import DetalleAviso from '@/components/views/DetalleAviso';
 import AnalisisComparativo from '@/components/views/AnalisisComparativo';
 import AnalisisJornada from '@/components/views/AnalisisJornada';
 import ControlMetas from '@/components/views/ControlMetas';
+import PresentationMode from '@/components/views/PresentationMode';
 import { useFilters } from '@/hooks/useFilters';
 import { useDashboard } from '@/hooks/useDashboard';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
+import { Filters } from '@/types';
 import { cn } from '@/lib/utils';
 
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState('control-diario');
   const { filters, setFilters, options } = useFilters();
   const { data, isLoading, lastUpdate, handleRefresh } = useDashboard(filters);
-  const { isNormal } = useSidebar();
+  const { isNormal, isPresentation } = useSidebar();
+
+  // Funciones de filtrado interactivo
+  const handleFilterByDay = useCallback((day: number) => {
+    setFilters(prev => ({
+      ...prev,
+      dia: prev.dia.includes(day) ? prev.dia.filter(d => d !== day) : [...prev.dia, day],
+    }));
+  }, [setFilters]);
+
+  const handleFilterByZona = useCallback((zona: string) => {
+    setFilters(prev => ({
+      ...prev,
+      zona: prev.zona.includes(zona) ? prev.zona.filter(z => z !== zona) : [...prev.zona, zona],
+    }));
+  }, [setFilters]);
+
+  const handleFilterByMes = useCallback((mes: string) => {
+    const mesLower = mes.toLowerCase();
+    setFilters(prev => ({
+      ...prev,
+      mes: prev.mes.includes(mesLower) ? prev.mes.filter(m => m !== mesLower) : [...prev.mes, mesLower],
+    }));
+  }, [setFilters]);
+
+  const handleFilterByTecnico = useCallback((tecnico: string) => {
+    setFilters(prev => ({
+      ...prev,
+      nombre_asignado: prev.nombre_asignado.includes(tecnico)
+        ? prev.nombre_asignado.filter(t => t !== tecnico)
+        : [...prev.nombre_asignado, tecnico],
+    }));
+  }, [setFilters]);
+
+  // Objeto con todas las funciones de filtrado
+  const filterHandlers = {
+    onFilterByDay: handleFilterByDay,
+    onFilterByZona: handleFilterByZona,
+    onFilterByMes: handleFilterByMes,
+    onFilterByTecnico: handleFilterByTecnico,
+    currentFilters: filters,
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -39,6 +82,7 @@ function DashboardContent() {
             tecnicos={data.tecnicos}
             daily={data.daily}
             mesesSeleccionados={filters.mes}
+            {...filterHandlers}
           />
         );
       case 'indicadores':
@@ -47,6 +91,7 @@ function DashboardContent() {
             kpis={data.kpis}
             zonas={data.zonas}
             daily={data.daily}
+            {...filterHandlers}
           />
         );
       case 'delegacion':
@@ -56,12 +101,18 @@ function DashboardContent() {
           />
         );
       case 'ranking':
-        return <RankingTecnicos tecnicos={data.tecnicos} />;
+        return (
+          <RankingTecnicos
+            tecnicos={data.tecnicos}
+            {...filterHandlers}
+          />
+        );
       case 'efectividad':
         return (
           <EfectividadMensual
             mensual={data.mensual}
             kpis={data.kpis}
+            {...filterHandlers}
           />
         );
       case 'visitas-fallidas':
@@ -91,6 +142,7 @@ function DashboardContent() {
               nombre: t.nombre,
               produccion: t.efectivas * 25000,
             }))}
+            {...filterHandlers}
           />
         );
       case 'kwh':
@@ -100,6 +152,7 @@ function DashboardContent() {
             zonas={data.zonas}
             daily={data.daily}
             totalKWH={data.kpis.kwh_recuperado}
+            {...filterHandlers}
           />
         );
       case 'retiro-medidores':
@@ -111,6 +164,7 @@ function DashboardContent() {
             zonas={data.zonas}
             tecnicos={data.tecnicos}
             mesesSeleccionados={filters.mes || []}
+            {...filterHandlers}
           />
         );
       case 'jornada':
@@ -135,6 +189,11 @@ function DashboardContent() {
         return null;
     }
   };
+
+  // Modo presentación
+  if (isPresentation && !isLoading) {
+    return <PresentationMode data={data} filters={filters} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

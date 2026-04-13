@@ -20,6 +20,7 @@ const defaultData: DashboardData = {
   },
   zonas: [],
   daily: [],
+  daily_por_zona: {},
   mensual: [],
   tecnicos: [],
   campanas: [],
@@ -27,17 +28,18 @@ const defaultData: DashboardData = {
   visitas_fallidas_responsabilidad: [],
   produccion: [],
   resultados_fallidos: [],
+  resultados_fallidos_por_zona: {},
 };
 
 // Generar clave única para los filtros
 function getFilterKey(filters: Filters): string {
   return JSON.stringify({
     año: filters.año,
-    mes: filters.mes.sort(),
-    dia: filters.dia,
-    zona: filters.zona.sort(),
-    regional: filters.regional.sort(),
-    supervisor: filters.supervisor.sort(),
+    mes: [...filters.mes].sort(),
+    dia: [...filters.dia].sort(),
+    zona: [...filters.zona].sort(),
+    regional: [...filters.regional].sort(),
+    supervisor: [...filters.supervisor].sort(),
   });
 }
 
@@ -84,7 +86,7 @@ export function useDashboard(filters: Filters) {
 
   useEffect(() => {
     fetchData();
-  }, [filters.año, filters.mes.join(','), filters.zona.join(','), filters.dia]);
+  }, [filters.año, filters.mes.join(','), filters.zona.join(','), filters.dia.join(',')]);
 
   const handleRefresh = useCallback(() => {
     fetchData(true);

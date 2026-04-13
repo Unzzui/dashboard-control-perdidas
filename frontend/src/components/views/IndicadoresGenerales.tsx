@@ -1,20 +1,58 @@
 'use client';
 
-import { useMemo } from 'react';
-import { ZonaStats, DailyStats, KPIData } from '@/types';
+import { useMemo, useCallback } from 'react';
+import { ZonaStats, DailyStats, KPIData, Filters } from '@/types';
 import DataTable from '@/components/ui/DataTable';
-import StackedBarChart from '@/components/charts/StackedBarChart';
+import StackedBarChart, { ChartClickEvent } from '@/components/charts/StackedBarChart';
 import DonutChart from '@/components/charts/DonutChart';
 
 interface IndicadoresGeneralesProps {
   kpis: KPIData;
   zonas: ZonaStats[];
   daily: DailyStats[];
+  onFilterByDay?: (day: number) => void;
+  onFilterByZona?: (zona: string) => void;
+  currentFilters?: Filters;
 }
 
-export default function IndicadoresGenerales({ kpis, zonas, daily }: IndicadoresGeneralesProps) {
+export default function IndicadoresGenerales({
+  kpis,
+  zonas,
+  daily,
+  onFilterByDay,
+  onFilterByZona,
+  currentFilters
+}: IndicadoresGeneralesProps) {
+
+  const handleChartClick = useCallback((event: ChartClickEvent) => {
+    if (event.type === 'day' && onFilterByDay) {
+      onFilterByDay(event.value as number);
+    }
+  }, [onFilterByDay]);
+
+  const handleZonaClick = useCallback((zona: string) => {
+    if (onFilterByZona && zona !== 'Total') {
+      onFilterByZona(zona);
+    }
+  }, [onFilterByZona]);
+
   const columns = useMemo(() => [
-    { key: 'zona', header: 'Zona', width: '180px' },
+    {
+      key: 'zona',
+      header: 'Zona',
+      width: '180px',
+      render: (row: ZonaStats) => (
+        <span
+          onClick={() => handleZonaClick(row.zona)}
+          className={`
+            ${row.zona !== 'Total' && onFilterByZona ? 'cursor-pointer hover:text-oca-blue hover:underline' : ''}
+            ${currentFilters?.zona.includes(row.zona) ? 'text-oca-blue font-semibold' : ''}
+          `}
+        >
+          {row.zona}
+        </span>
+      ),
+    },
     {
       key: 'normal',
       header: 'Normal',
@@ -77,7 +115,7 @@ export default function IndicadoresGenerales({ kpis, zonas, daily }: Indicadores
         </span>
       ),
     },
-  ], []);
+  ], [handleZonaClick, onFilterByZona, currentFilters?.zona]);
 
   // Totales
   const totals = useMemo(() => {
@@ -121,6 +159,9 @@ export default function IndicadoresGenerales({ kpis, zonas, daily }: Indicadores
   }, [daily]);
 
   const tableData = useMemo(() => [...zonas, totals], [zonas, totals]);
+
+  // Verificar si hay días filtrados
+  const diasFiltrados = currentFilters?.dia || [];
 
   return (
     <div className="space-y-6">
@@ -169,10 +210,16 @@ export default function IndicadoresGenerales({ kpis, zonas, daily }: Indicadores
           <p className="text-2xl font-bold text-slate-800">{stats.efectivasPromedio.toLocaleString('es-CL')}</p>
           <p className="text-[10px] text-slate-400 mt-1">CNR + Normal/día</p>
         </div>
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+        <div
+          className={`bg-white rounded-lg border border-slate-200/60 p-4 ${stats.mejorDia && onFilterByDay ? 'cursor-pointer hover:border-oca-blue/40 transition-colors' : ''}`}
+          onClick={() => stats.mejorDia && onFilterByDay && onFilterByDay(stats.mejorDia.dia)}
+        >
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Mejor Día</p>
           <p className="text-2xl font-bold text-slate-800">{stats.mejorDia ? stats.mejorDia.efectivas.toLocaleString('es-CL') : '-'}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{stats.mejorDia ? `Día ${stats.mejorDia.dia}` : ''}</p>
+          <p className="text-[10px] text-slate-400 mt-1">
+            {stats.mejorDia ? `Día ${stats.mejorDia.dia}` : ''}
+            {stats.mejorDia && onFilterByDay && <span className="text-oca-blue ml-1">(click para filtrar)</span>}
+          </p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Días Trabajados</p>
@@ -184,9 +231,14 @@ export default function IndicadoresGenerales({ kpis, zonas, daily }: Indicadores
       {/* Tabla y Donut */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4 lg:col-span-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Resultados por Zona
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Resultados por Zona
+            </h3>
+            {onFilterByZona && (
+              <span className="text-[10px] text-slate-400">Click en zona para filtrar</span>
+            )}
+          </div>
           <DataTable columns={columns} data={tableData} />
         </div>
 
@@ -203,10 +255,26 @@ export default function IndicadoresGenerales({ kpis, zonas, daily }: Indicadores
 
       {/* Gráfico Diario */}
       <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-          Actividad Diaria
-        </h3>
-        <StackedBarChart data={daily} height="300px" />
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Actividad Diaria
+          </h3>
+          <div className="flex items-center gap-2">
+            {diasFiltrados.length > 0 && (
+              <span className="text-[10px] bg-oca-blue/10 text-oca-blue px-2 py-0.5 rounded">
+                Filtrado: día{diasFiltrados.length > 1 ? 's' : ''} {diasFiltrados.join(', ')}
+              </span>
+            )}
+            {onFilterByDay && (
+              <span className="text-[10px] text-slate-400">Click en barra para filtrar</span>
+            )}
+          </div>
+        </div>
+        <StackedBarChart
+          data={daily}
+          height="300px"
+          onElementClick={onFilterByDay ? handleChartClick : undefined}
+        />
       </div>
     </div>
   );

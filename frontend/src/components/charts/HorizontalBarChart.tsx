@@ -1,7 +1,15 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
+
+export interface HorizontalBarClickEvent {
+  type: 'bar';
+  name: string;
+  value: number;
+  seriesName: string;
+  dataIndex: number;
+}
 
 interface HorizontalBarChartProps {
   data: {
@@ -14,6 +22,7 @@ interface HorizontalBarChartProps {
   metaLabel?: string;
   color?: string;
   metaColor?: string;
+  onElementClick?: (event: HorizontalBarClickEvent) => void;
 }
 
 const HorizontalBarChart = memo(function HorizontalBarChart({
@@ -23,6 +32,7 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
   metaLabel = 'Meta',
   color = '#294D6D',
   metaColor = '#F97316',
+  onElementClick,
 }: HorizontalBarChartProps) {
   const { categories, values, metas, hasMeta } = useMemo(() => ({
     categories: data.map((d) => d.name),
@@ -31,7 +41,6 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
     hasMeta: data.some((d) => d.meta !== undefined),
   }), [data]);
 
-  // Formatear números grandes
   const formatValue = (value: number): string => {
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(1)}M`;
@@ -40,6 +49,21 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
     }
     return `$${value.toLocaleString('es-CL')}`;
   };
+
+  const handleClick = useCallback((params: { name: string; value: number; seriesName: string; dataIndex: number }) => {
+    if (!onElementClick) return;
+    onElementClick({
+      type: 'bar',
+      name: params.name,
+      value: params.value,
+      seriesName: params.seriesName,
+      dataIndex: params.dataIndex,
+    });
+  }, [onElementClick]);
+
+  const onEvents = useMemo(() => onElementClick ? {
+    click: handleClick,
+  } : undefined, [handleClick, onElementClick]);
 
   const option = useMemo(() => ({
     title: title ? {
@@ -64,6 +88,9 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
         params.forEach((p) => {
           html += `<div>${p.marker} ${p.seriesName}: <b>${formatValue(p.value)}</b></div>`;
         });
+        if (onElementClick) {
+          html += `<div style="margin-top:4px;font-size:10px;color:#6b7280;text-align:center">Click para filtrar por zona</div>`;
+        }
         return html;
       },
     },
@@ -95,6 +122,7 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
         overflow: 'truncate',
       },
       inverse: true,
+      triggerEvent: true,
     },
     series: [
       {
@@ -110,6 +138,14 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
           formatter: (params: { value: number }) => formatValue(params.value),
         },
         barWidth: hasMeta ? '35%' : '50%',
+        cursor: onElementClick ? 'pointer' : 'default',
+        emphasis: onElementClick ? {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+          },
+        } : undefined,
       },
       ...(hasMeta ? [{
         name: metaLabel,
@@ -120,9 +156,10 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
           show: false,
         },
         barWidth: '35%',
+        cursor: onElementClick ? 'pointer' : 'default',
       }] : []),
     ],
-  }), [title, categories, values, metas, hasMeta, valueLabel, metaLabel, color, metaColor]);
+  }), [title, categories, values, metas, hasMeta, valueLabel, metaLabel, color, metaColor, onElementClick]);
 
   const chartHeight = useMemo(() => Math.max(300, data.length * 25), [data.length]);
 
@@ -131,6 +168,7 @@ const HorizontalBarChart = memo(function HorizontalBarChart({
       option={option}
       style={{ height: `${chartHeight}px`, width: '100%' }}
       notMerge={true}
+      onEvents={onEvents}
     />
   );
 });

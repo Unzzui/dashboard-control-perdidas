@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,7 @@ interface MultiSelectProps {
   placeholder?: string;
   className?: string;
   maxDisplay?: number;
+  disabled?: boolean;
 }
 
 export default function MultiSelect({
@@ -27,10 +28,23 @@ export default function MultiSelect({
   placeholder = 'Todos',
   className,
   maxDisplay = 2,
+  disabled = false,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const stableOptionsRef = useRef<Option[]>(options);
+
+  // Mantener opciones estables mientras el dropdown está abierto
+  // Esto evita que las opciones cambien mientras el usuario está seleccionando
+  useEffect(() => {
+    if (!isOpen) {
+      stableOptionsRef.current = options;
+    }
+  }, [isOpen, options]);
+
+  // Usar opciones estables cuando el dropdown está abierto
+  const displayOptions = isOpen ? stableOptionsRef.current : options;
 
   // Cerrar al hacer click fuera
   useEffect(() => {
@@ -45,7 +59,7 @@ export default function MultiSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter(opt =>
+  const filteredOptions = displayOptions.filter(opt =>
     opt.label.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -68,18 +82,20 @@ export default function MultiSelect({
   };
 
   const selectAll = () => {
-    onChange(options.map(o => o.value));
+    onChange(displayOptions.map(o => o.value));
   };
 
   const getDisplayText = () => {
     if (selected.length === 0) return placeholder;
+    // Usar las opciones actuales (no las estables) para el texto display
+    const allOptions = [...options, ...stableOptionsRef.current];
     if (selected.length === 1) {
-      const opt = options.find(o => o.value === selected[0]);
+      const opt = allOptions.find(o => o.value === selected[0]);
       return opt?.label || selected[0];
     }
     if (selected.length <= maxDisplay) {
       return selected.map(v => {
-        const opt = options.find(o => o.value === v);
+        const opt = allOptions.find(o => o.value === v);
         return opt?.label || v;
       }).join(', ');
     }
@@ -94,13 +110,15 @@ export default function MultiSelect({
       <div className="relative">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
           className={cn(
             'flex items-center justify-between gap-1 text-left',
             'text-[11px] border border-slate-200 rounded-md px-2.5 py-1.5 bg-white text-slate-700',
             'focus:outline-none focus:ring-1 focus:ring-oca-blue/30 focus:border-oca-blue/40',
             'hover:border-slate-300 transition-colors',
             selected.length > 0 && 'border-oca-blue/40 bg-oca-blue/5',
+            disabled && 'opacity-50 cursor-not-allowed hover:border-slate-200',
             className
           )}
         >
@@ -120,7 +138,7 @@ export default function MultiSelect({
           </div>
         </button>
 
-        {isOpen && (
+        {isOpen && !disabled && (
           <div className="absolute z-50 mt-1 w-full min-w-[200px] bg-white border border-slate-200 rounded-md shadow-lg">
             {/* Search */}
             <div className="p-2 border-b border-slate-100">
