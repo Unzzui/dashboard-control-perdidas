@@ -1,4 +1,4 @@
-import { Filters, DashboardData, FilterOptions, RetiroMedidoresData, DetalleAvisoData, ControlDiarioData, AnalisisComparativoData, AnalisisJornadaData } from '@/types';
+import { Filters, DashboardData, FilterOptions, RetiroMedidoresData, DetalleAvisoData, ControlDiarioData, AnalisisComparativoData, AnalisisJornadaData, DetalleTecnicoDiario, InspeccionesDia, AlertasOperativasData } from '@/types';
 
 // Usar ruta vacía para aprovechar el proxy de Next.js en next.config.js
 // Esto permite que ngrok funcione correctamente para usuarios remotos
@@ -85,4 +85,47 @@ export async function getAnalisisComparativo(filters: Partial<Filters>): Promise
 export async function getAnalisisJornada(filters: Partial<Filters>): Promise<AnalisisJornadaData> {
   const qs = buildQueryString(filters);
   return fetchAPI<AnalisisJornadaData>(qs ? `/api/v1/analisis-jornada?${qs}` : '/api/v1/analisis-jornada');
+}
+
+export async function getDetalleTecnicoDiario(
+  nombre: string,
+  zona: string | null,
+  filters: Partial<Filters>
+): Promise<DetalleTecnicoDiario> {
+  const params = new URLSearchParams();
+  params.append('nombre', nombre);
+  // Solo agregar zona si no es null (null = consolidado)
+  if (zona) {
+    params.append('zona', zona);
+  }
+
+  const filterQs = buildQueryString(filters);
+  const fullQs = filterQs ? `${params.toString()}&${filterQs}` : params.toString();
+
+  return fetchAPI<DetalleTecnicoDiario>(`/api/v1/tecnicos/detalle-diario?${fullQs}`);
+}
+
+export async function getInspeccionesDia(
+  nombre: string,
+  zona: string | null,  // null o "TODAS" para consolidado
+  fecha: string,
+  filters: Partial<Filters>
+): Promise<InspeccionesDia> {
+  const params = new URLSearchParams();
+  params.append('nombre', nombre);
+  // Solo agregar zona si no es null (null = buscar en todas las zonas)
+  if (zona && zona !== "TODAS") {
+    params.append('zona', zona);
+  }
+  params.append('fecha', fecha);
+
+  const filterQs = buildQueryString(filters);
+  const fullQs = filterQs ? `${params.toString()}&${filterQs}` : params.toString();
+
+  return fetchAPI<InspeccionesDia>(`/api/v1/tecnicos/inspecciones-dia?${fullQs}`);
+}
+
+export async function getAlertasOperativas(filters: Partial<Filters>): Promise<AlertasOperativasData> {
+  const qs = buildQueryString(filters);
+  return fetchAPI<AlertasOperativasData>(qs ? `/api/v1/alertas-operativas?${qs}` : '/api/v1/alertas-operativas');
 }

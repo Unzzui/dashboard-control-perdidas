@@ -1,6 +1,11 @@
 import pandas as pd
 
 
+def normalizar_nombre(nombre: str) -> str:
+    """Normaliza nombres a Title Case (Primera Letra Mayúscula)"""
+    return nombre.strip().title()
+
+
 def calculate_retiro_medidores(df: pd.DataFrame) -> dict:
     # Filter rows with meter lab info - where Estado de envío is not empty
     medidor_df = df[df['Estado de envío'].notna() & (df['Estado de envío'] != '')]
@@ -34,11 +39,14 @@ def calculate_retiro_medidores(df: pd.DataFrame) -> dict:
         zona = str(row.get('zona', ''))
         if zona == 'No Asignados' or not zona:
             continue
+        nombre_asignado = row.get('Nombre asignado', '')
+        tecnico_normalizado = normalizar_nombre(str(nombre_asignado)) if pd.notna(nombre_asignado) and nombre_asignado else ''
+
         responsables.append({
             "zona": zona,
             "id_medida": int(row.get('ID Medida', 0)),
             "aviso": int(row.get('Aviso', 0)),
-            "tecnico": str(row.get('Nombre asignado', '')),
+            "tecnico": tecnico_normalizado,
             "estado_envio": str(row.get('Estado de envío', '')),
             "control_atraso": str(row.get('Control de atraso', '')),
             "dias_atraso": float(row.get('Días de atraso', 0)) if pd.notna(row.get('Días de atraso')) else 0,

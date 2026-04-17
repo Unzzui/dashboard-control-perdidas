@@ -111,30 +111,30 @@ export default function ResultadosDelegacion({
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Campañas</p>
-          <p className="text-2xl font-bold text-slate-800">{campanas.length}</p>
+          <p className="text-3xl font-bold text-slate-800">{campanas.length}</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Total</p>
-          <p className="text-2xl font-bold text-slate-800">{totals.totalCNR.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{totals.pctCNR.toFixed(1)}% efectividad</p>
+          <p className="text-3xl font-bold text-slate-800">{totals.totalCNR.toLocaleString('es-CL')}</p>
+          <p className="text-xs text-slate-400 mt-1">{totals.pctCNR.toFixed(1)}% efectividad</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Falla</p>
-          <p className="text-2xl font-bold text-green-600">{totals.totalCNRFalla.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{totals.pctFalla.toFixed(1)}% del CNR</p>
+          <p className="text-3xl font-bold text-green-600">{totals.totalCNRFalla.toLocaleString('es-CL')}</p>
+          <p className="text-xs text-slate-400 mt-1">{totals.pctFalla.toFixed(1)}% del CNR</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Hurto</p>
-          <p className="text-2xl font-bold text-red-600">{totals.totalCNRHurto.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{(100 - totals.pctFalla).toFixed(1)}% del CNR</p>
+          <p className="text-3xl font-bold text-red-600">{totals.totalCNRHurto.toLocaleString('es-CL')}</p>
+          <p className="text-xs text-slate-400 mt-1">{(100 - totals.pctFalla).toFixed(1)}% del CNR</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectivas</p>
-          <p className="text-2xl font-bold text-slate-800">{totals.totalEfectivas.toLocaleString('es-CL')}</p>
+          <p className="text-3xl font-bold text-slate-800">{totals.totalEfectivas.toLocaleString('es-CL')}</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">V. Fallidas</p>
-          <p className="text-2xl font-bold text-amber-600">{totals.totalVF.toLocaleString('es-CL')}</p>
+          <p className="text-3xl font-bold text-amber-600">{totals.totalVF.toLocaleString('es-CL')}</p>
         </div>
       </div>
 
@@ -142,19 +142,19 @@ export default function ResultadosDelegacion({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Top CNR */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
             Top 10 Campañas por CNR
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {topCampanasCNR.map((c, idx) => (
               <div key={idx} className="flex items-center gap-2">
-                <span className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${
+                <span className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${
                   idx < 3 ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-700 truncate" title={c.descripcion}>
+                  <p className="text-xs text-slate-700 truncate" title={c.descripcion}>
                     {c.descripcion}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -164,7 +164,7 @@ export default function ResultadosDelegacion({
                         style={{ width: `${Math.min((c.cnr / topCampanasCNR[0].cnr) * 100, 100)}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-medium text-slate-700 w-10 text-right">
+                    <span className="text-[10px] font-medium text-slate-700 w-12 text-right">
                       {c.cnr.toLocaleString('es-CL')}
                     </span>
                   </div>
@@ -176,19 +176,19 @@ export default function ResultadosDelegacion({
 
         {/* Top Efectividad */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
             Top 10 por Efectividad
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {topCampanasEfectividad.map((c, idx) => (
               <div key={idx} className="flex items-center gap-2">
-                <span className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${
+                <span className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${
                   idx < 3 ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-700 truncate" title={c.descripcion}>
+                  <p className="text-xs text-slate-700 truncate" title={c.descripcion}>
                     {c.descripcion}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -198,7 +198,7 @@ export default function ResultadosDelegacion({
                         style={{ width: `${c.pct_efectivas}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-medium text-green-700 w-10 text-right">
+                    <span className="text-[10px] font-medium text-green-700 w-12 text-right">
                       {c.pct_efectivas.toFixed(0)}%
                     </span>
                   </div>
@@ -206,24 +206,24 @@ export default function ResultadosDelegacion({
               </div>
             ))}
           </div>
-          <p className="text-[9px] text-slate-400 mt-3">*Mínimo 10 registros</p>
+          <p className="text-[10px] text-slate-400 mt-3">*Mínimo 10 registros</p>
         </div>
 
         {/* Campañas problemáticas */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-red-600 mb-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-red-600 mb-4">
             Mayor % Visitas Fallidas
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {campanasProblematicas.map((c, idx) => (
               <div key={idx} className="flex items-center gap-2">
-                <span className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${
+                <span className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${
                   idx < 3 ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-700 truncate" title={c.descripcion}>
+                  <p className="text-xs text-slate-700 truncate" title={c.descripcion}>
                     {c.descripcion}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -233,7 +233,7 @@ export default function ResultadosDelegacion({
                         style={{ width: `${c.pct_vf}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-medium text-red-700 w-10 text-right">
+                    <span className="text-[10px] font-medium text-red-700 w-12 text-right">
                       {c.pct_vf.toFixed(0)}%
                     </span>
                   </div>
@@ -241,17 +241,17 @@ export default function ResultadosDelegacion({
               </div>
             ))}
           </div>
-          <p className="text-[9px] text-slate-400 mt-3">*Mínimo 5 registros</p>
+          <p className="text-[10px] text-slate-400 mt-3">*Mínimo 5 registros</p>
         </div>
       </div>
 
       {/* Tabla completa de campañas */}
       <div className="bg-white rounded-lg border border-slate-200/60 p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             Detalle de Campañas
           </h3>
-          <span className="text-[10px] text-slate-400">{campanas.length} campañas</span>
+          <span className="text-xs text-slate-400">{campanas.length} campañas</span>
         </div>
         <div className="max-h-[400px] overflow-y-auto">
           <DataTable columns={campanaColumns} data={campanas} />

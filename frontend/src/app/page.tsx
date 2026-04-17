@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import FilterBar from '@/components/ui/FilterBar';
+import AlertasOperativas from '@/components/views/AlertasOperativas';
 import ControlDiario from '@/components/views/ControlDiario';
 import IndicadoresGenerales from '@/components/views/IndicadoresGenerales';
 import ResultadosDelegacion from '@/components/views/ResultadosDelegacion';
@@ -26,7 +27,7 @@ import { Filters } from '@/types';
 import { cn } from '@/lib/utils';
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState('control-diario');
+  const [activeTab, setActiveTab] = useState('alertas');
   const { filters, setFilters, options } = useFilters();
   const { data, isLoading, lastUpdate, handleRefresh } = useDashboard(filters);
   const { isNormal, isPresentation } = useSidebar();
@@ -74,15 +75,16 @@ function DashboardContent() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'alertas':
+        return <AlertasOperativas filters={filters} />;
       case 'control-diario':
         return <ControlDiario filters={filters} />;
       case 'control-metas':
         return (
           <ControlMetas
             tecnicos={data.tecnicos}
-            daily={data.daily}
             mesesSeleccionados={filters.mes}
-            {...filterHandlers}
+            filters={filters}
           />
         );
       case 'indicadores':
@@ -160,10 +162,7 @@ function DashboardContent() {
       case 'comparativo':
         return (
           <AnalisisComparativo
-            mensual={data.mensual}
-            zonas={data.zonas}
-            tecnicos={data.tecnicos}
-            mesesSeleccionados={filters.mes || []}
+            filters={filters}
             {...filterHandlers}
           />
         );

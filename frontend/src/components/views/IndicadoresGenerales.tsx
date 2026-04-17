@@ -2,9 +2,7 @@
 
 import { useMemo, useCallback } from 'react';
 import { ZonaStats, DailyStats, KPIData, Filters } from '@/types';
-import DataTable from '@/components/ui/DataTable';
 import StackedBarChart, { ChartClickEvent } from '@/components/charts/StackedBarChart';
-import DonutChart from '@/components/charts/DonutChart';
 
 interface IndicadoresGeneralesProps {
   kpis: KPIData;
@@ -30,93 +28,6 @@ export default function IndicadoresGenerales({
     }
   }, [onFilterByDay]);
 
-  const handleZonaClick = useCallback((zona: string) => {
-    if (onFilterByZona && zona !== 'Total') {
-      onFilterByZona(zona);
-    }
-  }, [onFilterByZona]);
-
-  const columns = useMemo(() => [
-    {
-      key: 'zona',
-      header: 'Zona',
-      width: '180px',
-      render: (row: ZonaStats) => (
-        <span
-          onClick={() => handleZonaClick(row.zona)}
-          className={`
-            ${row.zona !== 'Total' && onFilterByZona ? 'cursor-pointer hover:text-oca-blue hover:underline' : ''}
-            ${currentFilters?.zona.includes(row.zona) ? 'text-oca-blue font-semibold' : ''}
-          `}
-        >
-          {row.zona}
-        </span>
-      ),
-    },
-    {
-      key: 'normal',
-      header: 'Normal',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className="text-slate-600">{row.normal.toLocaleString('es-CL')}</span>
-      ),
-    },
-    {
-      key: 'cnr',
-      header: 'CNR',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className="font-medium text-slate-800">{row.cnr.toLocaleString('es-CL')}</span>
-      ),
-    },
-    {
-      key: 'pct_cnr',
-      header: '% CNR',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className={row.pct_cnr >= 50 ? 'text-green-600' : 'text-slate-600'}>
-          {row.pct_cnr.toFixed(1)}%
-        </span>
-      ),
-    },
-    {
-      key: 'efectivas',
-      header: 'Efectivas',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className="font-medium text-slate-800">{row.efectivas.toLocaleString('es-CL')}</span>
-      ),
-    },
-    {
-      key: 'pct_efectivas',
-      header: '% Efect.',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className={row.pct_efectivas >= 70 ? 'text-green-600' : row.pct_efectivas >= 50 ? 'text-amber-600' : 'text-red-600'}>
-          {row.pct_efectivas.toFixed(1)}%
-        </span>
-      ),
-    },
-    {
-      key: 'visita_fallida',
-      header: 'V. Fallida',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className="text-slate-500">{row.visita_fallida.toLocaleString('es-CL')}</span>
-      ),
-    },
-    {
-      key: 'pct_visita_fallida',
-      header: '% V.F.',
-      align: 'right' as const,
-      render: (row: ZonaStats) => (
-        <span className={row.pct_visita_fallida > 30 ? 'text-red-600' : 'text-slate-500'}>
-          {row.pct_visita_fallida.toFixed(1)}%
-        </span>
-      ),
-    },
-  ], [handleZonaClick, onFilterByZona, currentFilters?.zona]);
-
   // Totales
   const totals = useMemo(() => {
     const result: ZonaStats = {
@@ -137,145 +48,166 @@ export default function IndicadoresGenerales({
     return result;
   }, [zonas]);
 
-  // Datos del donut
-  const donutData = useMemo(() => [
-    { name: 'CNR', value: kpis.total_cnr },
-    { name: 'Normal', value: kpis.total_normal },
-    { name: 'V. Fallida', value: kpis.total_visita_fallida },
-  ], [kpis.total_cnr, kpis.total_normal, kpis.total_visita_fallida]);
+  // Ordenar zonas por efectivas (las que menos producen primero)
+  const zonasOrdenadas = useMemo(() => {
+    return [...zonas].sort((a, b) => a.pct_efectivas - b.pct_efectivas);
+  }, [zonas]);
 
-  // Estadísticas diarias
-  const stats = useMemo(() => {
-    if (daily.length === 0) return { promedio: 0, efectivasPromedio: 0, mejorDia: null, diasTrabajados: 0 };
-
-    const promedio = Math.round(daily.reduce((acc, d) => acc + d.cnr + d.normal + d.visita_fallida, 0) / daily.length);
-    const efectivasPromedio = Math.round(daily.reduce((acc, d) => acc + d.cnr + d.normal, 0) / daily.length);
-
-    const diasConTotal = daily.map(d => ({ ...d, efectivas: d.cnr + d.normal }));
-    const mejorDia = diasConTotal.reduce((best, d) => d.efectivas > best.efectivas ? d : best, diasConTotal[0]);
-    const diasTrabajados = daily.filter(d => (d.cnr + d.normal + d.visita_fallida) > 0).length;
-
-    return { promedio, efectivasPromedio, mejorDia, diasTrabajados };
-  }, [daily]);
-
-  const tableData = useMemo(() => [...zonas, totals], [zonas, totals]);
-
-  // Verificar si hay días filtrados
-  const diasFiltrados = currentFilters?.dia || [];
+  const tableData = useMemo(() => [...zonasOrdenadas, totals], [zonasOrdenadas, totals]);
 
   return (
-    <div className="space-y-6">
-      {/* KPIs Principales */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Registros</p>
-          <p className="text-2xl font-bold text-slate-800">{kpis.total_registros.toLocaleString('es-CL')}</p>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Normal</p>
-          <p className="text-2xl font-bold text-slate-800">{kpis.total_normal.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_efectivas.toFixed(1)}% efectivas</p>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR</p>
-          <p className="text-2xl font-bold text-slate-800">{kpis.total_cnr.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_cnr.toFixed(1)}%</p>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Falla</p>
-          <p className="text-2xl font-bold text-green-600">{kpis.cnr_falla.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_cnr_falla.toFixed(1)}%</p>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR Hurto</p>
-          <p className="text-2xl font-bold text-red-600">{kpis.cnr_hurto.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_cnr_hurto.toFixed(1)}%</p>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Visita Fallida</p>
-          <p className="text-2xl font-bold text-amber-600">{kpis.total_visita_fallida.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{kpis.pct_visita_fallida.toFixed(1)}%</p>
-        </div>
+    <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-lg font-semibold text-slate-800">Indicadores Generales</h2>
+        <p className="text-sm text-slate-500">Resumen del período seleccionado</p>
       </div>
 
-      {/* Resumen Operativo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* 4 KPIs */}
+      <div className="grid grid-cols-4 gap-3">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Promedio Diario</p>
-          <p className="text-2xl font-bold text-slate-800">{stats.promedio.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">registros/día</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Producción Total</p>
+          <p className="text-3xl font-bold text-slate-800">{kpis.total_registros.toLocaleString('es-CL')}</p>
+          <p className="text-xs text-slate-500 mt-1">{kpis.total_cnr + kpis.total_normal} efectivas</p>
         </div>
+
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectivas Promedio</p>
-          <p className="text-2xl font-bold text-slate-800">{stats.efectivasPromedio.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">CNR + Normal/día</p>
-        </div>
-        <div
-          className={`bg-white rounded-lg border border-slate-200/60 p-4 ${stats.mejorDia && onFilterByDay ? 'cursor-pointer hover:border-oca-blue/40 transition-colors' : ''}`}
-          onClick={() => stats.mejorDia && onFilterByDay && onFilterByDay(stats.mejorDia.dia)}
-        >
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Mejor Día</p>
-          <p className="text-2xl font-bold text-slate-800">{stats.mejorDia ? stats.mejorDia.efectivas.toLocaleString('es-CL') : '-'}</p>
-          <p className="text-[10px] text-slate-400 mt-1">
-            {stats.mejorDia ? `Día ${stats.mejorDia.dia}` : ''}
-            {stats.mejorDia && onFilterByDay && <span className="text-oca-blue ml-1">(click para filtrar)</span>}
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% CNR</p>
+          <p className={`text-3xl font-bold ${kpis.pct_cnr >= 25 ? 'text-green-600' : 'text-red-600'}`}>
+            {kpis.pct_cnr.toFixed(1)}%
           </p>
+          <p className="text-xs text-slate-500 mt-1">{kpis.total_cnr.toLocaleString('es-CL')} CNR</p>
         </div>
+
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Días Trabajados</p>
-          <p className="text-2xl font-bold text-slate-800">{stats.diasTrabajados}</p>
-          <p className="text-[10px] text-slate-400 mt-1">con actividad</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% Efectivas</p>
+          <p className={`text-3xl font-bold ${kpis.pct_efectivas >= 70 ? 'text-green-600' : 'text-amber-600'}`}>
+            {kpis.pct_efectivas.toFixed(1)}%
+          </p>
+          <p className="text-xs text-slate-500 mt-1">Meta: 70%</p>
+        </div>
+
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% Visita Fallida</p>
+          <p className={`text-3xl font-bold ${kpis.pct_visita_fallida <= 25 ? 'text-green-600' : 'text-red-600'}`}>
+            {kpis.pct_visita_fallida.toFixed(1)}%
+          </p>
+          <p className="text-xs text-slate-500 mt-1">{kpis.total_visita_fallida.toLocaleString('es-CL')} fallidas</p>
         </div>
       </div>
 
-      {/* Tabla y Donut */}
+      {/* Tabla por Zona + Gráfico */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Resultados por Zona
-            </h3>
-            {onFilterByZona && (
-              <span className="text-[10px] text-slate-400">Click en zona para filtrar</span>
-            )}
-          </div>
-          <DataTable columns={columns} data={tableData} />
+        {/* Tabla */}
+        <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200/60 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">Zona</th>
+                  <th className="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">CNR</th>
+                  <th className="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">Normal</th>
+                  <th className="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">V.Fallida</th>
+                  <th className="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">% CNR</th>
+                  <th className="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">% Efect.</th>
+                  <th className="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">% VF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((zona, idx) => {
+                  const isTotal = zona.zona === 'Total';
+                  const isSelected = currentFilters?.zona.includes(zona.zona);
+                  return (
+                    <tr
+                      key={idx}
+                      onClick={() => !isTotal && onFilterByZona && onFilterByZona(zona.zona)}
+                      className={`border-b border-slate-50 transition-colors ${
+                        isTotal
+                          ? 'bg-slate-100 font-semibold'
+                          : `hover:bg-slate-50/80 ${onFilterByZona ? 'cursor-pointer' : ''} ${isSelected ? 'bg-blue-50' : ''}`
+                      }`}
+                    >
+                      <td className={`px-4 py-3 text-sm ${isTotal ? 'text-slate-800' : 'text-slate-700'} ${isSelected ? 'text-oca-blue font-medium' : ''}`}>
+                        {zona.zona}
+                      </td>
+                      <td className="px-3 py-3 text-sm font-semibold text-right text-slate-800">
+                        {zona.cnr.toLocaleString('es-CL')}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-right text-slate-600">
+                        {zona.normal.toLocaleString('es-CL')}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-right text-slate-500">
+                        {zona.visita_fallida.toLocaleString('es-CL')}
+                      </td>
+                      <td className={`px-3 py-3 text-sm font-semibold text-right ${zona.pct_cnr >= 25 ? 'text-green-600' : 'text-slate-600'}`}>
+                        {zona.pct_cnr.toFixed(1)}%
+                      </td>
+                      <td className={`px-3 py-3 text-sm font-semibold text-right ${zona.pct_efectivas >= 70 ? 'text-green-600' : zona.pct_efectivas >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                        {zona.pct_efectivas.toFixed(1)}%
+                      </td>
+                      <td className={`px-3 py-3 text-sm text-right ${zona.pct_visita_fallida > 30 ? 'text-red-600' : 'text-slate-500'}`}>
+                        {zona.pct_visita_fallida.toFixed(1)}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
         </div>
 
+        {/* Resumen rápido CNR */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Distribución
-          </h3>
-          <DonutChart
-            data={donutData}
-            colors={['#475569', '#94a3b8', '#f59e0b']}
-          />
+          <h3 className="text-sm font-semibold text-slate-800 mb-3">Composición CNR</h3>
+
+          <div className="space-y-4">
+            <div className="p-3 bg-green-50 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-green-700">CNR Falla</span>
+                <span className="text-lg font-bold text-green-700">{kpis.pct_cnr_falla.toFixed(1)}%</span>
+              </div>
+              <p className="text-xl font-bold text-green-800">{kpis.cnr_falla.toLocaleString('es-CL')}</p>
+            </div>
+
+            <div className="p-3 bg-red-50 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-red-700">CNR Hurto</span>
+                <span className="text-lg font-bold text-red-700">{kpis.pct_cnr_hurto.toFixed(1)}%</span>
+              </div>
+              <p className="text-xl font-bold text-red-800">{kpis.cnr_hurto.toLocaleString('es-CL')}</p>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Total CNR</span>
+                <span className="font-bold text-slate-800">{kpis.total_cnr.toLocaleString('es-CL')}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Gráfico Diario */}
-      <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Actividad Diaria
-          </h3>
-          <div className="flex items-center gap-2">
-            {diasFiltrados.length > 0 && (
-              <span className="text-[10px] bg-oca-blue/10 text-oca-blue px-2 py-0.5 rounded">
-                Filtrado: día{diasFiltrados.length > 1 ? 's' : ''} {diasFiltrados.join(', ')}
+      {daily.length > 0 && (
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">Actividad Diaria</h3>
+              {onFilterByDay && (
+                <p className="text-xs text-slate-400">Click en barra para filtrar por día</p>
+              )}
+            </div>
+            {currentFilters?.dia && currentFilters.dia.length > 0 && (
+              <span className="text-xs bg-oca-blue/10 text-oca-blue px-2 py-1 rounded">
+                Día{currentFilters.dia.length > 1 ? 's' : ''}: {currentFilters.dia.join(', ')}
               </span>
             )}
-            {onFilterByDay && (
-              <span className="text-[10px] text-slate-400">Click en barra para filtrar</span>
-            )}
           </div>
+          <StackedBarChart
+            data={daily}
+            height="280px"
+            onElementClick={onFilterByDay ? handleChartClick : undefined}
+          />
         </div>
-        <StackedBarChart
-          data={daily}
-          height="300px"
-          onElementClick={onFilterByDay ? handleChartClick : undefined}
-        />
-      </div>
+      )}
     </div>
   );
 }

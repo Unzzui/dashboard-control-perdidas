@@ -48,8 +48,14 @@ def get_dataframe() -> pd.DataFrame:
         df_global['resultado_clasificado'] = df_global['Resultado visita'].map(resultado_map).fillna('Otro')
 
         # Convertir columnas de texto a categorías para menor uso de memoria
-        cat_columns = ['zona', 'Regional', 'Supervisor', 'Estado', 'Tratamiento',
-                       'Tipo de Campaña', 'Resultado visita', 'resultado_clasificado']
+        # Incluye las nuevas columnas de zona y regional (técnico e inspección)
+        cat_columns = [
+            'zona', 'Regional',  # Columnas calculadas (compatibilidad)
+            'zona_tecnico', 'regional_tecnico',  # Zona del técnico
+            'zona_inspeccion', 'regional_inspeccion',  # Zona de la inspección
+            'Supervisor', 'Estado', 'Tratamiento',
+            'Tipo de Campaña', 'Resultado visita', 'resultado_clasificado'
+        ]
         for col in cat_columns:
             if col in df_global.columns:
                 df_global[col] = df_global[col].astype('category')

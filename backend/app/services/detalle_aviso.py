@@ -1,6 +1,11 @@
 import pandas as pd
 
 
+def normalizar_nombre(nombre: str) -> str:
+    """Normaliza nombres a Title Case (Primera Letra Mayúscula)"""
+    return nombre.strip().title()
+
+
 def calculate_detalle_aviso(df: pd.DataFrame, page: int = 1, page_size: int = 50) -> dict:
     # Select relevant columns
     cols = ['ID Medida', 'Aviso', 'Comuna', 'Unidad de lectura', 'Porción',
@@ -9,6 +14,10 @@ def calculate_detalle_aviso(df: pd.DataFrame, page: int = 1, page_size: int = 50
 
     available_cols = [c for c in cols if c in df.columns]
     detail_df = df[available_cols].copy()
+
+    # Normalizar nombres de técnicos si la columna existe
+    if 'Nombre asignado' in detail_df.columns:
+        detail_df['Nombre asignado'] = detail_df['Nombre asignado'].apply(lambda x: normalizar_nombre(x) if pd.notna(x) else x)
 
     total = len(detail_df)
     start = (page - 1) * page_size

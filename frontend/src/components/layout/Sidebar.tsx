@@ -44,6 +44,7 @@ const menuSections: MenuSection[] = [
   {
     title: 'Operación Diaria',
     items: [
+      { id: 'alertas', label: 'Alertas Operativas', icon: AlertTriangle },
       { id: 'control-diario', label: 'Control Diario', icon: ClipboardCheck },
       { id: 'control-metas', label: 'Control de Metas', icon: Target },
     ],
@@ -52,7 +53,7 @@ const menuSections: MenuSection[] = [
     title: 'Indicadores',
     items: [
       { id: 'indicadores', label: 'Indicadores Generales', icon: LayoutDashboard },
-      { id: 'delegacion', label: 'Resultados por Delegación', icon: BarChart3 },
+      { id: 'delegacion', label: 'Resultados por Campaña', icon: BarChart3 },
       { id: 'ranking', label: 'Ranking CNR / Efectivas', icon: Users },
     ],
   },
@@ -69,7 +70,7 @@ const menuSections: MenuSection[] = [
   {
     title: 'Gestión',
     items: [
-      { id: 'visitas-fallidas', label: 'Visitas Fallidas', icon: AlertTriangle },
+      { id: 'visitas-fallidas', label: 'Visitas Fallidas', icon: TrendingUp },
       { id: 'normalizaciones', label: 'Normalizaciones', icon: Wrench },
       { id: 'retiro-medidores', label: 'Retiro Medidores', icon: Package },
     ],

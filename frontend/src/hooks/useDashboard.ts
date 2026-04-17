@@ -40,6 +40,10 @@ function getFilterKey(filters: Filters): string {
     zona: [...filters.zona].sort(),
     regional: [...filters.regional].sort(),
     supervisor: [...filters.supervisor].sort(),
+    estado: [...filters.estado].sort(),
+    tratamiento: [...filters.tratamiento].sort(),
+    tipo_campana: [...filters.tipo_campana].sort(),
+    nombre_asignado: [...filters.nombre_asignado].sort(),
   });
 }
 
@@ -86,7 +90,18 @@ export function useDashboard(filters: Filters) {
 
   useEffect(() => {
     fetchData();
-  }, [filters.año, filters.mes.join(','), filters.zona.join(','), filters.dia.join(',')]);
+  }, [
+    filters.año,
+    filters.mes.join(','),
+    filters.zona.join(','),
+    filters.dia.join(','),
+    filters.regional.join(','),
+    filters.supervisor.join(','),
+    filters.estado.join(','),
+    filters.tratamiento.join(','),
+    filters.tipo_campana.join(','),
+    filters.nombre_asignado.join(','),
+  ]);
 
   const handleRefresh = useCallback(() => {
     fetchData(true);

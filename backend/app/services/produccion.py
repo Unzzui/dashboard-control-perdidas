@@ -3,11 +3,21 @@ from app.config import META_POR_BRIGADA, brigadas_por_zona
 
 
 def calculate_produccion(filtered: pd.DataFrame) -> list:
+    """
+    Calcula producción por zona de inspección (donde se realizó el trabajo).
+
+    IMPORTANTE: Usa zona_inspeccion para reflejar dónde se hizo el trabajo real,
+    no la zona de origen del técnico.
+    """
     produccion_data = []
-    for zona_name in filtered['zona'].dropna().unique():
+
+    # Usar zona_inspeccion para calcular producción por zona donde se trabajó
+    zona_col = 'zona_inspeccion' if 'zona_inspeccion' in filtered.columns else 'zona'
+
+    for zona_name in filtered[zona_col].dropna().unique():
         if zona_name == 'No Asignados':
             continue
-        zona_df = filtered[filtered['zona'] == zona_name]
+        zona_df = filtered[filtered[zona_col] == zona_name]
 
         # Producción total (suma de Valor Unitario)
         produccion = zona_df['Valor Unitario'].dropna().sum()
@@ -24,7 +34,7 @@ def calculate_produccion(filtered: pd.DataFrame) -> list:
         monto_cnr = int(monto_cnr) if not pd.isna(monto_cnr) else 0
 
         produccion_data.append({
-            "zona": zona_name,
+            "zona": zona_name,  # Zona donde se realizó el trabajo
             "brigadas_activas": brigadas,
             "meta_produccion": meta,
             "produccion": produccion,

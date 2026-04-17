@@ -187,34 +187,34 @@ export default function EfectividadMensual({
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% Efectivas</p>
-          <p className={`text-2xl font-bold ${kpis.pct_efectivas >= 70 ? 'text-green-600' : 'text-slate-800'}`}>
+          <p className={`text-3xl font-bold ${kpis.pct_efectivas >= 70 ? 'text-green-600' : 'text-slate-800'}`}>
             {kpis.pct_efectivas.toFixed(1)}%
           </p>
-          <p className="text-[10px] text-slate-400 mt-1">Meta: 70%</p>
+          <p className="text-xs text-slate-400 mt-1">Meta: 70%</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% CNR</p>
-          <p className={`text-2xl font-bold ${kpis.pct_cnr >= 25 ? 'text-green-600' : 'text-slate-800'}`}>
+          <p className={`text-3xl font-bold ${kpis.pct_cnr >= 25 ? 'text-green-600' : 'text-slate-800'}`}>
             {kpis.pct_cnr.toFixed(1)}%
           </p>
-          <p className="text-[10px] text-slate-400 mt-1">Meta: 25%</p>
+          <p className="text-xs text-slate-400 mt-1">Meta: 25%</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% CNR Falla</p>
-          <p className="text-2xl font-bold text-green-600">{kpis.pct_cnr_falla.toFixed(1)}%</p>
-          <p className="text-[10px] text-slate-400 mt-1">{totals.totalCNRFalla.toLocaleString('es-CL')} casos</p>
+          <p className="text-3xl font-bold text-green-600">{kpis.pct_cnr_falla.toFixed(1)}%</p>
+          <p className="text-xs text-slate-400 mt-1">{totals.totalCNRFalla.toLocaleString('es-CL')} casos</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% CNR Hurto</p>
-          <p className="text-2xl font-bold text-red-600">{kpis.pct_cnr_hurto.toFixed(1)}%</p>
-          <p className="text-[10px] text-slate-400 mt-1">{totals.totalCNRHurto.toLocaleString('es-CL')} casos</p>
+          <p className="text-3xl font-bold text-red-600">{kpis.pct_cnr_hurto.toFixed(1)}%</p>
+          <p className="text-xs text-slate-400 mt-1">{totals.totalCNRHurto.toLocaleString('es-CL')} casos</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% V. Fallida</p>
-          <p className={`text-2xl font-bold ${kpis.pct_visita_fallida <= 30 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-3xl font-bold ${kpis.pct_visita_fallida <= 30 ? 'text-green-600' : 'text-red-600'}`}>
             {kpis.pct_visita_fallida.toFixed(1)}%
           </p>
-          <p className="text-[10px] text-slate-400 mt-1">Meta: {'<'}30%</p>
+          <p className="text-xs text-slate-400 mt-1">Meta: {'<'}30%</p>
         </div>
       </div>
 
@@ -222,11 +222,11 @@ export default function EfectividadMensual({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Efectividad por Mes
             </h3>
             {onFilterByMes && (
-              <span className="text-[10px] text-slate-400">Click en mes para filtrar</span>
+              <span className="text-xs text-slate-400">Click en mes para filtrar</span>
             )}
           </div>
           <DataTable columns={columns} data={mensual} />
@@ -235,11 +235,11 @@ export default function EfectividadMensual({
         {/* Line Chart */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Tendencia de Efectividad
             </h3>
             {onFilterByMes && (
-              <span className="text-[10px] text-slate-400">Click en punto para filtrar</span>
+              <span className="text-xs text-slate-400">Click en punto para filtrar</span>
             )}
           </div>
           <LineChart

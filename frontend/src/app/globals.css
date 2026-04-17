@@ -14,6 +14,10 @@
     --oca-orange: #F97316;
   }
 
+  .bg-oca-blue-light {
+    background-color: var(--oca-blue-light);
+  }
+
   * {
     @apply border-gray-200;
   }

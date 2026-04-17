@@ -165,28 +165,28 @@ export default function VisitasFallidas({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total V. Fallidas</p>
-          <p className="text-2xl font-bold text-slate-800">{total.toLocaleString('es-CL')}</p>
+          <p className="text-3xl font-bold text-slate-800">{total.toLocaleString('es-CL')}</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Resp. CGE</p>
-          <p className="text-2xl font-bold text-slate-800">{totalCGE.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{pctCGE}%</p>
+          <p className="text-3xl font-bold text-slate-800">{totalCGE.toLocaleString('es-CL')}</p>
+          <p className="text-xs text-slate-400 mt-1">{pctCGE}%</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Resp. Contratista</p>
-          <p className="text-2xl font-bold text-amber-600">{totalContratista.toLocaleString('es-CL')}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{pctContratista}%</p>
+          <p className="text-3xl font-bold text-amber-600">{totalContratista.toLocaleString('es-CL')}</p>
+          <p className="text-xs text-slate-400 mt-1">{pctContratista}%</p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Tipos Resultado</p>
-          <p className="text-2xl font-bold text-slate-800">{resultadosFallidos.length}</p>
+          <p className="text-3xl font-bold text-slate-800">{resultadosFallidos.length}</p>
         </div>
       </div>
 
       {/* Tabla y Donut */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4 lg:col-span-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
             Visitas Fallidas por Delegación
           </h3>
           <div className="max-h-[400px] overflow-y-auto">
@@ -195,7 +195,7 @@ export default function VisitasFallidas({
         </div>
 
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
             Distribución Responsabilidad
           </h3>
           <DonutChart
@@ -210,10 +210,10 @@ export default function VisitasFallidas({
         {/* Gráfico principal */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Top 10 Tipos de Resultados
             </h3>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-xs text-slate-400">
               {topResultados.length} de {resultadosFallidos.length} tipos
             </span>
           </div>
@@ -226,24 +226,24 @@ export default function VisitasFallidas({
 
         {/* Panel lateral con resumen */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
             Resumen de Resultados
           </h3>
 
           {/* Total */}
           <div className="bg-slate-50 rounded-lg p-3 mb-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Registros</p>
-            <p className="text-2xl font-bold text-slate-800">{totalResultados.toLocaleString('es-CL')}</p>
+            <p className="text-3xl font-bold text-slate-800">{totalResultados.toLocaleString('es-CL')}</p>
           </div>
 
           {/* Top 5 compacto */}
           <div className="space-y-2 mb-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400">Top 5 Resultados</p>
+            <p className="text-xs uppercase tracking-wider text-slate-400">Top 5 Resultados</p>
             {topResultados.slice(0, 5).map((r, idx) => {
               const pct = totalResultados > 0 ? (r.cantidad / totalResultados * 100) : 0;
               return (
                 <div key={idx} className="flex items-center gap-2">
-                  <span className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${
+                  <span className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold ${
                     idx === 0 ? 'bg-slate-800 text-white' :
                     idx === 1 ? 'bg-slate-600 text-white' :
                     idx === 2 ? 'bg-slate-400 text-white' :
@@ -252,7 +252,7 @@ export default function VisitasFallidas({
                     {idx + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-slate-700 truncate" title={r.resultado}>
+                    <p className="text-[11px] text-slate-700 truncate" title={r.resultado}>
                       {r.resultado}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
@@ -262,7 +262,7 @@ export default function VisitasFallidas({
                           style={{ width: `${Math.min(pct * 2, 100)}%` }}
                         />
                       </div>
-                      <span className="text-[9px] text-slate-500 w-10 text-right">
+                      <span className="text-[10px] text-slate-500 w-10 text-right">
                         {pct.toFixed(1)}%
                       </span>
                     </div>
@@ -275,13 +275,13 @@ export default function VisitasFallidas({
           {/* Otros resultados */}
           {otrosResultados.length > 0 && (
             <div className="border-t border-slate-200 pt-3">
-              <div className="flex justify-between items-center text-[10px]">
+              <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500">Otros ({otrosResultados.length} tipos)</span>
                 <span className="font-medium text-slate-700">
                   {otrosResultados.reduce((acc, r) => acc + r.cantidad, 0).toLocaleString('es-CL')}
                 </span>
               </div>
-              <p className="text-[9px] text-slate-400 mt-1">
+              <p className="text-[10px] text-slate-400 mt-1">
                 {totalResultados > 0
                   ? (otrosResultados.reduce((acc, r) => acc + r.cantidad, 0) / totalResultados * 100).toFixed(1)
                   : 0}% del total

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import dashboard, filters, geo, retiro_medidores, detalle_aviso, control_diario
+from app.routers import dashboard, filters, geo, retiro_medidores, detalle_aviso, control_diario, detalle_tecnico
 from app.dependencies import clear_filter_cache, reload_dataframe
 
 app = FastAPI(
@@ -31,6 +31,7 @@ app.include_router(geo.router)
 app.include_router(retiro_medidores.router)
 app.include_router(detalle_aviso.router)
 app.include_router(control_diario.router)
+app.include_router(detalle_tecnico.router)
 
 
 @app.get("/")

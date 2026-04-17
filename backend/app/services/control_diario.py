@@ -4,6 +4,11 @@ import re
 from datetime import date, timedelta
 
 
+def normalizar_nombre(nombre: str) -> str:
+    """Normaliza nombres a Title Case (Primera Letra Mayúscula)"""
+    return nombre.strip().title()
+
+
 def calculate_control_diario(filtered: pd.DataFrame, dia_especifico: int = None) -> dict:
     """Calcula los datos del control diario basado en el día anterior con datos."""
 
@@ -55,13 +60,17 @@ def calculate_control_diario(filtered: pd.DataFrame, dia_especifico: int = None)
     # Filtrar datos del día y excluir BOTs
     mask = (df_con_fecha['Fecha ejecución'].dt.date == fecha_reporte_date)
     mask &= ~df_con_fecha['Nombre asignado'].str.contains('BOT', na=False)
-    df_dia = df_con_fecha.loc[mask]
+    df_dia = df_con_fecha.loc[mask].copy()
 
     if df_dia.empty:
         return _empty_response()
 
+    # Normalizar nombres de técnicos
+    df_dia['Nombre asignado'] = df_dia['Nombre asignado'].apply(normalizar_nombre)
+
     return {
         "fecha_reporte": fecha_reporte,
+        "fecha_iso": str(fecha_reporte_date),  # Fecha en formato ISO YYYY-MM-DD
         "produccion": _calculate_produccion_optimized(df_dia),
         "cierre_actividades": _calculate_cierre_optimized(df_dia),
         "detalle_cnr": _calculate_detalle_cnr_optimized(df_dia),
@@ -73,13 +82,14 @@ def calculate_control_diario(filtered: pd.DataFrame, dia_especifico: int = None)
 def _empty_response() -> dict:
     return {
         "fecha_reporte": "Sin datos",
+        "fecha_iso": "",
         "produccion": [],
         "cierre_actividades": [],
         "detalle_cnr": [],
         "campanas_cnr": [],
         "resumen": {
             "total_produccion": 0, "total_cnr": 0, "total_normal": 0,
-            "total_visita_fallida": 0, "pct_cnr_general": 0, "pct_visita_fallida_general": 0,
+            "total_visita_fallida": 0, "total_kwh": 0, "pct_cnr_general": 0, "pct_visita_fallida_general": 0,
         },
     }
 
@@ -281,11 +291,15 @@ def _calculate_resumen(df: pd.DataFrame) -> dict:
     total_produccion = total_cnr + total_normal + total_mant + total_vf
     total_efectivo = total_cnr + total_normal
 
+    # Calcular total kWh recuperado
+    total_kwh = int(df['kWh CNR'].fillna(0).sum())
+
     return {
         "total_produccion": total_produccion,
         "total_cnr": total_cnr,
         "total_normal": total_normal,
         "total_visita_fallida": total_vf,
+        "total_kwh": total_kwh,
         "pct_cnr_general": round((total_cnr / total_efectivo * 100) if total_efectivo > 0 else 0, 1),
         "pct_visita_fallida_general": round((total_vf / total_produccion * 100) if total_produccion > 0 else 0, 1),
     }

@@ -11,6 +11,8 @@ from app.services.normalizaciones import calculate_normalizaciones
 from app.services.visitas_fallidas import calculate_visitas_fallidas
 from app.services.produccion import calculate_produccion
 from app.services.resultados_fallidos import calculate_resultados_fallidos, calculate_resultados_fallidos_por_zona
+from app.services.analisis_comparativo import calculate_analisis_comparativo
+from app.services.alertas_operativas import calculate_alertas_operativas
 
 router = APIRouter()
 
@@ -34,3 +36,35 @@ def get_dashboard(params: FilterParams = Depends()):
         "resultados_fallidos": calculate_resultados_fallidos(filtered),
         "resultados_fallidos_por_zona": calculate_resultados_fallidos_por_zona(filtered),
     }
+
+
+@router.get("/api/v1/analisis-comparativo")
+def get_analisis_comparativo(params: FilterParams = Depends()):
+    """
+    Endpoint para análisis comparativo real entre dos períodos.
+    Compara métricas de zonas y técnicos entre período actual y anterior.
+    """
+    df = get_dataframe()
+    filtered = apply_filters(df, params)
+
+    # Extraer año y meses de los parámetros
+    año = params.año if params.año else 2026
+    meses = params.mes if params.mes else []
+
+    return calculate_analisis_comparativo(filtered, año, meses)
+
+
+@router.get("/api/v1/alertas-operativas")
+def get_alertas_operativas(params: FilterParams = Depends()):
+    """
+    Endpoint para alertas operativas diarias.
+    Identifica técnicos inactivos, metas no cumplidas, problemas de jornada, etc.
+    """
+    df = get_dataframe()
+    filtered = apply_filters(df, params)
+
+    # Extraer año y meses de los parámetros
+    año = params.año if params.año else 2026
+    meses = params.mes if params.mes else []
+
+    return calculate_alertas_operativas(filtered, año, meses)

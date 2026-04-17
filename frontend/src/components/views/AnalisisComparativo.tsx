@@ -1,339 +1,249 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { MensualStats, ZonaStats, TecnicoRanking } from '@/types';
+import { Filters, AnalisisComparativoData } from '@/types';
+import { getAnalisisComparativo } from '@/lib/api';
 
 interface AnalisisComparativoProps {
-  mensual: MensualStats[];
-  zonas: ZonaStats[];
-  tecnicos: TecnicoRanking[];
-  mesesSeleccionados: string[];
+  filters: Filters;
 }
 
-export default function AnalisisComparativo({
-  mensual,
-  zonas,
-  tecnicos,
-  mesesSeleccionados
-}: AnalisisComparativoProps) {
+function getFilterKey(filters: Filters): string {
+  return `${filters.año}-${filters.mes.join(',')}-${filters.zona.join(',')}`;
+}
 
-  // Determinar períodos a comparar
-  const { periodoActual, periodoAnterior, datosActual, datosAnterior } = useMemo(() => {
-    if (mensual.length === 0) {
-      return { periodoActual: null, periodoAnterior: null, datosActual: null, datosAnterior: null };
+export default function AnalisisComparativo({ filters }: AnalisisComparativoProps) {
+  const [data, setData] = useState<AnalisisComparativoData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const lastFilterKey = useRef<string>('');
+
+  const fetchData = useCallback(async () => {
+    const currentKey = getFilterKey(filters);
+    if (currentKey === lastFilterKey.current && data !== null) return;
+    if (!filters.año) return;
+
+    lastFilterKey.current = currentKey;
+    setIsLoading(true);
+
+    try {
+      const result = await getAnalisisComparativo(filters);
+      setData(result);
+    } catch (error) {
+      console.error('Error fetching análisis comparativo:', error);
+      setData(null);
+    } finally {
+      setIsLoading(false);
     }
+  }, [filters, data]);
 
-    // Si hay 2+ meses seleccionados, comparar el último vs el primero
-    if (mesesSeleccionados.length >= 2) {
-      const mesesOrdenados = [...mesesSeleccionados].sort();
-      const primerMes = mesesOrdenados[0];
-      const ultimoMes = mesesOrdenados[mesesOrdenados.length - 1];
-
-      const datosAnterior = mensual.find(m => m.mes === primerMes);
-      const datosActual = mensual.find(m => m.mes === ultimoMes);
-
-      return {
-        periodoActual: ultimoMes,
-        periodoAnterior: primerMes,
-        datosActual,
-        datosAnterior,
-      };
-    }
-
-    // Si hay 1 mes o ninguno, comparar últimos 2 meses disponibles
-    const mesesOrdenados = [...mensual].sort((a, b) => {
-      const [mesA, añoA] = a.mes.split('/');
-      const [mesB, añoB] = b.mes.split('/');
-      return (parseInt(añoB) * 12 + parseInt(mesB)) - (parseInt(añoA) * 12 + parseInt(mesA));
-    });
-
-    if (mesesOrdenados.length >= 2) {
-      return {
-        periodoActual: mesesOrdenados[0].mes,
-        periodoAnterior: mesesOrdenados[1].mes,
-        datosActual: mesesOrdenados[0],
-        datosAnterior: mesesOrdenados[1],
-      };
-    }
-
-    return {
-      periodoActual: mesesOrdenados[0]?.mes || null,
-      periodoAnterior: null,
-      datosActual: mesesOrdenados[0] || null,
-      datosAnterior: null,
-    };
-  }, [mensual, mesesSeleccionados]);
-
-  // Calcular variaciones
-  const variaciones = useMemo(() => {
-    if (!datosActual || !datosAnterior) {
-      return null;
-    }
-
-    return {
-      cnr: datosActual.cnr - datosAnterior.cnr,
-      pct_cnr: datosActual.pct_cnr - datosAnterior.pct_cnr,
-      efectivas: datosActual.efectivas - datosAnterior.efectivas,
-      pct_efectivas: datosActual.pct_efectivas - datosAnterior.pct_efectivas,
-      visita_fallida: datosActual.visita_fallida - datosAnterior.visita_fallida,
-      pct_visita_fallida: datosActual.pct_visita_fallida - datosAnterior.pct_visita_fallida,
-      cnr_falla: datosActual.cnr_falla - datosAnterior.cnr_falla,
-      cnr_hurto: datosActual.cnr_hurto - datosAnterior.cnr_hurto,
-    };
-  }, [datosActual, datosAnterior]);
-
-  // Gráfico de tendencia mensual
-  const tendenciaMensualOption = useMemo(() => {
-    const mesesOrdenados = [...mensual].sort((a, b) => {
-      const [mesA, añoA] = a.mes.split('/');
-      const [mesB, añoB] = b.mes.split('/');
-      return (parseInt(añoA) * 12 + parseInt(mesA)) - (parseInt(añoB) * 12 + parseInt(mesB));
-    });
-
-    return {
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: '#fff',
-        borderColor: '#e2e8f0',
-        borderWidth: 1,
-        textStyle: { color: '#334155', fontSize: 11 },
-      },
-      legend: {
-        bottom: 0,
-        textStyle: { fontSize: 10 },
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '15%',
-        top: '8%',
-        containLabel: true,
-      },
-      xAxis: {
-        type: 'category',
-        data: mesesOrdenados.map(m => m.mes),
-        axisLabel: { fontSize: 10, color: '#64748b' },
-        boundaryGap: false,
-      },
-      yAxis: [
-        {
-          type: 'value',
-          name: 'Cantidad',
-          axisLabel: { fontSize: 10, color: '#64748b' },
-          splitLine: { lineStyle: { color: '#f1f5f9' } },
-        },
-        {
-          type: 'value',
-          name: '%',
-          axisLabel: { fontSize: 10, color: '#64748b', formatter: '{value}%' },
-          splitLine: { show: false },
-        },
-      ],
-      series: [
-        {
-          name: 'CNR',
-          type: 'bar',
-          data: mesesOrdenados.map(m => m.cnr),
-          itemStyle: { color: '#475569' },
-        },
-        {
-          name: 'V. Fallida',
-          type: 'bar',
-          data: mesesOrdenados.map(m => m.visita_fallida),
-          itemStyle: { color: '#f59e0b' },
-        },
-        {
-          name: '% Efectivas',
-          type: 'line',
-          yAxisIndex: 1,
-          data: mesesOrdenados.map(m => m.pct_efectivas),
-          smooth: true,
-          lineStyle: { color: '#16a34a', width: 2 },
-          itemStyle: { color: '#16a34a' },
-        },
-      ],
-    };
-  }, [mensual]);
-
-  // Ranking de zonas por CNR
-  const zonasRanking = useMemo(() => {
-    return [...zonas]
-      .sort((a, b) => b.cnr - a.cnr)
-      .map((z, idx) => ({ ...z, rank: idx + 1 }));
-  }, [zonas]);
-
-  // Gráfico de zonas
-  const zonasChartOption = useMemo(() => {
-    const top10 = zonasRanking.slice(0, 10);
-
-    return {
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        backgroundColor: '#fff',
-        borderColor: '#e2e8f0',
-        borderWidth: 1,
-        textStyle: { color: '#334155', fontSize: 11 },
-      },
-      grid: {
-        left: '3%',
-        right: '12%',
-        bottom: '5%',
-        top: '5%',
-        containLabel: true,
-      },
-      xAxis: {
-        type: 'value',
-        axisLabel: { fontSize: 10, color: '#64748b' },
-        splitLine: { lineStyle: { color: '#f1f5f9' } },
-      },
-      yAxis: {
-        type: 'category',
-        data: top10.map(z => z.zona).reverse(),
-        axisLabel: { fontSize: 10, color: '#475569', width: 120, overflow: 'truncate' },
-        axisLine: { show: false },
-        axisTick: { show: false },
-      },
-      series: [
-        {
-          type: 'bar',
-          data: top10.map(z => ({
-            value: z.cnr,
-            itemStyle: { color: '#475569', borderRadius: [0, 4, 4, 0] },
-          })).reverse(),
-          barWidth: '60%',
-          label: {
-            show: true,
-            position: 'right',
-            fontSize: 10,
-            color: '#475569',
-            formatter: (params: { value: number }) => params.value.toLocaleString('es-CL'),
-          },
-        },
-      ],
-    };
-  }, [zonasRanking]);
-
-  // Top técnicos por CNR
-  const topTecnicos = useMemo(() => {
-    return [...tecnicos]
-      .sort((a, b) => b.cnr - a.cnr)
-      .slice(0, 10);
-  }, [tecnicos]);
-
-  // Técnicos con mejor efectividad
-  const topEfectividad = useMemo(() => {
-    return [...tecnicos]
-      .filter(t => t.visitas_totales >= 10) // Mínimo 10 visitas
-      .sort((a, b) => b.pct_efectivas - a.pct_efectivas)
-      .slice(0, 10);
-  }, [tecnicos]);
+  useEffect(() => {
+    fetchData();
+  }, [filters.año, filters.mes.join(','), filters.zona.join(',')]);
 
   // Formatear variación con color
   const formatVariacion = (valor: number, invertir: boolean = false) => {
     const esPositivo = invertir ? valor < 0 : valor > 0;
     const colorClass = esPositivo ? 'text-green-600' : valor === 0 ? 'text-slate-500' : 'text-red-600';
     const signo = valor > 0 ? '+' : '';
-    return <span className={`font-bold ${colorClass}`}>{signo}{valor.toFixed(1)}</span>;
+    return <span className={`font-bold ${colorClass}`}>{signo}{valor.toLocaleString('es-CL')}</span>;
   };
 
-  if (mensual.length === 0) {
+  const formatVariacionPct = (valor: number, invertir: boolean = false) => {
+    const esPositivo = invertir ? valor < 0 : valor > 0;
+    const colorClass = esPositivo ? 'text-green-600' : valor === 0 ? 'text-slate-500' : 'text-red-600';
+    const signo = valor > 0 ? '+' : '';
+    return <span className={`font-bold ${colorClass}`}>{signo}{valor.toFixed(1)}%</span>;
+  };
+
+  // Gráfico de comparación de zonas
+  const zonasChartOption = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: '#fff',
+      borderColor: '#e2e8f0',
+      borderWidth: 1,
+      textStyle: { color: '#334155', fontSize: 11 },
+    },
+    legend: {
+      bottom: 0,
+      textStyle: { fontSize: 10 },
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '12%',
+      top: '5%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: data?.zonas.map(z => z.zona) || [],
+      axisLabel: { fontSize: 9, color: '#64748b', rotate: 45 },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { fontSize: 10, color: '#64748b' },
+      splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } },
+    },
+    series: [
+      {
+        name: data?.periodo_anterior || 'Período Anterior',
+        type: 'bar',
+        data: data?.zonas.map(z => z.anterior.cnr) || [],
+        itemStyle: { color: '#94a3b8', borderRadius: [4, 4, 0, 0] },
+        barMaxWidth: 24,
+      },
+      {
+        name: data?.periodo_actual || 'Período Actual',
+        type: 'bar',
+        data: data?.zonas.map(z => z.actual.cnr) || [],
+        itemStyle: { color: '#294D6D', borderRadius: [4, 4, 0, 0] },
+        barMaxWidth: 24,
+      },
+    ],
+  };
+
+  // Gráfico de efectividad por zona
+  const efectividadChartOption = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#e2e8f0',
+      borderWidth: 1,
+      textStyle: { color: '#334155', fontSize: 11 },
+      formatter: (params: any) => {
+        return params.map((p: any) =>
+          `${p.marker} ${p.seriesName}: ${p.value.toFixed(1)}%`
+        ).join('<br/>');
+      }
+    },
+    legend: {
+      bottom: 0,
+      textStyle: { fontSize: 10 },
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '12%',
+      top: '5%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: data?.zonas.map(z => z.zona) || [],
+      axisLabel: { fontSize: 9, color: '#64748b', rotate: 45 },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { fontSize: 10, color: '#64748b', formatter: '{value}%' },
+      splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } },
+    },
+    series: [
+      {
+        name: data?.periodo_anterior || 'Período Anterior',
+        type: 'line',
+        data: data?.zonas.map(z => z.anterior.pct_cnr) || [],
+        smooth: true,
+        lineStyle: { color: '#94a3b8', width: 2 },
+        itemStyle: { color: '#94a3b8' },
+      },
+      {
+        name: data?.periodo_actual || 'Período Actual',
+        type: 'line',
+        data: data?.zonas.map(z => z.actual.pct_cnr) || [],
+        smooth: true,
+        lineStyle: { color: '#10b981', width: 2 },
+        itemStyle: { color: '#10b981' },
+      },
+    ],
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
+      </div>
+    );
+  }
+
+  if (!data || !data.periodo_actual || !data.periodo_anterior) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-slate-400 mb-2">No hay datos mensuales disponibles</p>
-          <p className="text-[10px] text-slate-300">Selecciona un período con datos</p>
+          <p className="text-slate-400 mb-2">No hay datos suficientes para comparar</p>
+          <p className="text-[10px] text-slate-300">Selecciona un período con al menos 2 meses de datos</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Análisis Comparativo</h2>
+          <p className="text-sm text-slate-500">
+            {data.periodo_actual} vs {data.periodo_anterior}
+          </p>
         </div>
       </div>
 
-      {/* KPIs de Variación (si hay comparación) */}
-      {variaciones && datosActual && datosAnterior && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR {periodoActual}</p>
-            <p className="text-2xl font-bold text-slate-800">{datosActual.cnr.toLocaleString('es-CL')}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] text-slate-400">vs {datosAnterior.cnr.toLocaleString('es-CL')}</span>
-              <span className="text-[10px]">{formatVariacion(variaciones.cnr)}</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% CNR</p>
-            <p className="text-2xl font-bold text-slate-800">{datosActual.pct_cnr.toFixed(1)}%</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] text-slate-400">vs {datosAnterior.pct_cnr.toFixed(1)}%</span>
-              <span className="text-[10px]">{formatVariacion(variaciones.pct_cnr)}</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectivas {periodoActual}</p>
-            <p className="text-2xl font-bold text-slate-800">{datosActual.efectivas.toLocaleString('es-CL')}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] text-slate-400">vs {datosAnterior.efectivas.toLocaleString('es-CL')}</span>
-              <span className="text-[10px]">{formatVariacion(variaciones.efectivas)}</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% Efectivas</p>
-            <p className={`text-2xl font-bold ${datosActual.pct_efectivas >= 70 ? 'text-green-600' : 'text-slate-800'}`}>
-              {datosActual.pct_efectivas.toFixed(1)}%
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] text-slate-400">vs {datosAnterior.pct_efectivas.toFixed(1)}%</span>
-              <span className="text-[10px]">{formatVariacion(variaciones.pct_efectivas)}</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">V. Fallida</p>
-            <p className="text-2xl font-bold text-amber-600">{datosActual.visita_fallida.toLocaleString('es-CL')}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] text-slate-400">vs {datosAnterior.visita_fallida.toLocaleString('es-CL')}</span>
-              <span className="text-[10px]">{formatVariacion(variaciones.visita_fallida, true)}</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">% V. Fallida</p>
-            <p className={`text-2xl font-bold ${datosActual.pct_visita_fallida <= 30 ? 'text-green-600' : 'text-red-600'}`}>
-              {datosActual.pct_visita_fallida.toFixed(1)}%
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] text-slate-400">vs {datosAnterior.pct_visita_fallida.toFixed(1)}%</span>
-              <span className="text-[10px]">{formatVariacion(variaciones.pct_visita_fallida, true)}</span>
-            </div>
+      {/* KPIs de Resumen */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">CNR</p>
+          <p className="text-3xl font-bold text-slate-800">
+            {data.resumen.total_cnr_actual.toLocaleString('es-CL')}
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[10px] text-slate-400">
+              vs {data.resumen.total_cnr_anterior.toLocaleString('es-CL')}
+            </span>
+            <span className="text-[10px]">
+              {formatVariacion(data.resumen.variacion_cnr)}
+            </span>
           </div>
         </div>
-      )}
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Tendencia Mensual */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Tendencia Mensual
-          </h3>
-          <ReactECharts
-            option={tendenciaMensualOption}
-            style={{ height: '300px', width: '100%' }}
-            notMerge={true}
-          />
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectivas</p>
+          <p className="text-3xl font-bold text-slate-800">
+            {data.resumen.total_efectivas_actual.toLocaleString('es-CL')}
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[10px] text-slate-400">
+              vs {data.resumen.total_efectivas_anterior.toLocaleString('es-CL')}
+            </span>
+            <span className="text-[10px]">
+              {formatVariacion(data.resumen.variacion_efectivas)}
+            </span>
+          </div>
         </div>
 
-        {/* Top Zonas por CNR */}
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">V. Fallida</p>
+          <p className="text-3xl font-bold text-amber-600">
+            {data.resumen.total_vf_actual.toLocaleString('es-CL')}
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[10px] text-slate-400">
+              vs {data.resumen.total_vf_anterior.toLocaleString('es-CL')}
+            </span>
+            <span className="text-[10px]">
+              {formatVariacion(data.resumen.variacion_vf, true)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Gráficos Comparativos */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Top 10 Zonas por CNR
+            CNR por Zona - Comparativo
           </h3>
           <ReactECharts
             option={zonasChartOption}
@@ -341,44 +251,74 @@ export default function AnalisisComparativo({
             notMerge={true}
           />
         </div>
+
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+            % CNR por Zona - Tendencia
+          </h3>
+          <ReactECharts
+            option={efectividadChartOption}
+            style={{ height: '300px', width: '100%' }}
+            notMerge={true}
+          />
+        </div>
       </div>
 
-      {/* Tabla de meses */}
+      {/* Tabla Comparativa de Zonas */}
       <div className="bg-white rounded-lg border border-slate-200/60 p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-          Comparativo por Mes
+          Comparativo Detallado por Zona
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-[11px]">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-3 py-2 text-left text-[9px] font-semibold uppercase text-slate-500">Mes</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">CNR</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">% CNR</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">Efectivas</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">% Efect.</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">V. Fallida</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">% V.F.</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">CNR Falla</th>
-                <th className="px-2 py-2 text-right text-[9px] font-semibold uppercase text-slate-500">CNR Hurto</th>
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">Zona</th>
+                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500" colSpan={2}>CNR</th>
+                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500" colSpan={2}>% CNR</th>
+                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500" colSpan={2}>Efectivas</th>
+                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500" colSpan={2}>V. Fallida</th>
+              </tr>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-3 py-2"></th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Actual</th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Var.</th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Actual</th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Var.</th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Actual</th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Var.</th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Actual</th>
+                <th className="px-2 py-1 text-center text-[9px] text-slate-400">Var.</th>
               </tr>
             </thead>
             <tbody>
-              {mensual.map((m, idx) => (
-                <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="px-3 py-2 font-medium text-slate-700">{m.mes}</td>
-                  <td className="px-2 py-2 text-right font-medium text-slate-800">{m.cnr.toLocaleString('es-CL')}</td>
-                  <td className="px-2 py-2 text-right text-slate-600">{m.pct_cnr.toFixed(1)}%</td>
-                  <td className="px-2 py-2 text-right font-medium text-slate-800">{m.efectivas.toLocaleString('es-CL')}</td>
-                  <td className={`px-2 py-2 text-right ${m.pct_efectivas >= 70 ? 'text-green-600 font-medium' : 'text-slate-600'}`}>
-                    {m.pct_efectivas.toFixed(1)}%
+              {data.zonas.map((z, idx) => (
+                <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/80">
+                  <td className="px-3 py-2 font-medium text-slate-700">{z.zona}</td>
+                  <td className="px-2 py-2 text-center text-slate-800 font-medium">
+                    {z.actual.cnr.toLocaleString('es-CL')}
                   </td>
-                  <td className="px-2 py-2 text-right text-amber-600">{m.visita_fallida.toLocaleString('es-CL')}</td>
-                  <td className={`px-2 py-2 text-right ${m.pct_visita_fallida > 30 ? 'text-red-600' : 'text-slate-600'}`}>
-                    {m.pct_visita_fallida.toFixed(1)}%
+                  <td className="px-2 py-2 text-center text-[10px]">
+                    {formatVariacion(z.variacion.cnr)}
                   </td>
-                  <td className="px-2 py-2 text-right text-green-600">{m.cnr_falla.toLocaleString('es-CL')}</td>
-                  <td className="px-2 py-2 text-right text-red-600">{m.cnr_hurto.toLocaleString('es-CL')}</td>
+                  <td className="px-2 py-2 text-center text-slate-800">
+                    {z.actual.pct_cnr.toFixed(1)}%
+                  </td>
+                  <td className="px-2 py-2 text-center text-[10px]">
+                    {formatVariacionPct(z.variacion.pct_cnr)}
+                  </td>
+                  <td className="px-2 py-2 text-center text-slate-800 font-medium">
+                    {z.actual.efectivas.toLocaleString('es-CL')}
+                  </td>
+                  <td className="px-2 py-2 text-center text-[10px]">
+                    {formatVariacion(z.variacion.efectivas)}
+                  </td>
+                  <td className="px-2 py-2 text-center text-amber-600">
+                    {z.actual.visita_fallida.toLocaleString('es-CL')}
+                  </td>
+                  <td className="px-2 py-2 text-center text-[10px]">
+                    {formatVariacion(z.variacion.visita_fallida, true)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -387,58 +327,71 @@ export default function AnalisisComparativo({
       </div>
 
       {/* Rankings de Técnicos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Top CNR */}
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Top 10 Técnicos por CNR
-          </h3>
-          <div className="space-y-2">
-            {topTecnicos.map((t, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-2 bg-slate-50 rounded">
-                <span className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${
-                  idx < 3 ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {idx + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-slate-700 truncate">{t.nombre}</p>
-                  <p className="text-[9px] text-slate-400">{t.zona}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[11px] font-bold text-slate-800">{t.cnr} CNR</p>
-                  <p className="text-[9px] text-slate-400">{t.pct_efectivas.toFixed(0)}% efect.</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top Efectividad */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Técnicos Mejorando */}
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-green-600 mb-4">
-            Top 10 por Efectividad
+            Técnicos Mejorando ({data.tecnicos_mejorando.length})
           </h3>
-          <div className="space-y-2">
-            {topEfectividad.map((t, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-2 bg-green-50 rounded border border-green-100">
-                <span className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${
-                  idx < 3 ? 'bg-green-600 text-white' : 'bg-green-200 text-green-700'
-                }`}>
-                  {idx + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-slate-700 truncate">{t.nombre}</p>
-                  <p className="text-[9px] text-slate-400">{t.zona}</p>
+          {data.tecnicos_mejorando.length === 0 ? (
+            <p className="text-[11px] text-slate-400 text-center py-8">
+              No hay técnicos con tendencia de mejora
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {data.tecnicos_mejorando.map((t, idx) => (
+                <div key={idx} className="p-2 bg-green-50 rounded border border-green-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-slate-700 truncate">{t.nombre}</p>
+                      <p className="text-[9px] text-slate-400">{t.zona}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] font-bold text-green-600">
+                        {t.actual_cnr} CNR {formatVariacion(t.variacion_cnr)}
+                      </p>
+                      <p className="text-[9px] text-slate-500">
+                        {t.actual_pct_efectivas.toFixed(1)}% efect.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[11px] font-bold text-green-600">{t.pct_efectivas.toFixed(1)}%</p>
-                  <p className="text-[9px] text-slate-400">{t.visitas_efectivas}/{t.visitas_totales}</p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Técnicos Cayendo */}
+        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-red-600 mb-4">
+            Técnicos en Declive ({data.tecnicos_cayendo.length})
+          </h3>
+          {data.tecnicos_cayendo.length === 0 ? (
+            <p className="text-[11px] text-slate-400 text-center py-8">
+              No hay técnicos con tendencia de declive
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {data.tecnicos_cayendo.map((t, idx) => (
+                <div key={idx} className="p-2 bg-red-50 rounded border border-red-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-slate-700 truncate">{t.nombre}</p>
+                      <p className="text-[9px] text-slate-400">{t.zona}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] font-bold text-red-600">
+                        {t.actual_cnr} CNR {formatVariacion(t.variacion_cnr)}
+                      </p>
+                      <p className="text-[9px] text-slate-500">
+                        {t.actual_pct_efectivas.toFixed(1)}% efect.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-[9px] text-slate-400 mt-3">*Mínimo 10 visitas</p>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
