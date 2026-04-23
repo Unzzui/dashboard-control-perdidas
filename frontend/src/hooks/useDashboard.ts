@@ -27,6 +27,7 @@ const defaultData: DashboardData = {
   normalizaciones: [],
   visitas_fallidas_responsabilidad: [],
   produccion: [],
+  pago_tecnicos: [],
   resultados_fallidos: [],
   resultados_fallidos_por_zona: {},
 };

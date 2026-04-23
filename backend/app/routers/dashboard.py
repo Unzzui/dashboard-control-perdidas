@@ -10,6 +10,7 @@ from app.services.campanas import calculate_campanas
 from app.services.normalizaciones import calculate_normalizaciones
 from app.services.visitas_fallidas import calculate_visitas_fallidas
 from app.services.produccion import calculate_produccion
+from app.services.pago_tecnicos import calculate_pago_tecnicos
 from app.services.resultados_fallidos import calculate_resultados_fallidos, calculate_resultados_fallidos_por_zona
 from app.services.analisis_comparativo import calculate_analisis_comparativo
 from app.services.alertas_operativas import calculate_alertas_operativas
@@ -33,9 +34,18 @@ def get_dashboard(params: FilterParams = Depends()):
         "normalizaciones": calculate_normalizaciones(filtered),
         "visitas_fallidas_responsabilidad": calculate_visitas_fallidas(filtered),
         "produccion": calculate_produccion(filtered),
+        "pago_tecnicos": calculate_pago_tecnicos(filtered),
         "resultados_fallidos": calculate_resultados_fallidos(filtered),
         "resultados_fallidos_por_zona": calculate_resultados_fallidos_por_zona(filtered),
     }
+
+
+@router.get("/api/v1/produccion/pago-tecnicos")
+def get_pago_tecnicos(params: FilterParams = Depends()):
+    """Cálculo de pago mensual por técnico (OCA GLOBAL / 1F)."""
+    df = get_dataframe()
+    filtered = apply_filters(df, params)
+    return calculate_pago_tecnicos(filtered)
 
 
 @router.get("/api/v1/analisis-comparativo")

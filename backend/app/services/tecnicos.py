@@ -38,11 +38,11 @@ def calculate_tecnicos(filtered: pd.DataFrame) -> list:
     ejecutores['es_mant'] = (ejecutores['Resultado visita'] == 'Mantenimiento Medidor').astype(int)
 
     # VF CGE Pagables (responsabilidad CGE que se pagan)
-    # Incluye: Sitio eriazo, Sin empalme, y cualquier "Sin acceso medidor..."
+    # Incluye: Sitio eriazo, Sin empalme, Desconectado en BT/MT, y cualquier "Sin acceso medidor..."
     ejecutores['es_vf_cge_pagable'] = (
         (ejecutores['Resultado visita'] == 'Visita fallida') &
         (
-            ejecutores['Resultado final'].isin(['Sitio eriazo', 'Sin empalme']) |
+            ejecutores['Resultado final'].isin(['Sitio eriazo', 'Sin empalme', 'Desconectado en BT/MT']) |
             ejecutores['Resultado final'].str.contains('Sin acceso medidor', case=False, na=False)
         )
     ).astype(int)
@@ -51,7 +51,7 @@ def calculate_tecnicos(filtered: pd.DataFrame) -> list:
     ejecutores['es_vf_no_efectiva'] = (
         (ejecutores['Resultado visita'] == 'Visita fallida') &
         ~(
-            ejecutores['Resultado final'].isin(['Sitio eriazo', 'Sin empalme']) |
+            ejecutores['Resultado final'].isin(['Sitio eriazo', 'Sin empalme', 'Desconectado en BT/MT']) |
             ejecutores['Resultado final'].str.contains('Sin acceso medidor', case=False, na=False)
         )
     ).astype(int)

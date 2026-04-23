@@ -102,11 +102,11 @@ def calculate_detalle_tecnico_diario(filtered: pd.DataFrame, nombre_tecnico: str
     tecnico_df['es_vf'] = (tecnico_df['Resultado visita'] == 'Visita fallida').astype(int)
 
     # VF CGE Pagables (responsabilidad CGE que se pagan)
-    # Incluye: Sitio eriazo, Sin empalme, y cualquier "Sin acceso medidor..."
+    # Incluye: Sitio eriazo, Sin empalme, Desconectado en BT/MT, y cualquier "Sin acceso medidor..."
     tecnico_df['es_vf_cge_pagable'] = (
         (tecnico_df['Resultado visita'] == 'Visita fallida') &
         (
-            tecnico_df['Resultado final'].isin(['Sitio eriazo', 'Sin empalme']) |
+            tecnico_df['Resultado final'].isin(['Sitio eriazo', 'Sin empalme', 'Desconectado en BT/MT']) |
             tecnico_df['Resultado final'].str.contains('Sin acceso medidor', case=False, na=False)
         )
     ).astype(int)
@@ -115,7 +115,7 @@ def calculate_detalle_tecnico_diario(filtered: pd.DataFrame, nombre_tecnico: str
     tecnico_df['es_vf_no_efectiva'] = (
         (tecnico_df['Resultado visita'] == 'Visita fallida') &
         ~(
-            tecnico_df['Resultado final'].isin(['Sitio eriazo', 'Sin empalme']) |
+            tecnico_df['Resultado final'].isin(['Sitio eriazo', 'Sin empalme', 'Desconectado en BT/MT']) |
             tecnico_df['Resultado final'].str.contains('Sin acceso medidor', case=False, na=False)
         )
     ).astype(int)
@@ -418,7 +418,7 @@ def get_inspecciones_dia(filtered: pd.DataFrame, nombre_tecnico: str, zona: str 
     vf_cge_mask = (
         (inspecciones_df['Resultado visita'] == 'Visita fallida') &
         (
-            inspecciones_df['Resultado final'].isin(['Sitio eriazo', 'Sin empalme']) |
+            inspecciones_df['Resultado final'].isin(['Sitio eriazo', 'Sin empalme', 'Desconectado en BT/MT']) |
             inspecciones_df['Resultado final'].str.contains('Sin acceso medidor', case=False, na=False)
         )
     )

@@ -138,13 +138,8 @@ function DashboardContent() {
       case 'produccion':
         return (
           <ProduccionMensual
-            produccion={data.produccion}
-            produccionTecnicos={data.tecnicos.map((t) => ({
-              zona: t.zona,
-              nombre: t.nombre,
-              produccion: t.efectivas * 25000,
-            }))}
-            {...filterHandlers}
+            pagoTecnicos={data.pago_tecnicos}
+            mesesSeleccionados={filters.mes}
           />
         );
       case 'kwh':

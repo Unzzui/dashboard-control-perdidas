@@ -154,6 +154,35 @@ export interface ProduccionZona {
   promedio_monto_cnr: number;
 }
 
+export interface PagoTecnico {
+  nombre: string;
+  eecc: string;
+  ctta_tusan: string;
+  tipo_brigada: string;
+  regional: string;
+  zona: string;
+  zona_precios: string;
+  comuna: string;
+  normales_mes: number;
+  cnr_medida_mes: number;
+  cnr_intervencion_mes: number;
+  vf_cge_mes: number;
+  efectivas_mes: number;
+  pct_efectividad: number;
+  normales_sabado: number;
+  cnr_medida_sabado: number;
+  cnr_intervencion_sabado: number;
+  vf_cge_sabado: number;
+  efectivas_sabado: number;
+  efectivas_habiles: number;
+  concatenar: string;
+  precio_base: number;
+  monto_habil: number;
+  monto_sabado: number;
+  total_pago: number;
+  cumple_meta: boolean;
+}
+
 export interface FilterOptions {
   años: number[];
   meses: string[];
@@ -178,6 +207,7 @@ export interface DashboardData {
   normalizaciones: NormalizacionStats[];
   visitas_fallidas_responsabilidad: VisitaFallidaResponsabilidad[];
   produccion: ProduccionZona[];
+  pago_tecnicos: PagoTecnico[];
   resultados_fallidos: ResultadoFallido[];
   resultados_fallidos_por_zona: Record<string, ResultadoFallido[]>;
 }
