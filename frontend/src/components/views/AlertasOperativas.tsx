@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Filters, AlertasOperativasData, TecnicoInactivo, MetaNoCompida, ProblemaJornada, AltaVisitaFallida, PagoTecnico, CalendarioMes } from '@/types';
 import { getAlertasOperativas } from '@/lib/api';
 import CalendarioBrigadas from './CalendarioBrigadas';
+import DetalleTecnicoDiarioModal from '@/components/ui/DetalleTecnicoDiarioModal';
 
 interface AlertasOperativasProps {
   filters: Filters;
@@ -13,72 +14,6 @@ interface AlertasOperativasProps {
 
 function getFilterKey(filters: Filters): string {
   return `${filters.año}-${filters.mes.join(',')}-${filters.zona.join(',')}`;
-}
-
-// Componente de calendario similar al de Control de Metas
-function CalendarioAsistencia({ fechasTrabajadasStr, fechaInicio, fechaFin }: {
-  fechasTrabajadasStr: string[];
-  fechaInicio: string;
-  fechaFin: string;
-}) {
-  const fechasTrabajadas = new Set(fechasTrabajadasStr);
-  const inicio = new Date(fechaInicio);
-  const fin = new Date(fechaFin);
-
-  const dias = [];
-  const current = new Date(inicio);
-
-  while (current <= fin) {
-    dias.push(new Date(current));
-    current.setDate(current.getDate() + 1);
-  }
-
-  const mesesAgrupados: { [key: string]: Date[] } = {};
-  dias.forEach(dia => {
-    const mesKey = `${dia.getFullYear()}-${dia.getMonth()}`;
-    if (!mesesAgrupados[mesKey]) {
-      mesesAgrupados[mesKey] = [];
-    }
-    mesesAgrupados[mesKey].push(dia);
-  });
-
-  return (
-    <div className="space-y-3">
-      {Object.entries(mesesAgrupados).map(([mesKey, diasMes]) => {
-        const primerDia = diasMes[0];
-        const nombreMes = primerDia.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-
-        return (
-          <div key={mesKey} className="bg-slate-50 rounded-lg p-3">
-            <p className="text-xs font-semibold text-slate-600 mb-2 capitalize">{nombreMes}</p>
-            <div className="grid grid-cols-7 gap-1">
-              {diasMes.map((dia, idx) => {
-                const fechaStr = dia.toISOString().split('T')[0];
-                const trabajado = fechasTrabajadas.has(fechaStr);
-                const esFinde = dia.getDay() === 0 || dia.getDay() === 6;
-
-                return (
-                  <div
-                    key={idx}
-                    className={`text-center p-1.5 rounded text-xs ${
-                      trabajado
-                        ? 'bg-green-500 text-white font-semibold'
-                        : esFinde
-                        ? 'bg-slate-200 text-slate-400'
-                        : 'bg-red-100 text-red-600'
-                    }`}
-                    title={`${dia.toLocaleDateString('es-CL')} - ${trabajado ? 'Trabajado' : esFinde ? 'Fin de semana' : 'Ausente'}`}
-                  >
-                    {dia.getDate()}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes }: AlertasOperativasProps) {
@@ -667,228 +602,112 @@ export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes
         </div>
       )}
 
-      {/* Modal de Detalle */}
-      {tecnicoDetalle && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setTecnicoDetalle(null)}>
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="bg-slate-800 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide">
-                  {tecnicoDetalle.tipo === 'inactivo' && 'Técnico Inactivo'}
-                  {tecnicoDetalle.tipo === 'meta' && 'Meta No Cumplida'}
-                  {tecnicoDetalle.tipo === 'jornada' && 'Problema de Jornada'}
-                  {tecnicoDetalle.tipo === 'vf' && 'Alta Visita Fallida'}
-                </h3>
-                <p className="text-[10px] text-slate-300 mt-0.5">
-                  {'tecnico' in tecnicoDetalle.data ? tecnicoDetalle.data.tecnico : ''}
-                  {' · '}
-                  {tecnicoDetalle.data.zona}
-                </p>
-              </div>
-              <button onClick={() => setTecnicoDetalle(null)} className="text-slate-300 hover:text-white text-xs px-2 py-1">
-                Cerrar
-              </button>
+      {/* Modal de Detalle con calendario al estilo Control de Metas */}
+      {tecnicoDetalle && (() => {
+        const nombre = 'tecnico' in tecnicoDetalle.data ? tecnicoDetalle.data.tecnico : '';
+        const zona = tecnicoDetalle.data.zona;
+        let titulo = '';
+        let badge: { texto: string; clase: string } | undefined;
+        let kpisTop: React.ReactNode = null;
+
+        if (tecnicoDetalle.tipo === 'inactivo') {
+          const t = tecnicoDetalle.data as TecnicoInactivo;
+          titulo = 'Técnico Inactivo';
+          badge = t.pct_ausentismo >= 50
+            ? { texto: 'Crítico', clase: 'bg-red-500/20 text-red-300' }
+            : { texto: 'Medio', clase: 'bg-amber-500/20 text-amber-300' };
+          kpisTop = (
+            <div className="grid grid-cols-4 gap-3">
+              <KPI label="Período" main={data.periodo} hint={`${data.dias_habiles} hábiles`} />
+              <KPI label="Días Trabajados" main={String(t.dias_trabajados)} hint={`de ${data.dias_habiles}`} />
+              <KPI label="Días Ausente" main={String(t.dias_no_trabajados)} tone="red" />
+              <KPI label="% Ausentismo" main={`${t.pct_ausentismo}%`} tone="red" />
             </div>
-
-            <div className="p-6">
-              {tecnicoDetalle.tipo === 'inactivo' && (() => {
-                const t = tecnicoDetalle.data as TecnicoInactivo;
-                return (
-                  <div className="space-y-4">
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                      <p className="text-[10px] uppercase text-slate-400 mb-1">Período analizado</p>
-                      <p className="text-sm font-semibold text-slate-700">{data.periodo}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {data.dias_habiles} días hábiles de {data.dias_analizados} días calendario
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center p-4 bg-slate-50 rounded-lg">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Días Trabajados</p>
-                        <p className="text-2xl font-bold text-slate-800">{t.dias_trabajados}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">de {data.dias_habiles} hábiles</p>
-                      </div>
-                      <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Días Ausente</p>
-                        <p className="text-2xl font-bold text-red-600">{t.dias_no_trabajados}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">de {data.dias_habiles} hábiles</p>
-                      </div>
-                      <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">% Ausentismo</p>
-                        <p className="text-2xl font-bold text-red-600">{t.pct_ausentismo}%</p>
-                        <p className="text-[10px] text-slate-400 mt-1">del período</p>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 rounded-lg">
-                      <p className="text-[10px] uppercase text-slate-400 mb-1">Última actividad registrada</p>
-                      <p className="text-sm font-semibold text-slate-800">{t.ultima_actividad}</p>
-                    </div>
-
-                    {/* Calendario de asistencia */}
-                    <div className="p-4 bg-white rounded-lg border border-slate-200">
-                      <p className="text-xs font-semibold text-slate-600 mb-3">Calendario de Asistencia</p>
-                      <div className="flex gap-4 mb-3 text-xs">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 bg-green-500 rounded"></div>
-                          <span className="text-slate-600">Trabajado</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 bg-red-100 rounded"></div>
-                          <span className="text-slate-600">Ausente</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 bg-slate-200 rounded"></div>
-                          <span className="text-slate-600">Fin de semana</span>
-                        </div>
-                      </div>
-                      <CalendarioAsistencia
-                        fechasTrabajadasStr={t.fechas_trabajadas}
-                        fechaInicio={t.fecha_inicio}
-                        fechaFin={t.fecha_fin}
-                      />
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {tecnicoDetalle.tipo === 'meta' && (() => {
-                const m = tecnicoDetalle.data as MetaNoCompida;
-                return (
-                  <div className="space-y-4">
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                      <p className="text-[10px] uppercase text-slate-400 mb-1">Período analizado</p>
-                      <p className="text-sm font-semibold text-slate-700">{data.periodo}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Trabajó {m.dias_trabajados} de {data.dias_habiles} días hábiles
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className={`p-4 rounded-lg ${m.promedio_cnr < 2 ? 'bg-red-50 border border-red-100' : 'bg-slate-50'}`}>
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">CNR Promedio</p>
-                        <p className={`text-3xl font-bold ${m.promedio_cnr < 2 ? 'text-red-600' : 'text-slate-800'}`}>
-                          {m.promedio_cnr}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1">Meta: 2 CNR/día</p>
-                        <div className="mt-2 h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${m.promedio_cnr >= 2 ? 'bg-oca-blue' : 'bg-red-500'}`}
-                            style={{ width: `${Math.min((m.promedio_cnr / 2) * 100, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className={`p-4 rounded-lg ${m.promedio_efectivas < 8 ? 'bg-red-50 border border-red-100' : 'bg-slate-50'}`}>
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Efectivas Promedio</p>
-                        <p className={`text-3xl font-bold ${m.promedio_efectivas < 8 ? 'text-red-600' : 'text-slate-800'}`}>
-                          {m.promedio_efectivas}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1">Meta: 8 efectivas/día</p>
-                        <div className="mt-2 h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${m.promedio_efectivas >= 8 ? 'bg-oca-blue' : 'bg-red-500'}`}
-                            style={{ width: `${Math.min((m.promedio_efectivas / 8) * 100, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
-                      <p className="text-[10px] uppercase text-slate-400 mb-1">Problemas identificados</p>
-                      <p className="text-sm text-slate-700">{m.problemas}</p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {tecnicoDetalle.tipo === 'jornada' && (() => {
-                const j = tecnicoDetalle.data as ProblemaJornada;
-                return (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-100">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Inicio Promedio</p>
-                        <p className="text-2xl font-bold text-slate-800">{j.promedio_inicio}</p>
-                      </div>
-                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-100">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Fin Promedio</p>
-                        <p className="text-2xl font-bold text-slate-800">{j.promedio_fin}</p>
-                      </div>
-                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-100">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Duración Prom.</p>
-                        <p className="text-2xl font-bold text-slate-800">{j.promedio_duracion}</p>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                      <p className="text-[10px] uppercase text-slate-400 mb-3">Frecuencia de Problemas</p>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center">
-                          <p className="text-xs text-slate-500 mb-1">Inicio tardío</p>
-                          <p className="text-xl font-bold text-slate-800">{j.dias_inicio_tardio}</p>
-                          <p className="text-[10px] text-slate-400">de {j.total_dias} días</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-500 mb-1">Cierre temprano</p>
-                          <p className="text-xl font-bold text-slate-800">{j.dias_cierre_temprano}</p>
-                          <p className="text-[10px] text-slate-400">de {j.total_dias} días</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-500 mb-1">Jornada corta</p>
-                          <p className="text-xl font-bold text-slate-800">{j.dias_jornada_corta}</p>
-                          <p className="text-[10px] text-slate-400">de {j.total_dias} días</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 rounded-lg text-xs text-slate-500 space-y-1">
-                      <p>Horario esperado: 08:00 - 18:00</p>
-                      <p>Duración mínima: 6 horas</p>
-                      <p>Total días analizados: {j.total_dias}</p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {tecnicoDetalle.tipo === 'vf' && (() => {
-                const v = tecnicoDetalle.data as AltaVisitaFallida;
-                return (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Visitas Fallidas</p>
-                        <p className="text-3xl font-bold text-red-600">{v.visitas_fallidas}</p>
-                      </div>
-                      <div className="text-center p-4 bg-slate-50 rounded-lg">
-                        <p className="text-[10px] uppercase text-slate-400 mb-1">Total Visitas</p>
-                        <p className="text-3xl font-bold text-slate-800">{v.total_visitas}</p>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-lg ${v.pct_vf > 40 ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
-                      <p className="text-[10px] uppercase text-slate-400 mb-2">Porcentaje de Visita Fallida</p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-4 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${v.pct_vf > 40 ? 'bg-red-600' : 'bg-amber-500'}`}
-                            style={{ width: `${Math.min(v.pct_vf, 100)}%` }}
-                          />
-                        </div>
-                        <p className={`text-2xl font-bold ${v.pct_vf > 40 ? 'text-red-600' : 'text-amber-600'}`}>
-                          {v.pct_vf}%
-                        </p>
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-2">Meta: ≤ 30%</p>
-                    </div>
-                  </div>
-                );
-              })()}
+          );
+        } else if (tecnicoDetalle.tipo === 'meta') {
+          const m = tecnicoDetalle.data as MetaNoCompida;
+          titulo = 'Meta No Cumplida';
+          badge = m.gravedad === 'alta'
+            ? { texto: 'Alta gravedad', clase: 'bg-red-500/20 text-red-300' }
+            : { texto: 'Media', clase: 'bg-amber-500/20 text-amber-300' };
+          kpisTop = (
+            <div className="grid grid-cols-4 gap-3">
+              <KPI label="Días trabajados" main={String(m.dias_trabajados)} hint={`de ${data.dias_habiles} hábiles`} />
+              <KPI label="CNR / día" main={String(m.promedio_cnr)} hint="Meta: 2" tone={m.promedio_cnr < 2 ? 'red' : 'default'} />
+              <KPI label="Efectivas / día" main={String(m.promedio_efectivas)} hint="Meta: 8" tone={m.promedio_efectivas < 8 ? 'red' : 'default'} />
+              <KPI label="Problemas" main={m.problemas || '—'} small />
             </div>
-          </div>
-        </div>
-      )}
+          );
+        } else if (tecnicoDetalle.tipo === 'jornada') {
+          const j = tecnicoDetalle.data as ProblemaJornada;
+          titulo = 'Problema de Jornada';
+          kpisTop = (
+            <div className="grid grid-cols-4 gap-3">
+              <KPI label="Inicio Prom." main={j.promedio_inicio} />
+              <KPI label="Fin Prom." main={j.promedio_fin} />
+              <KPI label="Duración Prom." main={j.promedio_duracion} />
+              <KPI
+                label="Jornada corta"
+                main={`${j.dias_jornada_corta}d`}
+                hint={`de ${j.total_dias} días`}
+                tone={j.dias_jornada_corta > 3 ? 'amber' : 'default'}
+              />
+            </div>
+          );
+        } else if (tecnicoDetalle.tipo === 'vf') {
+          const v = tecnicoDetalle.data as AltaVisitaFallida;
+          titulo = 'Alta Visita Fallida';
+          badge = v.pct_vf > 40
+            ? { texto: 'Crítico', clase: 'bg-red-500/20 text-red-300' }
+            : { texto: 'Medio', clase: 'bg-amber-500/20 text-amber-300' };
+          kpisTop = (
+            <div className="grid grid-cols-3 gap-3">
+              <KPI label="Visitas Fallidas" main={String(v.visitas_fallidas)} tone="red" />
+              <KPI label="Total Visitas" main={String(v.total_visitas)} />
+              <KPI label="% VF" main={`${v.pct_vf}%`} hint="Meta: ≤30%" tone={v.pct_vf > 40 ? 'red' : 'amber'} />
+            </div>
+          );
+        }
+
+        return (
+          <DetalleTecnicoDiarioModal
+            nombre={nombre}
+            zona={zona}
+            filters={filters}
+            onClose={() => setTecnicoDetalle(null)}
+            titulo={titulo}
+            badge={badge}
+            kpisTop={kpisTop}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+// KPI card pequeño reutilizable para la cabecera del modal
+function KPI({
+  label,
+  main,
+  hint,
+  tone = 'default',
+  small = false,
+}: {
+  label: string;
+  main: string;
+  hint?: string;
+  tone?: 'default' | 'red' | 'amber';
+  small?: boolean;
+}) {
+  const mainColor = tone === 'red' ? 'text-red-600' : tone === 'amber' ? 'text-amber-600' : 'text-slate-800';
+  const bg = tone === 'red' ? 'bg-red-50 border-red-100' : tone === 'amber' ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-200/60';
+  return (
+    <div className={`rounded-lg border p-3 ${bg}`}>
+      <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">{label}</p>
+      <p className={`${small ? 'text-xs' : 'text-xl'} font-bold ${mainColor} ${small ? 'truncate' : ''}`} title={small ? main : undefined}>
+        {main}
+      </p>
+      {hint && <p className="text-[10px] text-slate-400 mt-1">{hint}</p>}
     </div>
   );
 }
