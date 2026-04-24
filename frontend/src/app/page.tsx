@@ -140,6 +140,7 @@ function DashboardContent() {
           <ProduccionMensual
             pagoTecnicos={data.pago_tecnicos}
             mesesSeleccionados={filters.mes}
+            calendarioMes={data.calendario_mes}
           />
         );
       case 'kwh':
