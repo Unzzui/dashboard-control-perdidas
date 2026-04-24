@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { PagoTecnico, CalendarioMes } from '@/types';
 import { exportPagoExcel } from '@/lib/exportPagoExcel';
-import CalendarioBrigadas from './CalendarioBrigadas';
 
 interface ProduccionMensualProps {
   pagoTecnicos: PagoTecnico[];
@@ -390,14 +389,6 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, ca
             </div>
           </div>
         </div>
-      )}
-
-      {/* Calendario Operativo de Brigadas */}
-      {calendarioMes && pagoTecnicos.some((t) => t.dias_trabajados_count > 0) && (
-        <CalendarioBrigadas
-          pagoTecnicos={tecnicosFiltrados}
-          calendario={calendarioMes}
-        />
       )}
 
       {/* Búsqueda + filtro activo */}

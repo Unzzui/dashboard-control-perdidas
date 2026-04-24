@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Filters, AlertasOperativasData, TecnicoInactivo, MetaNoCompida, ProblemaJornada, AltaVisitaFallida } from '@/types';
+import { Filters, AlertasOperativasData, TecnicoInactivo, MetaNoCompida, ProblemaJornada, AltaVisitaFallida, PagoTecnico, CalendarioMes } from '@/types';
 import { getAlertasOperativas } from '@/lib/api';
+import CalendarioBrigadas from './CalendarioBrigadas';
 
 interface AlertasOperativasProps {
   filters: Filters;
+  pagoTecnicos?: PagoTecnico[];
+  calendarioMes?: CalendarioMes | null;
 }
 
 function getFilterKey(filters: Filters): string {
@@ -78,7 +81,7 @@ function CalendarioAsistencia({ fechasTrabajadasStr, fechaInicio, fechaFin }: {
   );
 }
 
-export default function AlertasOperativas({ filters }: AlertasOperativasProps) {
+export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes }: AlertasOperativasProps) {
   const [data, setData] = useState<AlertasOperativasData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [tecnicoDetalle, setTecnicoDetalle] = useState<{
@@ -187,6 +190,14 @@ export default function AlertasOperativas({ filters }: AlertasOperativasProps) {
           <p className="text-[10px] text-slate-400 mt-1">&gt; 30% VF</p>
         </div>
       </div>
+
+      {/* Calendario Operativo de Brigadas */}
+      {calendarioMes && pagoTecnicos && pagoTecnicos.some((t) => t.dias_trabajados_count > 0) && (
+        <CalendarioBrigadas
+          pagoTecnicos={pagoTecnicos}
+          calendario={calendarioMes}
+        />
+      )}
 
       {/* Resumen Ejecutivo - Top Casos Críticos */}
       {topCriticos.length > 0 && (

@@ -76,7 +76,13 @@ function DashboardContent() {
   const renderContent = () => {
     switch (activeTab) {
       case 'alertas':
-        return <AlertasOperativas filters={filters} />;
+        return (
+          <AlertasOperativas
+            filters={filters}
+            pagoTecnicos={data.pago_tecnicos}
+            calendarioMes={data.calendario_mes}
+          />
+        );
       case 'control-diario':
         return <ControlDiario filters={filters} />;
       case 'control-metas':
