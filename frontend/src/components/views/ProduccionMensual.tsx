@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { PagoTecnico } from '@/types';
+import { PagoTecnico, CalendarioMes } from '@/types';
 import { exportPagoExcel } from '@/lib/exportPagoExcel';
+import CalendarioBrigadas from './CalendarioBrigadas';
 
 interface ProduccionMensualProps {
   pagoTecnicos: PagoTecnico[];
   mesesSeleccionados?: string[];
+  calendarioMes?: CalendarioMes | null;
 }
 
 const META_EFECTIVAS_MES = 160;
@@ -98,7 +100,7 @@ const computeFaltanteEfHabiles = (t: PagoTecnico): number =>
   Math.max(0, META_EFECTIVAS_MES - t.efectivas_habiles);
 
 
-export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados }: ProduccionMensualProps) {
+export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, calendarioMes }: ProduccionMensualProps) {
   const [vistaActiva, setVistaActiva] = useState<FiltroVista>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [vistaDetalle, setVistaDetalle] = useState<VistaDetalle | null>(null);
@@ -388,6 +390,14 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados }: 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Calendario Operativo de Brigadas */}
+      {calendarioMes && pagoTecnicos.some((t) => t.dias_trabajados_count > 0) && (
+        <CalendarioBrigadas
+          pagoTecnicos={tecnicosFiltrados}
+          calendario={calendarioMes}
+        />
       )}
 
       {/* Búsqueda + filtro activo */}
