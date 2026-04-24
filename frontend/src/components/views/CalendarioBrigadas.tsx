@@ -216,9 +216,24 @@ export default function CalendarioBrigadas({
                     </th>
                   );
                 })}
-                <th className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50">Trab</th>
-                <th className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50">Sáb</th>
-                <th className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50">Aus.H</th>
+                <th
+                  className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50"
+                  title="Días trabajados en el mes (hábiles + sábados)"
+                >
+                  Trab
+                </th>
+                <th
+                  className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50"
+                  title="Sábados trabajados"
+                >
+                  Sáb
+                </th>
+                <th
+                  className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50"
+                  title="Días hábiles SIN trabajar (transcurridos, no cuenta futuros)"
+                >
+                  Faltas
+                </th>
               </tr>
               <tr>
                 <th className="sticky left-0 z-20 bg-slate-50 px-3 pb-1 text-left text-[9px] uppercase text-slate-400">
@@ -376,10 +391,11 @@ export default function CalendarioBrigadas({
                         <span className="text-amber-400/80 font-normal"> / {totalPosibleSab}</span>
                       </td>
                       <td
-                        className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-red-600"
-                        title="Total de días hábiles no trabajados (excluye futuros)"
+                        className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-red-600 whitespace-nowrap"
+                        title={`${totalAus} faltas de ${totalPosibleAus} días-brigada hábiles transcurridos`}
                       >
                         {totalAus}
+                        <span className="text-red-300 font-normal"> / {totalPosibleAus}</span>
                       </td>
                     </tr>
                     <tr className="border-t border-slate-100">

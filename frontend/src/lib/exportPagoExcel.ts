@@ -635,7 +635,7 @@ export async function exportPagoExcel(
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
       cell.border = border('thin', COLORS.slate100);
     });
-    ['Días Trab', 'Sáb Trab', 'Aus.H'].forEach((label, i) => {
+    ['Días Trab', 'Sáb Trab', 'Faltas'].forEach((label, i) => {
       const cell = wsCal.getCell(4, 3 + dias.length + i);
       cell.value = label;
       cell.fill = headerFill(COLORS.slate800);
@@ -811,9 +811,8 @@ export async function exportPagoExcel(
     totSabCell.border = border('medium', COLORS.slate800);
 
     const totAusCell = wsCal.getCell(r, 3 + dias.length + 2);
-    totAusCell.value = sumAusGlobal;
-    totAusCell.numFmt = numFmt;
-    totAusCell.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+    totAusCell.value = `${sumAusGlobal}/${posibleAus}`;
+    totAusCell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
     totAusCell.fill = headerFill(COLORS.red);
     totAusCell.alignment = { vertical: 'middle', horizontal: 'right' };
     totAusCell.border = border('medium', COLORS.slate800);
@@ -911,7 +910,7 @@ export async function exportPagoExcel(
     { title: '6. Calendario Operativo de Brigadas' },
     { text: '   • Muestra, por brigada, qué días del mes trabajó (cualquier inspección registrada).' },
     { text: '   • Identifica sábados (ámbar), domingos (gris) y feriados (lila) como columnas destacadas.' },
-    { text: '   • Totales por brigada: Días Trab, Sáb Trab y Ausencias Hábiles (Hábiles del mes − Días hábiles trabajados).' },
+    { text: '   • Totales por brigada: Días Trab (hábiles + sábados), Sáb Trab y Faltas (días hábiles transcurridos no trabajados — NO incluye días futuros).' },
     { text: '   • Pie: número de brigadas operativas por cada día del mes visualizado.' },
     { text: '   • Mes visualizado: el último mes del período filtrado con al menos un registro.' },
   ];
