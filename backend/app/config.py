@@ -40,3 +40,45 @@ MESES_MAP = {
     5: 'mayo', 6: 'junio', 7: 'julio', 8: 'agosto',
     9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre',
 }
+
+# Feriados chilenos oficiales.
+# Fuente: lista oficial de feriados legales publicada por el Gobierno de Chile.
+# Formato: { año: set[(mes, día)] }
+FERIADOS_CL: dict[int, set[tuple[int, int]]] = {
+    2025: {
+        (1, 1),   # Año Nuevo
+        (4, 18),  # Viernes Santo
+        (4, 19),  # Sábado Santo
+        (5, 1),   # Día del Trabajador
+        (5, 21),  # Día de las Glorias Navales
+        (6, 20),  # Día de los Pueblos Indígenas
+        (6, 29),  # San Pedro y San Pablo
+        (7, 16),  # Virgen del Carmen
+        (8, 15),  # Asunción de la Virgen
+        (9, 18),  # Independencia Nacional
+        (9, 19),  # Glorias del Ejército
+        (10, 12), # Encuentro de Dos Mundos
+        (10, 31), # Día de las Iglesias Evangélicas
+        (11, 1),  # Día de Todos los Santos
+        (12, 8),  # Inmaculada Concepción
+        (12, 14), # Elecciones Presidenciales 2a vuelta
+        (12, 25), # Navidad
+    },
+    2026: {
+        (1, 1),   # Año Nuevo
+        (4, 3),   # Viernes Santo
+        (4, 4),   # Sábado Santo
+        (5, 1),   # Día del Trabajador
+        (5, 21),  # Día de las Glorias Navales
+        (6, 29),  # San Pedro y San Pablo
+        (7, 16),  # Virgen del Carmen
+        (8, 15),  # Asunción de la Virgen
+        (9, 18),  # Independencia Nacional
+        (9, 19),  # Glorias del Ejército
+        (10, 12), # Encuentro de Dos Mundos
+        (10, 31), # Día de las Iglesias Evangélicas
+        (11, 1),  # Día de Todos los Santos
+        (12, 8),  # Inmaculada Concepción
+        (12, 25), # Navidad
+    },
+}
