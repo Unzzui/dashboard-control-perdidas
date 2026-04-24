@@ -154,6 +154,17 @@ export interface ProduccionZona {
   promedio_monto_cnr: number;
 }
 
+export interface CalendarioMes {
+  mes: string;
+  año: number;
+  numero_mes: number;
+  dias_en_mes: number;
+  sabados: number[];
+  domingos: number[];
+  feriados: number[];
+  total_habiles: number;
+}
+
 export interface PagoTecnico {
   nombre: string;
   eecc: string;
@@ -181,6 +192,9 @@ export interface PagoTecnico {
   monto_sabado: number;
   total_pago: number;
   cumple_meta: boolean;
+  dias_trabajados: number[];
+  dias_trabajados_count: number;
+  sabados_trabajados_count: number;
 }
 
 export interface FilterOptions {
@@ -210,6 +224,7 @@ export interface DashboardData {
   pago_tecnicos: PagoTecnico[];
   resultados_fallidos: ResultadoFallido[];
   resultados_fallidos_por_zona: Record<string, ResultadoFallido[]>;
+  calendario_mes: CalendarioMes | null;
 }
 
 export interface ResultadoFallido {

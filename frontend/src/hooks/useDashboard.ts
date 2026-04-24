@@ -30,6 +30,7 @@ const defaultData: DashboardData = {
   pago_tecnicos: [],
   resultados_fallidos: [],
   resultados_fallidos_por_zona: {},
+  calendario_mes: null,
 };
 
 // Generar clave única para los filtros
