@@ -574,7 +574,7 @@ export async function exportPagoExcel(
 
     const totalCols = 2 + dias.length + 3;
 
-    // Días hábiles TRANSCURRIDOS (excluye días futuros dentro del mes actual)
+    // Días hábiles y sábados TRANSCURRIDOS (excluye futuros dentro del mes actual)
     const hoy = new Date();
     const esMesActual =
       calendarioMes.año === hoy.getFullYear() &&
@@ -588,10 +588,10 @@ export async function exportPagoExcel(
       ? calendarioMes.dias_en_mes
       : 0;
     let diasHabilesTranscurridos = 0;
+    let sabadosTranscurridos = 0;
     for (let d = 1; d <= ultimoDiaRel; d++) {
-      if (!sabadosSet.has(d) && !domingosSet.has(d) && !feriadosSet.has(d)) {
-        diasHabilesTranscurridos += 1;
-      }
+      if (sabadosSet.has(d)) sabadosTranscurridos += 1;
+      else if (!domingosSet.has(d) && !feriadosSet.has(d)) diasHabilesTranscurridos += 1;
     }
 
     // Fila 1: título
@@ -787,19 +787,23 @@ export async function exportPagoExcel(
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
       cell.border = border('thin', COLORS.slate200);
     });
-    // Totales columnas de la derecha
+    // Totales columnas de la derecha — en formato "trabajados / posibles"
+    const laborablesPosiblesPorBrigada = diasHabilesTranscurridos + sabadosTranscurridos;
+    const posibleTrab = brigadasOp * laborablesPosiblesPorBrigada;
+    const posibleSab = brigadasOp * sabadosTranscurridos;
+    const pctTrabGlobal = posibleTrab > 0 ? (sumTrabGlobal / posibleTrab) * 100 : 0;
+    const pctSabGlobal = posibleSab > 0 ? (sumSabGlobal / posibleSab) * 100 : 0;
+
     const totTrabCell = wsCal.getCell(r, 3 + dias.length);
-    totTrabCell.value = sumTrabGlobal;
-    totTrabCell.numFmt = numFmt;
-    totTrabCell.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+    totTrabCell.value = `${sumTrabGlobal}/${posibleTrab}`;
+    totTrabCell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
     totTrabCell.fill = headerFill(COLORS.slate800);
     totTrabCell.alignment = { vertical: 'middle', horizontal: 'right' };
     totTrabCell.border = border('medium', COLORS.slate800);
 
     const totSabCell = wsCal.getCell(r, 3 + dias.length + 1);
-    totSabCell.value = sumSabGlobal;
-    totSabCell.numFmt = numFmt;
-    totSabCell.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+    totSabCell.value = `${sumSabGlobal}/${posibleSab}`;
+    totSabCell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
     totSabCell.fill = headerFill(COLORS.amber);
     totSabCell.alignment = { vertical: 'middle', horizontal: 'right' };
     totSabCell.border = border('medium', COLORS.slate800);
@@ -814,10 +818,10 @@ export async function exportPagoExcel(
     wsCal.getRow(r).height = 18;
     r += 1;
 
-    // Fila final 2: promedios por brigada
+    // Fila final 2: cobertura % + promedios por brigada
     wsCal.mergeCells(r, 1, r, 2 + dias.length);
     const cPromLbl = wsCal.getCell(r, 1);
-    cPromLbl.value = 'Promedio por brigada operativa';
+    cPromLbl.value = 'Cobertura / Prom. por brigada';
     cPromLbl.font = { name: 'Inter', size: 9, italic: true, color: { argb: COLORS.slate500 } };
     cPromLbl.fill = headerFill(COLORS.slate50);
     cPromLbl.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
@@ -826,20 +830,30 @@ export async function exportPagoExcel(
     const promTrab = brigadasOp > 0 ? sumTrabGlobal / brigadasOp : 0;
     const promSab = brigadasOp > 0 ? sumSabGlobal / brigadasOp : 0;
     const promAus = brigadasOp > 0 ? sumAusGlobal / brigadasOp : 0;
-    const promRow: Array<[number, string]> = [
-      [promTrab, COLORS.slate800],
-      [promSab, COLORS.amber],
-      [promAus, COLORS.red],
-    ];
-    promRow.forEach(([v, color], i) => {
-      const cell = wsCal.getCell(r, 3 + dias.length + i);
-      cell.value = Number(v.toFixed(1));
-      cell.numFmt = '0.0';
-      cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: color } };
-      cell.fill = headerFill(COLORS.slate50);
-      cell.alignment = { vertical: 'middle', horizontal: 'right' };
-      cell.border = border('thin', COLORS.slate200);
-    });
+
+    // Trab: "X% · Y" (cobertura % y prom)
+    const cellTrabProm = wsCal.getCell(r, 3 + dias.length);
+    cellTrabProm.value = `${Math.round(pctTrabGlobal)}% · ${promTrab.toFixed(1)}`;
+    cellTrabProm.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.slate800 } };
+    cellTrabProm.fill = headerFill(COLORS.slate50);
+    cellTrabProm.alignment = { vertical: 'middle', horizontal: 'right' };
+    cellTrabProm.border = border('thin', COLORS.slate200);
+
+    const cellSabProm = wsCal.getCell(r, 3 + dias.length + 1);
+    cellSabProm.value = `${Math.round(pctSabGlobal)}% · ${promSab.toFixed(1)}`;
+    cellSabProm.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.amber } };
+    cellSabProm.fill = headerFill(COLORS.slate50);
+    cellSabProm.alignment = { vertical: 'middle', horizontal: 'right' };
+    cellSabProm.border = border('thin', COLORS.slate200);
+
+    const cellAusProm = wsCal.getCell(r, 3 + dias.length + 2);
+    cellAusProm.value = Number(promAus.toFixed(1));
+    cellAusProm.numFmt = '0.0';
+    cellAusProm.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.red } };
+    cellAusProm.fill = headerFill(COLORS.slate50);
+    cellAusProm.alignment = { vertical: 'middle', horizontal: 'right' };
+    cellAusProm.border = border('thin', COLORS.slate200);
+
     wsCal.getRow(r).height = 16;
 
     // Anchos de columna

@@ -47,9 +47,9 @@ export default function CalendarioBrigadas({
     [pagoTecnicos]
   );
 
-  // Días hábiles TRANSCURRIDOS (no futuros): si el mes visualizado es el actual,
-  // cortamos en "hoy". Si es pasado, usamos todos los hábiles del mes.
-  const diasHabilesTranscurridos = useMemo(() => {
+  // Días hábiles y sábados TRANSCURRIDOS (no futuros): si el mes visualizado
+  // es el actual, cortamos en "hoy". Si es pasado, usamos todos.
+  const { diasHabilesTranscurridos, sabadosTranscurridos } = useMemo(() => {
     const hoy = new Date();
     const esMesActual =
       calendario.año === hoy.getFullYear() &&
@@ -57,17 +57,18 @@ export default function CalendarioBrigadas({
     const esMesPasado =
       calendario.año < hoy.getFullYear() ||
       (calendario.año === hoy.getFullYear() && calendario.numero_mes < hoy.getMonth() + 1);
-    // Si es mes futuro, no hay hábiles transcurridos
-    if (!esMesActual && !esMesPasado) return 0;
+    if (!esMesActual && !esMesPasado) return { diasHabilesTranscurridos: 0, sabadosTranscurridos: 0 };
     const ultimoDia = esMesActual ? hoy.getDate() : calendario.dias_en_mes;
     const sabSet = new Set(calendario.sabados);
     const domSet = new Set(calendario.domingos);
     const ferSet = new Set(calendario.feriados);
-    let count = 0;
+    let hab = 0;
+    let sab = 0;
     for (let d = 1; d <= ultimoDia; d++) {
-      if (!sabSet.has(d) && !domSet.has(d) && !ferSet.has(d)) count += 1;
+      if (sabSet.has(d)) sab += 1;
+      else if (!domSet.has(d) && !ferSet.has(d)) hab += 1;
     }
-    return count;
+    return { diasHabilesTranscurridos: hab, sabadosTranscurridos: sab };
   }, [calendario]);
 
   const kpis = useMemo(() => {
@@ -331,6 +332,12 @@ export default function CalendarioBrigadas({
                   return a + Math.max(0, diasHabilesTranscurridos - habTrab);
                 }, 0);
                 const op = brigadasOperativas.length;
+                // "Días laborables posibles" por brigada = hábiles transcurridos + sábados transcurridos
+                const laborablesPosiblesPorBrigada = diasHabilesTranscurridos + sabadosTranscurridos;
+                const totalPosibleTrab = op * laborablesPosiblesPorBrigada;
+                const totalPosibleSab = op * sabadosTranscurridos;
+                const pctTrab = totalPosibleTrab > 0 ? (totalTrab / totalPosibleTrab) * 100 : 0;
+                const pctSab = totalPosibleSab > 0 ? (totalSab / totalPosibleSab) * 100 : 0;
                 const promTrab = op > 0 ? totalTrab / op : 0;
                 const promSab = op > 0 ? totalSab / op : 0;
                 const promAus = op > 0 ? totalAus / op : 0;
@@ -352,28 +359,41 @@ export default function CalendarioBrigadas({
                           </td>
                         );
                       })}
-                      <td className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-slate-800">
-                        {totalTrab}
+                      <td
+                        className="px-1 py-2 text-right text-[10px] tabular-nums font-bold text-slate-800 whitespace-nowrap"
+                        title={`${totalTrab} de ${totalPosibleTrab} días-brigada laborables transcurridos`}
+                      >
+                        {totalTrab}<span className="text-slate-400 font-normal">/{totalPosibleTrab}</span>
                       </td>
-                      <td className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-amber-600">
-                        {totalSab}
+                      <td
+                        className="px-1 py-2 text-right text-[10px] tabular-nums font-bold text-amber-600 whitespace-nowrap"
+                        title={`${totalSab} de ${totalPosibleSab} sábados-brigada transcurridos`}
+                      >
+                        {totalSab}<span className="text-amber-400 font-normal">/{totalPosibleSab}</span>
                       </td>
-                      <td className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-red-600">
+                      <td
+                        className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-red-600"
+                        title={`Total de días hábiles no trabajados (excluye futuros)`}
+                      >
                         {totalAus}
                       </td>
                     </tr>
                     <tr className="border-t border-slate-100">
                       <td className="sticky left-0 z-10 bg-slate-50 px-3 py-1.5 text-[10px] uppercase text-slate-400">
-                        Promedio por brigada
+                        Cobertura / Prom. por brigada
                       </td>
                       <td className="px-0 py-1.5" colSpan={calendario.dias_en_mes} />
-                      <td className="px-1 py-1.5 text-right text-[11px] tabular-nums text-slate-600">
+                      <td className="px-1 py-1.5 text-right text-[10px] tabular-nums text-slate-600 whitespace-nowrap">
+                        <span className="font-semibold">{pctTrab.toFixed(0)}%</span>
+                        <span className="text-slate-400"> · </span>
                         {promTrab.toFixed(1)}
                       </td>
-                      <td className="px-1 py-1.5 text-right text-[11px] tabular-nums text-amber-600">
+                      <td className="px-1 py-1.5 text-right text-[10px] tabular-nums text-amber-600 whitespace-nowrap">
+                        <span className="font-semibold">{pctSab.toFixed(0)}%</span>
+                        <span className="text-amber-300"> · </span>
                         {promSab.toFixed(1)}
                       </td>
-                      <td className="px-1 py-1.5 text-right text-[11px] tabular-nums text-red-600">
+                      <td className="px-1 py-1.5 text-right text-[10px] tabular-nums text-red-600">
                         {promAus.toFixed(1)}
                       </td>
                     </tr>
