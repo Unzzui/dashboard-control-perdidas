@@ -164,31 +164,70 @@ export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes
         </p>
       </div>
 
-      {/* KPIs Resumen */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Técnicos Inactivos</p>
-          <p className="text-2xl font-bold text-slate-800">{data.resumen_alertas.tecnicos_inactivos}</p>
-          <p className="text-[10px] text-slate-400 mt-1">Con ausentismo</p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Metas No Cumplidas</p>
-          <p className="text-2xl font-bold text-slate-800">{data.resumen_alertas.metas_no_cumplidas}</p>
-          <p className="text-[10px] text-slate-400 mt-1">Bajo rendimiento</p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Problemas Jornada</p>
-          <p className="text-2xl font-bold text-slate-800">{data.resumen_alertas.problemas_jornada}</p>
-          <p className="text-[10px] text-slate-400 mt-1">Horarios irregulares</p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Alta V. Fallida</p>
-          <p className="text-2xl font-bold text-slate-800">{data.resumen_alertas.alta_visita_fallida}</p>
-          <p className="text-[10px] text-slate-400 mt-1">&gt; 30% VF</p>
-        </div>
+      {/* KPIs Resumen — con severidad visual */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {([
+          {
+            label: 'Faltando a Trabajar',
+            value: data.resumen_alertas.tecnicos_inactivos,
+            hint: `de ${data.alertas_por_zona.reduce((a, z) => a + z.tecnicos_inactivos + (data.metas_no_cumplidas.filter(m => m.zona === z.zona).length), 0) || 1} técnicos monitoreados`,
+            critColor: 'red',
+            worst: data.tecnicos_inactivos.slice().sort((a, b) => b.pct_ausentismo - a.pct_ausentismo)[0],
+            worstFmt: (t: TecnicoInactivo) => `${t.tecnico.split(' ')[0]} ${t.pct_ausentismo}%`,
+          },
+          {
+            label: 'No Cumplen Meta',
+            value: data.resumen_alertas.metas_no_cumplidas,
+            hint: 'Bajo rendimiento CNR/Efec',
+            critColor: 'red',
+            worst: data.metas_no_cumplidas.slice().sort((a, b) => a.promedio_efectivas - b.promedio_efectivas)[0],
+            worstFmt: (m: MetaNoCompida) => `${m.tecnico.split(' ')[0]} · ${m.promedio_efectivas} ef/d`,
+          },
+          {
+            label: 'Problemas de Jornada',
+            value: data.resumen_alertas.problemas_jornada,
+            hint: 'Horarios irregulares',
+            critColor: 'amber',
+            worst: data.problemas_jornada.slice().sort((a, b) => (b.dias_jornada_corta + b.dias_inicio_tardio + b.dias_cierre_temprano) - (a.dias_jornada_corta + a.dias_inicio_tardio + a.dias_cierre_temprano))[0],
+            worstFmt: (j: ProblemaJornada) => `${j.tecnico.split(' ')[0]} · ${j.dias_jornada_corta}d cortas`,
+          },
+          {
+            label: 'Alta V. Fallida',
+            value: data.resumen_alertas.alta_visita_fallida,
+            hint: '> 30% VF',
+            critColor: 'amber',
+            worst: data.alta_visita_fallida.slice().sort((a, b) => b.pct_vf - a.pct_vf)[0],
+            worstFmt: (v: AltaVisitaFallida) => `${v.tecnico.split(' ')[0]} · ${v.pct_vf}%`,
+          },
+        ] as const).map((k, idx) => {
+          const isCrit = k.value > 0;
+          const ring = !isCrit ? 'border-green-200' : k.critColor === 'red' ? 'border-red-200' : 'border-amber-200';
+          const valColor = !isCrit ? 'text-green-600' : k.critColor === 'red' ? 'text-red-600' : 'text-amber-600';
+          const badgeBg = !isCrit ? 'bg-green-50' : k.critColor === 'red' ? 'bg-red-50' : 'bg-amber-50';
+          const badgeText = !isCrit ? 'text-green-600' : k.critColor === 'red' ? 'text-red-600' : 'text-amber-600';
+          return (
+            <div key={idx} className={`bg-white rounded-lg border ${ring} p-4 flex flex-col justify-between min-h-[104px]`}>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">{k.label}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className={`text-3xl font-bold ${valColor}`}>{k.value}</p>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${badgeBg} ${badgeText}`}>
+                    {isCrit ? 'REVISAR' : 'OK'}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">{k.hint}</p>
+              </div>
+              {isCrit && k.worst && (
+                <div className="mt-2 pt-2 border-t border-slate-100">
+                  <p className="text-[9px] uppercase tracking-wider text-slate-400">Peor caso</p>
+                  <p className="text-[11px] font-semibold text-slate-700 truncate" title={k.worstFmt(k.worst as never)}>
+                    {k.worstFmt(k.worst as never)}
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Calendario Operativo de Brigadas */}
@@ -199,35 +238,189 @@ export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes
         />
       )}
 
-      {/* Resumen Ejecutivo - Top Casos Críticos */}
-      {topCriticos.length > 0 && (
-        <div className="bg-white rounded-lg border border-slate-200/60 overflow-hidden">
-          <div className="px-4 py-3 bg-slate-800">
-            <h3 className="text-sm font-semibold text-white">Resumen Ejecutivo - Casos Prioritarios</h3>
-            <p className="text-[10px] text-slate-300 mt-0.5">Top {topCriticos.length} casos más críticos de todas las zonas</p>
-          </div>
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500">Tipo</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Técnico</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Zona</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Detalle</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topCriticos.map((caso, idx) => (
-                <tr key={idx} className={`border-b border-slate-50 ${
-                  caso.gravedad === 'critica' ? 'bg-red-50/40' : 'bg-amber-50/30'
-                }`}>
-                  <td className="px-4 py-2.5 text-sm font-medium text-slate-700">{caso.tipo}</td>
-                  <td className="px-3 py-2.5 text-sm text-slate-600">{caso.tecnico}</td>
-                  <td className="px-3 py-2.5 text-sm text-slate-600">{caso.zona}</td>
-                  <td className="px-3 py-2.5 text-sm font-semibold text-slate-700">{caso.detalle}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Ranking Crítico - dos paneles lado a lado */}
+      {(data.tecnicos_inactivos.length > 0 || data.metas_no_cumplidas.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Panel: Faltando a Trabajar */}
+          {(() => {
+            const topAusentes = data.tecnicos_inactivos
+              .slice()
+              .sort((a, b) => b.pct_ausentismo - a.pct_ausentismo || b.dias_no_trabajados - a.dias_no_trabajados)
+              .slice(0, 10);
+            const maxPct = topAusentes[0]?.pct_ausentismo ?? 0;
+
+            return (
+              <div className="bg-white rounded-lg border border-slate-200/60 overflow-hidden">
+                <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-xs uppercase tracking-wide">Faltando a Trabajar</span>
+                    <span className="text-[10px] text-slate-300 ml-2">Top {topAusentes.length} · por % ausentismo</span>
+                  </div>
+                  <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded">
+                    {data.tecnicos_inactivos.length} totales
+                  </span>
+                </div>
+                <table className="w-full text-[11px]">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="w-6 px-2 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">#</th>
+                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">Técnico</th>
+                      <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">Zona</th>
+                      <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Días Aus.</th>
+                      <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase text-slate-500 w-40">% Ausentismo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topAusentes.map((t, idx) => {
+                      const esCrit = t.pct_ausentismo >= 50;
+                      const esAlto = t.pct_ausentismo >= 30 && t.pct_ausentismo < 50;
+                      return (
+                        <tr
+                          key={`aus-${idx}`}
+                          onClick={() => setTecnicoDetalle({ tipo: 'inactivo', data: t })}
+                          className={`border-b border-slate-50 cursor-pointer transition-colors ${
+                            esCrit ? 'bg-red-50/40 hover:bg-red-50' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <td className="px-2 py-1.5 text-right text-[10px] tabular-nums text-slate-400 font-semibold">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3 py-1.5 text-slate-800 truncate max-w-[180px]" title={t.tecnico}>
+                            {t.tecnico}
+                          </td>
+                          <td className="px-2 py-1.5 text-slate-500 truncate max-w-[120px]" title={t.zona}>
+                            {t.zona.replace(/^\d+\.\s*/, '')}
+                          </td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums font-semibold ${
+                            esCrit ? 'text-red-600' : esAlto ? 'text-amber-600' : 'text-slate-700'
+                          }`}>
+                            {t.dias_no_trabajados}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    esCrit ? 'bg-red-500' : esAlto ? 'bg-amber-500' : 'bg-slate-400'
+                                  }`}
+                                  style={{ width: `${maxPct > 0 ? (t.pct_ausentismo / maxPct) * 100 : 0}%` }}
+                                />
+                              </div>
+                              <span className={`tabular-nums w-10 text-right font-semibold ${
+                                esCrit ? 'text-red-600' : esAlto ? 'text-amber-600' : 'text-slate-600'
+                              }`}>
+                                {t.pct_ausentismo}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {topAusentes.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-6 text-center text-[11px] text-slate-400">
+                          Sin técnicos con ausentismo detectado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+
+          {/* Panel: No Cumplen Meta */}
+          {(() => {
+            const topMetas = data.metas_no_cumplidas
+              .slice()
+              .sort((a, b) => {
+                // Criticas primero, luego por efectivas promedio ascendente
+                if (a.gravedad === 'alta' && b.gravedad !== 'alta') return -1;
+                if (b.gravedad === 'alta' && a.gravedad !== 'alta') return 1;
+                return a.promedio_efectivas - b.promedio_efectivas;
+              })
+              .slice(0, 10);
+            const maxDef = topMetas.length > 0
+              ? Math.max(...topMetas.map((m) => Math.max(0, 8 - m.promedio_efectivas)))
+              : 0;
+
+            return (
+              <div className="bg-white rounded-lg border border-slate-200/60 overflow-hidden">
+                <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-xs uppercase tracking-wide">No Cumplen Meta</span>
+                    <span className="text-[10px] text-slate-300 ml-2">Top {topMetas.length} · meta 8 ef/día</span>
+                  </div>
+                  <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded">
+                    {data.metas_no_cumplidas.length} totales
+                  </span>
+                </div>
+                <table className="w-full text-[11px]">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="w-6 px-2 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">#</th>
+                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">Técnico</th>
+                      <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">Zona</th>
+                      <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">CNR/d</th>
+                      <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Ef/d</th>
+                      <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase text-slate-500 w-28">Déficit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topMetas.map((m, idx) => {
+                      const esCrit = m.gravedad === 'alta';
+                      const deficit = Math.max(0, 8 - m.promedio_efectivas);
+                      return (
+                        <tr
+                          key={`meta-${idx}`}
+                          onClick={() => setTecnicoDetalle({ tipo: 'meta', data: m })}
+                          className={`border-b border-slate-50 cursor-pointer transition-colors ${
+                            esCrit ? 'bg-red-50/40 hover:bg-red-50' : 'bg-amber-50/30 hover:bg-amber-50'
+                          }`}
+                        >
+                          <td className="px-2 py-1.5 text-right text-[10px] tabular-nums text-slate-400 font-semibold">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3 py-1.5 text-slate-800 truncate max-w-[180px]" title={m.tecnico}>
+                            {m.tecnico}
+                          </td>
+                          <td className="px-2 py-1.5 text-slate-500 truncate max-w-[120px]" title={m.zona}>
+                            {m.zona.replace(/^\d+\.\s*/, '')}
+                          </td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums font-semibold ${m.promedio_cnr < 2 ? 'text-red-600' : 'text-slate-700'}`}>
+                            {m.promedio_cnr}
+                          </td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums font-semibold ${esCrit ? 'text-red-600' : 'text-amber-600'}`}>
+                            {m.promedio_efectivas}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${esCrit ? 'bg-red-500' : 'bg-amber-500'}`}
+                                  style={{ width: `${maxDef > 0 ? (deficit / maxDef) * 100 : 0}%` }}
+                                />
+                              </div>
+                              <span className={`tabular-nums text-[10px] w-10 text-right font-semibold ${esCrit ? 'text-red-600' : 'text-amber-600'}`}>
+                                −{deficit.toFixed(1)}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {topMetas.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-6 text-center text-[11px] text-slate-400">
+                          Todos los técnicos cumplen la meta.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
 
