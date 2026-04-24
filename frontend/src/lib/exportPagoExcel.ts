@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { PagoTecnico } from '@/types';
+import { PagoTecnico, CalendarioMes } from '@/types';
 
 const META = 160;
 
@@ -15,6 +15,9 @@ const COLORS = {
   green:    'FF10B981',
   red:      'FFDE473C',
   amber:    'FFF59E0B',
+  amberSoft: 'FFFEF3C7',
+  violet:    'FF8B5CF6',
+  violetSoft:'FFEDE9FE',
   greenSoft: 'FFECFDF5',
   redSoft:   'FFFEF2F2',
 };
@@ -38,13 +41,14 @@ export interface ExportOptions {
   scope?: 'global' | 'zona';
   zonaNombre?: string;
   periodo?: string;
+  calendarioMes?: CalendarioMes | null;
 }
 
 export async function exportPagoExcel(
   pagoTecnicos: PagoTecnico[],
   options: ExportOptions = {}
 ): Promise<void> {
-  const { scope = 'global', zonaNombre = '', periodo = 'Todo el período' } = options;
+  const { scope = 'global', zonaNombre = '', periodo = 'Todo el período', calendarioMes = null } = options;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dashboard Control de Pérdidas';
@@ -415,7 +419,246 @@ export async function exportPagoExcel(
   ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: headers.length } };
 
   // -------------------------------------------------------------------------
-  // Hoja 3: METODOLOGÍA
+  // Hoja 3: CALENDARIO BRIGADAS
+  // -------------------------------------------------------------------------
+  if (calendarioMes) {
+    const wsCal = wb.addWorksheet('Calendario Brigadas', {
+      pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+      views: [{ state: 'frozen', xSplit: 2, ySplit: 5 }],
+      properties: { defaultRowHeight: 14 },
+    });
+
+    const dias = Array.from({ length: calendarioMes.dias_en_mes }, (_, i) => i + 1);
+    const sabadosSet = new Set(calendarioMes.sabados);
+    const domingosSet = new Set(calendarioMes.domingos);
+    const feriadosSet = new Set(calendarioMes.feriados);
+
+    const tipoDia = (d: number): 'habil' | 'sabado' | 'domingo' | 'feriado' => {
+      if (feriadosSet.has(d)) return 'feriado';
+      if (sabadosSet.has(d)) return 'sabado';
+      if (domingosSet.has(d)) return 'domingo';
+      return 'habil';
+    };
+
+    const bgPorTipo = (tipo: 'habil' | 'sabado' | 'domingo' | 'feriado'): string => {
+      switch (tipo) {
+        case 'sabado': return COLORS.amberSoft;
+        case 'domingo': return COLORS.slate100;
+        case 'feriado': return COLORS.violetSoft;
+        default: return COLORS.white;
+      }
+    };
+
+    const colorMarca = (tipo: 'habil' | 'sabado' | 'domingo' | 'feriado'): string => {
+      switch (tipo) {
+        case 'sabado': return COLORS.amber;
+        case 'feriado': return COLORS.violet;
+        case 'domingo': return COLORS.slate500;
+        default: return COLORS.primary;
+      }
+    };
+
+    const totalCols = 2 + dias.length + 3;
+
+    // Fila 1: título
+    wsCal.mergeCells(1, 1, 1, totalCols);
+    wsCal.getCell(1, 1).value = `Calendario Operativo — ${calendarioMes.mes} ${calendarioMes.año}`;
+    wsCal.getCell(1, 1).font = { name: 'Inter', size: 14, bold: true, color: { argb: COLORS.slate800 } };
+    wsCal.getRow(1).height = 22;
+
+    // Fila 2: subtítulo
+    wsCal.mergeCells(2, 1, 2, totalCols);
+    const brigadasOp = pagoTecnicos.filter((t) => (t.dias_trabajados_count ?? 0) > 0).length;
+    wsCal.getCell(2, 1).value = `Período: ${periodo} · ${brigadasOp} brigadas operativas · ${calendarioMes.total_habiles} días hábiles`;
+    wsCal.getCell(2, 1).font = { name: 'Inter', size: 9, color: { argb: COLORS.slate500 } };
+    wsCal.getRow(2).height = 14;
+
+    // Fila 3: agrupadores
+    wsCal.mergeCells(3, 1, 3, 2);
+    wsCal.getCell(3, 1).value = 'Identidad';
+    wsCal.mergeCells(3, 3, 3, 2 + dias.length);
+    wsCal.getCell(3, 3).value = `Días del mes (${calendarioMes.dias_en_mes})`;
+    wsCal.mergeCells(3, 3 + dias.length, 3, totalCols);
+    wsCal.getCell(3, 3 + dias.length).value = 'Totales';
+    [1, 3, 3 + dias.length].forEach((c) => {
+      const cell = wsCal.getCell(3, c);
+      cell.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+      cell.fill = headerFill(COLORS.slate800);
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = border('thin', COLORS.slate800);
+    });
+    wsCal.getRow(3).height = 18;
+
+    // Fila 4: números de día + headers identidad/totales
+    wsCal.getCell(4, 1).value = 'Brigada';
+    wsCal.getCell(4, 2).value = 'Zona';
+    dias.forEach((d, i) => {
+      const cell = wsCal.getCell(4, 3 + i);
+      cell.value = d;
+      const tipo = tipoDia(d);
+      cell.fill = headerFill(bgPorTipo(tipo));
+      cell.font = { name: 'Inter', size: 8, bold: true, color: { argb: COLORS.slate500 } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = border('thin', COLORS.slate100);
+    });
+    ['Días Trab', 'Sáb Trab', 'Aus.H'].forEach((label, i) => {
+      const cell = wsCal.getCell(4, 3 + dias.length + i);
+      cell.value = label;
+      cell.fill = headerFill(COLORS.slate800);
+      cell.font = { name: 'Inter', size: 8, bold: true, color: { argb: COLORS.white } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = border('thin', COLORS.slate800);
+    });
+    [1, 2].forEach((c) => {
+      const cell = wsCal.getCell(4, c);
+      cell.fill = headerFill(COLORS.slate800);
+      cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      cell.border = border('thin', COLORS.slate800);
+    });
+    wsCal.getRow(4).height = 18;
+
+    // Fila 5: inicial día semana
+    const INICIAL = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    const dowMon0 = (d: number) => (new Date(calendarioMes.año, calendarioMes.numero_mes - 1, d).getDay() + 6) % 7;
+    wsCal.getCell(5, 1).value = '';
+    wsCal.getCell(5, 2).value = '';
+    dias.forEach((d, i) => {
+      const cell = wsCal.getCell(5, 3 + i);
+      cell.value = INICIAL[dowMon0(d)];
+      const tipo = tipoDia(d);
+      cell.fill = headerFill(bgPorTipo(tipo));
+      cell.font = { name: 'Inter', size: 8, color: { argb: COLORS.slate500 } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = border('thin', COLORS.slate100);
+    });
+    for (let c = 3 + dias.length; c <= totalCols; c++) {
+      wsCal.getCell(5, c).fill = headerFill(COLORS.slate50);
+      wsCal.getCell(5, c).border = border('thin', COLORS.slate100);
+    }
+    wsCal.getRow(5).height = 14;
+
+    // Agrupar técnicos por zona
+    const grupos = new Map<string, PagoTecnico[]>();
+    pagoTecnicos.forEach((t) => {
+      const z = t.zona || '(sin zona)';
+      if (!grupos.has(z)) grupos.set(z, []);
+      grupos.get(z)!.push(t);
+    });
+    const zonasOrdenadas = Array.from(grupos.keys()).sort();
+
+    let r = 6;
+    zonasOrdenadas.forEach((zona) => {
+      const items = grupos.get(zona)!.slice().sort(
+        (a, b) => (b.dias_trabajados_count ?? 0) - (a.dias_trabajados_count ?? 0)
+      );
+      const operZ = items.filter((t) => (t.dias_trabajados_count ?? 0) > 0).length;
+      const totDiasZ = items.reduce((a, t) => a + (t.dias_trabajados_count ?? 0), 0);
+      const promZ = operZ > 0 ? totDiasZ / operZ : 0;
+
+      // Subheader zona
+      wsCal.mergeCells(r, 1, r, totalCols);
+      const cZona = wsCal.getCell(r, 1);
+      cZona.value = `${zona}  ·  ${operZ} brigadas activas  ·  ${totDiasZ} días trab  ·  prom ${promZ.toFixed(1)}`;
+      cZona.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+      cZona.fill = headerFill(COLORS.primary);
+      cZona.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      cZona.border = border('thin', COLORS.primary);
+      wsCal.getRow(r).height = 18;
+      r += 1;
+
+      items.forEach((t) => {
+        wsCal.getCell(r, 1).value = t.nombre;
+        wsCal.getCell(r, 2).value = t.zona;
+        [1, 2].forEach((c) => {
+          const cell = wsCal.getCell(r, c);
+          cell.font = { name: 'Inter', size: 9, color: { argb: COLORS.slate800 } };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = border('thin', COLORS.slate100);
+        });
+
+        const trabSet = new Set(t.dias_trabajados ?? []);
+        let diasHabTrab = 0;
+        dias.forEach((d, i) => {
+          const tipo = tipoDia(d);
+          const cell = wsCal.getCell(r, 3 + i);
+          const trabajo = trabSet.has(d);
+          if (trabajo) {
+            cell.value = '●';
+            cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: colorMarca(tipo) } };
+            if (tipo === 'habil') diasHabTrab += 1;
+          } else {
+            cell.value = '';
+          }
+          cell.fill = headerFill(bgPorTipo(tipo));
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.border = border('thin', COLORS.slate100);
+        });
+
+        const ausH = Math.max(0, calendarioMes.total_habiles - diasHabTrab);
+        const totales: Array<[number, string]> = [
+          [t.dias_trabajados_count ?? 0, COLORS.slate800],
+          [t.sabados_trabajados_count ?? 0, COLORS.amber],
+          [ausH, ausH === 0 ? COLORS.slate500 : ausH <= 3 ? COLORS.amber : COLORS.red],
+        ];
+        totales.forEach(([v, color], i) => {
+          const cell = wsCal.getCell(r, 3 + dias.length + i);
+          cell.value = v;
+          cell.numFmt = numFmt;
+          cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: color } };
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+          cell.border = border('thin', COLORS.slate100);
+        });
+
+        r += 1;
+      });
+    });
+
+    // Fila final: brigadas operativas por día
+    wsCal.mergeCells(r, 1, r, 2);
+    const cTotLbl = wsCal.getCell(r, 1);
+    cTotLbl.value = 'Brigadas operativas/día';
+    cTotLbl.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
+    cTotLbl.fill = headerFill(COLORS.slate800);
+    cTotLbl.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+    cTotLbl.border = border('medium', COLORS.slate800);
+
+    const operPorDia = new Array(calendarioMes.dias_en_mes + 1).fill(0);
+    pagoTecnicos.forEach((t) => {
+      (t.dias_trabajados ?? []).forEach((d) => {
+        if (d >= 1 && d <= calendarioMes.dias_en_mes) operPorDia[d] += 1;
+      });
+    });
+    dias.forEach((d, i) => {
+      const cell = wsCal.getCell(r, 3 + i);
+      cell.value = operPorDia[d];
+      cell.numFmt = numFmt;
+      const tipo = tipoDia(d);
+      cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.slate800 } };
+      cell.fill = headerFill(bgPorTipo(tipo));
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = border('thin', COLORS.slate200);
+    });
+    [0, 1, 2].forEach((i) => {
+      const cell = wsCal.getCell(r, 3 + dias.length + i);
+      cell.fill = headerFill(COLORS.slate800);
+      cell.border = border('medium', COLORS.slate800);
+    });
+    wsCal.getRow(r).height = 18;
+
+    // Anchos de columna
+    wsCal.getColumn(1).width = 30;
+    wsCal.getColumn(2).width = 22;
+    for (let i = 0; i < dias.length; i++) {
+      wsCal.getColumn(3 + i).width = 3.2;
+    }
+    wsCal.getColumn(3 + dias.length).width = 10;
+    wsCal.getColumn(3 + dias.length + 1).width = 10;
+    wsCal.getColumn(3 + dias.length + 2).width = 10;
+  }
+
+  // -------------------------------------------------------------------------
+  // Hoja 4: METODOLOGÍA
   // -------------------------------------------------------------------------
   const wsMeta = wb.addWorksheet('Metodología', {
     pageSetup: { paperSize: 9, orientation: 'portrait' },
@@ -453,6 +696,13 @@ export async function exportPagoExcel(
     { text: '   • Equivale a: Precio Base − Monto Hábil actual (cuando Efectivas Hábiles < 160).' },
     { text: `   • Ef. Faltantes = max(0, ${META} − Efectivas Hábiles): número de efectivas adicionales necesarias para topear.` },
     { text: '   • Este indicador muestra cuánto NO se paga al contratista por no llegar al máximo mensual.' },
+    { text: '' },
+    { title: '6. Calendario Operativo de Brigadas' },
+    { text: '   • Muestra, por brigada, qué días del mes trabajó (cualquier inspección registrada).' },
+    { text: '   • Identifica sábados (ámbar), domingos (gris) y feriados (lila) como columnas destacadas.' },
+    { text: '   • Totales por brigada: Días Trab, Sáb Trab y Ausencias Hábiles (Hábiles del mes − Días hábiles trabajados).' },
+    { text: '   • Pie: número de brigadas operativas por cada día del mes visualizado.' },
+    { text: '   • Mes visualizado: el último mes del período filtrado con al menos un registro.' },
   ];
 
   let mr = 1;

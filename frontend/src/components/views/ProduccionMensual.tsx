@@ -211,7 +211,7 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, ca
           </p>
         </div>
         <button
-          onClick={() => exportPagoExcel(tecnicosFiltrados, { scope: 'global', periodo })}
+          onClick={() => exportPagoExcel(tecnicosFiltrados, { scope: 'global', periodo, calendarioMes })}
           className="text-[11px] px-3 py-1.5 bg-slate-800 text-white rounded hover:bg-slate-700 transition-colors flex items-center gap-1.5"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -512,6 +512,7 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, ca
           onNavegar={navegarTecnico}
           onSeleccionarTecnico={(t) => setVistaDetalle({ tipo: 'tecnico', tecnico: t })}
           periodo={periodo}
+          calendarioMes={calendarioMes}
         />
       )}
     </div>
@@ -528,9 +529,10 @@ interface DetalleModalProps {
   onNavegar: (dir: 'anterior' | 'siguiente') => void;
   onSeleccionarTecnico: (t: PagoTecnico) => void;
   periodo?: string;
+  calendarioMes?: CalendarioMes | null;
 }
 
-function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo }: DetalleModalProps) {
+function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo, calendarioMes }: DetalleModalProps) {
   const isTecnico = vista.tipo === 'tecnico';
 
   // Header data
@@ -583,6 +585,7 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
                   scope: vista.tipo === 'zona' ? 'zona' : 'global',
                   zonaNombre: vista.tipo === 'zona' ? vista.zona : '',
                   periodo,
+                  calendarioMes,
                 })}
                 className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded transition-colors flex items-center gap-1.5 border-r border-slate-600 pr-3"
               >
