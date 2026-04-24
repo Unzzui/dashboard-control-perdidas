@@ -196,9 +196,9 @@ export default function CalendarioBrigadas({
               {dias.map((d) => (
                 <col key={`col-${d}`} />
               ))}
-              <col className="w-[48px]" />
-              <col className="w-[44px]" />
-              <col className="w-[52px]" />
+              <col className="w-[88px]" />
+              <col className="w-[84px]" />
+              <col className="w-[60px]" />
             </colgroup>
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
@@ -360,20 +360,22 @@ export default function CalendarioBrigadas({
                         );
                       })}
                       <td
-                        className="px-1 py-2 text-right text-[10px] tabular-nums font-bold text-slate-800 whitespace-nowrap"
+                        className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-slate-800 whitespace-nowrap"
                         title={`${totalTrab} de ${totalPosibleTrab} días-brigada laborables transcurridos`}
                       >
-                        {totalTrab}<span className="text-slate-400 font-normal">/{totalPosibleTrab}</span>
+                        {totalTrab}
+                        <span className="text-slate-400 font-normal"> / {totalPosibleTrab}</span>
                       </td>
                       <td
-                        className="px-1 py-2 text-right text-[10px] tabular-nums font-bold text-amber-600 whitespace-nowrap"
+                        className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-amber-600 whitespace-nowrap"
                         title={`${totalSab} de ${totalPosibleSab} sábados-brigada transcurridos`}
                       >
-                        {totalSab}<span className="text-amber-400 font-normal">/{totalPosibleSab}</span>
+                        {totalSab}
+                        <span className="text-amber-400/80 font-normal"> / {totalPosibleSab}</span>
                       </td>
                       <td
-                        className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-red-600"
-                        title={`Total de días hábiles no trabajados (excluye futuros)`}
+                        className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-red-600"
+                        title="Total de días hábiles no trabajados (excluye futuros)"
                       >
                         {totalAus}
                       </td>
@@ -383,17 +385,17 @@ export default function CalendarioBrigadas({
                         Cobertura / Prom. por brigada
                       </td>
                       <td className="px-0 py-1.5" colSpan={calendario.dias_en_mes} />
-                      <td className="px-1 py-1.5 text-right text-[10px] tabular-nums text-slate-600 whitespace-nowrap">
-                        <span className="font-semibold">{pctTrab.toFixed(0)}%</span>
-                        <span className="text-slate-400"> · </span>
-                        {promTrab.toFixed(1)}
+                      <td className="px-2 py-1.5 text-right text-[10px] tabular-nums whitespace-nowrap">
+                        <span className="font-semibold text-slate-700">{pctTrab.toFixed(0)}%</span>
+                        <span className="text-slate-300 mx-1">·</span>
+                        <span className="text-slate-500">{promTrab.toFixed(1)}</span>
                       </td>
-                      <td className="px-1 py-1.5 text-right text-[10px] tabular-nums text-amber-600 whitespace-nowrap">
-                        <span className="font-semibold">{pctSab.toFixed(0)}%</span>
-                        <span className="text-amber-300"> · </span>
-                        {promSab.toFixed(1)}
+                      <td className="px-2 py-1.5 text-right text-[10px] tabular-nums whitespace-nowrap">
+                        <span className="font-semibold text-amber-600">{pctSab.toFixed(0)}%</span>
+                        <span className="text-amber-300 mx-1">·</span>
+                        <span className="text-amber-500">{promSab.toFixed(1)}</span>
                       </td>
-                      <td className="px-1 py-1.5 text-right text-[10px] tabular-nums text-red-600">
+                      <td className="px-2 py-1.5 text-right text-[10px] tabular-nums text-red-500">
                         {promAus.toFixed(1)}
                       </td>
                     </tr>
