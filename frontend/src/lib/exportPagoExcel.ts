@@ -86,67 +86,181 @@ export async function exportPagoExcel(
     properties: { defaultRowHeight: 18 },
   });
 
-  // Título
-  wsResumen.mergeCells('A1:F1');
+  // Título (banda superior con acento)
+  wsResumen.mergeCells('A1:G1');
   wsResumen.getCell('A1').value = scope === 'zona'
     ? `Cálculo de Pago Mensual — ${zonaNombre}`
     : 'Cálculo de Pago Mensual — Resumen Global';
-  wsResumen.getCell('A1').font = { name: 'Inter', size: 16, bold: true, color: { argb: COLORS.slate800 } };
-  wsResumen.getCell('A1').alignment = { vertical: 'middle' };
-  wsResumen.getRow(1).height = 28;
+  wsResumen.getCell('A1').font = { name: 'Inter', size: 18, bold: true, color: { argb: COLORS.white } };
+  wsResumen.getCell('A1').fill = headerFill(COLORS.primary);
+  wsResumen.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  wsResumen.getCell('A1').border = border('medium', COLORS.primary);
+  wsResumen.getRow(1).height = 36;
 
-  wsResumen.mergeCells('A2:F2');
-  wsResumen.getCell('A2').value = `Período: ${periodo} · Meta ${META} efectivas · OCA Global · 1F`;
-  wsResumen.getCell('A2').font = { name: 'Inter', size: 10, color: { argb: COLORS.slate500 } };
-  wsResumen.getRow(2).height = 16;
+  wsResumen.mergeCells('A2:G2');
+  wsResumen.getCell('A2').value = `Período: ${periodo}  ·  Meta ${META} efectivas/mes  ·  OCA Global · 1F`;
+  wsResumen.getCell('A2').font = { name: 'Inter', size: 10, italic: true, color: { argb: COLORS.slate500 } };
+  wsResumen.getCell('A2').fill = headerFill(COLORS.slate50);
+  wsResumen.getCell('A2').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  wsResumen.getRow(2).height = 18;
 
-  // KPIs
-  let row = 4;
-  const kpis: Array<[string, string | number, string]> = [
-    ['Total a Pago',        totalPago,         moneyFmt],
-    ['Pago Potencial',      pagoPotencial,     moneyFmt],
-    ['Brecha NO Pagada',    brechaTotal,       moneyFmt],
-    ['% Brecha',            Math.round(pctBrecha), pctFmt],
-    ['Efectivas Faltantes', efFaltantes,       numFmt],
-    ['Técnicos',            pagoTecnicos.length, numFmt],
-    ['Cumplen Meta',        cumplen,           numFmt],
-    ['No Cumplen',          noCumplen,         numFmt],
-    ['% Cumplimiento',      Math.round(pctCumplen), pctFmt],
-    ['Total Efectivas',     totalEf,           numFmt],
-    ['Efectivas Hábiles',   totalHab,          numFmt],
-    ['Efectivas Sábado',    totalSab,          numFmt],
-    ['Normales',            totalNorm,         numFmt],
-    ['CNR Medida',          totalCnrM,         numFmt],
-    ['CNR Intervención',    totalCnrI,         numFmt],
-    ['VF CGE',              totalVfCge,        numFmt],
-    ['Monto Hábil',         totalMontoH,       moneyFmt],
-    ['Monto Sábado',        totalMontoS,       moneyFmt],
-  ];
+  // Métrica destacada: la única tarjeta grande del top, muestra el total a pago
+  wsResumen.mergeCells('A3:G3');
+  wsResumen.getRow(3).height = 8;  // separador
 
-  // Pintar KPIs en grid 2 columnas (los de brecha destacados en rojo)
-  for (let i = 0; i < kpis.length; i++) {
-    const [label, val, fmt] = kpis[i];
-    const isBrecha = label === 'Brecha NO Pagada' || label === '% Brecha';
-    const r = 4 + Math.floor(i / 2) * 3;
-    const c = (i % 2) * 3 + 1;
-    const labelCell = wsResumen.getCell(r, c);
-    const valueCell = wsResumen.getCell(r + 1, c);
-    wsResumen.mergeCells(r, c, r, c + 1);
-    wsResumen.mergeCells(r + 1, c, r + 1, c + 1);
-    labelCell.value = label;
-    labelCell.font = { name: 'Inter', size: 8, bold: true, color: { argb: isBrecha ? COLORS.red : COLORS.slate500 } };
-    labelCell.alignment = { vertical: 'middle' };
-    valueCell.value = val;
-    valueCell.numFmt = fmt;
-    valueCell.font = { name: 'Inter', size: 14, bold: true, color: { argb: isBrecha ? COLORS.red : COLORS.slate800 } };
-    valueCell.alignment = { vertical: 'middle' };
-    [labelCell, valueCell].forEach((c2) => {
-      c2.fill = headerFill(isBrecha ? COLORS.redSoft : COLORS.slate50);
-      c2.border = border();
-    });
-    wsResumen.getRow(r + 1).height = 24;
-  }
-  row = 4 + Math.ceil(kpis.length / 2) * 3 + 1;
+  wsResumen.mergeCells('A4:C6');
+  const cTotal = wsResumen.getCell('A4');
+  cTotal.value = totalPago;
+  cTotal.numFmt = moneyFmt;
+  cTotal.font = { name: 'Inter', size: 28, bold: true, color: { argb: COLORS.slate800 } };
+  cTotal.alignment = { vertical: 'middle', horizontal: 'center' };
+  cTotal.fill = headerFill(COLORS.slate50);
+  cTotal.border = border('thin', COLORS.slate200);
+
+  wsResumen.mergeCells('A7:C7');
+  const cTotalLbl = wsResumen.getCell('A7');
+  cTotalLbl.value = 'TOTAL A PAGO';
+  cTotalLbl.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.slate500 } };
+  cTotalLbl.alignment = { vertical: 'middle', horizontal: 'center' };
+  cTotalLbl.fill = headerFill(COLORS.slate50);
+  cTotalLbl.border = border('thin', COLORS.slate200);
+
+  // Brecha (destacada al lado, en rojo)
+  wsResumen.mergeCells('D4:E6');
+  const cBrecha = wsResumen.getCell('D4');
+  cBrecha.value = brechaTotal;
+  cBrecha.numFmt = moneyFmt;
+  cBrecha.font = { name: 'Inter', size: 20, bold: true, color: { argb: COLORS.red } };
+  cBrecha.alignment = { vertical: 'middle', horizontal: 'center' };
+  cBrecha.fill = headerFill(COLORS.redSoft);
+  cBrecha.border = border('thin', COLORS.red);
+
+  wsResumen.mergeCells('D7:E7');
+  const cBrechaLbl = wsResumen.getCell('D7');
+  cBrechaLbl.value = `BRECHA NO PAGADA · ${Math.round(pctBrecha)}%`;
+  cBrechaLbl.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.red } };
+  cBrechaLbl.alignment = { vertical: 'middle', horizontal: 'center' };
+  cBrechaLbl.fill = headerFill(COLORS.redSoft);
+  cBrechaLbl.border = border('thin', COLORS.red);
+
+  // % Cumplimiento (verde si alto)
+  wsResumen.mergeCells('F4:G6');
+  const cCumpl = wsResumen.getCell('F4');
+  cCumpl.value = Math.round(pctCumplen);
+  cCumpl.numFmt = pctFmt;
+  const cumplColor = pctCumplen >= 70 ? COLORS.green : pctCumplen >= 50 ? COLORS.amber : COLORS.red;
+  const cumplBg = pctCumplen >= 70 ? COLORS.greenSoft : pctCumplen >= 50 ? COLORS.amberSoft : COLORS.redSoft;
+  cCumpl.font = { name: 'Inter', size: 20, bold: true, color: { argb: cumplColor } };
+  cCumpl.alignment = { vertical: 'middle', horizontal: 'center' };
+  cCumpl.fill = headerFill(cumplBg);
+  cCumpl.border = border('thin', cumplColor);
+
+  wsResumen.mergeCells('F7:G7');
+  const cCumplLbl = wsResumen.getCell('F7');
+  cCumplLbl.value = `% CUMPLIMIENTO · ${cumplen}/${pagoTecnicos.length} téc`;
+  cCumplLbl.font = { name: 'Inter', size: 9, bold: true, color: { argb: cumplColor } };
+  cCumplLbl.alignment = { vertical: 'middle', horizontal: 'center' };
+  cCumplLbl.fill = headerFill(cumplBg);
+  cCumplLbl.border = border('thin', cumplColor);
+
+  let row = 9;
+
+  // Helper: renderiza una sección con banda de título y grilla de KPIs (3 por fila)
+  type KpiSpec = { label: string; value: number; fmt: string; red?: boolean };
+  const renderSection = (title: string, items: KpiSpec[]) => {
+    // Banda de sección
+    wsResumen.mergeCells(row, 1, row, 7);
+    const cSec = wsResumen.getCell(row, 1);
+    cSec.value = title.toUpperCase();
+    cSec.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+    cSec.fill = headerFill(COLORS.slate800);
+    cSec.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    cSec.border = border('thin', COLORS.slate800);
+    wsResumen.getRow(row).height = 20;
+    row += 1;
+
+    // Cards en filas de 3 (cols 1-2, 3-4, 5-6 — col 7 queda vacía)
+    // Cada card son 2 filas: label arriba, valor abajo
+    for (let i = 0; i < items.length; i += 3) {
+      const slice = items.slice(i, i + 3);
+      const labelRow = row;
+      const valueRow = row + 1;
+
+      slice.forEach((kpi, idx) => {
+        const col = idx * 2 + 1;  // 1, 3, 5
+        const fg = kpi.red ? COLORS.red : COLORS.slate800;
+        const bg = kpi.red ? COLORS.redSoft : COLORS.slate50;
+        const borderColor = kpi.red ? COLORS.red : COLORS.slate200;
+
+        // Label (fila de arriba)
+        wsResumen.mergeCells(labelRow, col, labelRow, col + 1);
+        const lc = wsResumen.getCell(labelRow, col);
+        lc.value = kpi.label.toUpperCase();
+        lc.font = { name: 'Inter', size: 8, bold: true, color: { argb: kpi.red ? COLORS.red : COLORS.slate500 } };
+        lc.fill = headerFill(bg);
+        lc.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        lc.border = {
+          top: { style: 'thin', color: { argb: borderColor } },
+          left: { style: 'thin', color: { argb: borderColor } },
+          right: { style: 'thin', color: { argb: borderColor } },
+        };
+
+        // Value (fila de abajo)
+        wsResumen.mergeCells(valueRow, col, valueRow, col + 1);
+        const vc = wsResumen.getCell(valueRow, col);
+        vc.value = kpi.value;
+        vc.numFmt = kpi.fmt;
+        vc.font = { name: 'Inter', size: 16, bold: true, color: { argb: fg } };
+        vc.fill = headerFill(bg);
+        vc.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        vc.border = {
+          bottom: { style: 'thin', color: { argb: borderColor } },
+          left: { style: 'thin', color: { argb: borderColor } },
+          right: { style: 'thin', color: { argb: borderColor } },
+        };
+      });
+
+      // Rellenar slots vacíos (si items no son múltiplo de 3) con celdas blancas
+      for (let idx = slice.length; idx < 3; idx++) {
+        const col = idx * 2 + 1;
+        wsResumen.mergeCells(labelRow, col, labelRow, col + 1);
+        wsResumen.mergeCells(valueRow, col, valueRow, col + 1);
+      }
+
+      wsResumen.getRow(labelRow).height = 14;
+      wsResumen.getRow(valueRow).height = 26;
+      row += 2;
+    }
+
+    // Separador debajo
+    row += 1;
+  };
+
+  renderSection('Resumen de Pago', [
+    { label: 'Pago Potencial', value: pagoPotencial, fmt: moneyFmt },
+    { label: 'Monto Hábil',    value: totalMontoH,   fmt: moneyFmt },
+    { label: 'Monto Sábado',   value: totalMontoS,   fmt: moneyFmt },
+  ]);
+
+  renderSection('Cumplimiento', [
+    { label: 'Técnicos',            value: pagoTecnicos.length, fmt: numFmt },
+    { label: 'Cumplen Meta',        value: cumplen,             fmt: numFmt },
+    { label: 'No Cumplen',          value: noCumplen,           fmt: numFmt },
+    { label: 'Efectivas Faltantes', value: efFaltantes,         fmt: numFmt, red: efFaltantes > 0 },
+  ]);
+
+  renderSection('Efectivas', [
+    { label: 'Total Efectivas',   value: totalEf,  fmt: numFmt },
+    { label: 'Efectivas Hábiles', value: totalHab, fmt: numFmt },
+    { label: 'Efectivas Sábado',  value: totalSab, fmt: numFmt },
+  ]);
+
+  renderSection('Desglose por Categoría', [
+    { label: 'Normales',         value: totalNorm,  fmt: numFmt },
+    { label: 'CNR Medida',       value: totalCnrM,  fmt: numFmt },
+    { label: 'CNR Intervención', value: totalCnrI,  fmt: numFmt },
+    { label: 'VF CGE',           value: totalVfCge, fmt: numFmt },
+  ]);
 
   // Resumen por zona
   wsResumen.mergeCells(row, 1, row, 6);
