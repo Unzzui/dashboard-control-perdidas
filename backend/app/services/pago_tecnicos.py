@@ -93,6 +93,22 @@ def calculate_pago_tecnicos(filtered: pd.DataFrame) -> list:
     # Sábado = dayofweek 5
     df["es_sabado"] = (df["Fecha ejecución"].dt.dayofweek == 5).astype(int)
 
+    # Último mes con datos (el que se visualiza en el calendario)
+    fechas_validas = df["Fecha ejecución"].dropna()
+    if not fechas_validas.empty:
+        ultimo_periodo = fechas_validas.dt.to_period("M").max()
+        año_cal = int(ultimo_periodo.year)
+        mes_cal = int(ultimo_periodo.month)
+    else:
+        año_cal = None
+        mes_cal = None
+
+    df["_dia_mes"] = df["Fecha ejecución"].dt.day
+    df["_año_mes_match"] = (
+        (df["Fecha ejecución"].dt.year == año_cal) &
+        (df["Fecha ejecución"].dt.month == mes_cal)
+    ) if año_cal is not None else False
+
     # Comuna normalizada
     df["comuna_norm"] = df["Comuna"].apply(_normalizar_comuna)
 
@@ -118,6 +134,34 @@ def calculate_pago_tecnicos(filtered: pd.DataFrame) -> list:
         vf_cge_sab=("vf_cge_sab", "sum"),
         efectivas_sabado=("efectiva_sab", "sum"),
     ).reset_index()
+
+    # Agregación separada para días trabajados del último mes con datos
+    if año_cal is not None:
+        df_mes = df[df["_año_mes_match"]]
+        if not df_mes.empty:
+            dias_por_tec = (
+                df_mes.groupby("Nombre asignado", observed=True)["_dia_mes"]
+                .apply(lambda s: sorted(set(int(x) for x in s.dropna())))
+                .reset_index(name="dias_trabajados")
+            )
+            # sábados trabajados (días únicos con es_sabado=1)
+            sabs_por_tec = (
+                df_mes[df_mes["es_sabado"] == 1]
+                .groupby("Nombre asignado", observed=True)["_dia_mes"]
+                .apply(lambda s: len(set(int(x) for x in s.dropna())))
+                .reset_index(name="sabados_trabajados_count")
+            )
+        else:
+            dias_por_tec = pd.DataFrame(columns=["Nombre asignado", "dias_trabajados"])
+            sabs_por_tec = pd.DataFrame(columns=["Nombre asignado", "sabados_trabajados_count"])
+    else:
+        dias_por_tec = pd.DataFrame(columns=["Nombre asignado", "dias_trabajados"])
+        sabs_por_tec = pd.DataFrame(columns=["Nombre asignado", "sabados_trabajados_count"])
+
+    agg = agg.merge(dias_por_tec, on="Nombre asignado", how="left")
+    agg = agg.merge(sabs_por_tec, on="Nombre asignado", how="left")
+    agg["dias_trabajados"] = agg["dias_trabajados"].apply(lambda v: v if isinstance(v, list) else [])
+    agg["sabados_trabajados_count"] = agg["sabados_trabajados_count"].fillna(0).astype(int)
 
     # Comuna predominante por técnico dentro de su zona origen
     zi = df["zona_inspeccion"].astype(str)
@@ -206,6 +250,9 @@ def calculate_pago_tecnicos(filtered: pd.DataFrame) -> list:
             "monto_sabado": int(r["monto_sabado"]),
             "total_pago": int(r["total_pago"]),
             "cumple_meta": bool(r["cumple_meta"]),
+            "dias_trabajados": list(r["dias_trabajados"]) if isinstance(r["dias_trabajados"], list) else [],
+            "dias_trabajados_count": int(len(r["dias_trabajados"])) if isinstance(r["dias_trabajados"], list) else 0,
+            "sabados_trabajados_count": int(r["sabados_trabajados_count"]),
         })
 
     out.sort(key=lambda x: (x["zona"], -x["total_pago"]))
