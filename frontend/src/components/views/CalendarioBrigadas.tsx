@@ -218,19 +218,19 @@ export default function CalendarioBrigadas({
                 })}
                 <th
                   className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50"
-                  title="Días trabajados en el mes (hábiles + sábados)"
+                  title="Días hábiles trabajados (lunes a viernes, excluye sábado)"
                 >
                   Trab
                 </th>
                 <th
                   className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50"
-                  title="Sábados trabajados"
+                  title="Sábados trabajados (métrica aparte, no cuenta en Faltas)"
                 >
                   Sáb
                 </th>
                 <th
                   className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50"
-                  title="Días hábiles SIN trabajar (transcurridos, no cuenta futuros)"
+                  title="Días hábiles SIN trabajar (transcurridos, no cuenta futuros). Trab + Faltas = hábiles transcurridos"
                 >
                   Faltas
                 </th>
@@ -321,7 +321,7 @@ export default function CalendarioBrigadas({
                             );
                           })}
                           <td className="px-1 py-1 text-right tabular-nums text-[11px] text-slate-700 font-semibold">
-                            {t.dias_trabajados_count}
+                            {diasHabilesTrabajados}
                           </td>
                           <td className="px-1 py-1 text-right tabular-nums text-[11px] text-amber-600">
                             {t.sabados_trabajados_count}
@@ -338,23 +338,24 @@ export default function CalendarioBrigadas({
             </tbody>
             <tfoot className="bg-slate-50 border-t-2 border-slate-300">
               {(() => {
-                const totalTrab = pagoTecnicos.reduce((a, t) => a + t.dias_trabajados_count, 0);
-                const totalSab = pagoTecnicos.reduce((a, t) => a + t.sabados_trabajados_count, 0);
-                const totalAus = pagoTecnicos.reduce((a, t) => {
+                // Trab solo cuenta HÁBILES trabajados (no incluye sábados) → complementario de Faltas
+                let totalTrab = 0;
+                let totalAus = 0;
+                pagoTecnicos.forEach((t) => {
                   const habTrab = t.dias_trabajados.filter(
                     (d) => !sabadosSet.has(d) && !domingosSet.has(d) && !feriadosSet.has(d)
                   ).length;
-                  return a + Math.max(0, diasHabilesTranscurridos - habTrab);
-                }, 0);
+                  totalTrab += habTrab;
+                  totalAus += Math.max(0, diasHabilesTranscurridos - habTrab);
+                });
+                const totalSab = pagoTecnicos.reduce((a, t) => a + t.sabados_trabajados_count, 0);
                 const op = brigadasOperativas.length;
-                // "Días laborables posibles" por brigada = hábiles transcurridos + sábados transcurridos
-                const laborablesPosiblesPorBrigada = diasHabilesTranscurridos + sabadosTranscurridos;
-                const totalPosibleTrab = op * laborablesPosiblesPorBrigada;
+                // Denominadores alineados: Trab y Faltas usan el mismo (hábiles), Sáb aparte
+                const totalPosibleHab = op * diasHabilesTranscurridos;
                 const totalPosibleSab = op * sabadosTranscurridos;
-                const totalPosibleAus = op * diasHabilesTranscurridos;
-                const pctTrab = totalPosibleTrab > 0 ? (totalTrab / totalPosibleTrab) * 100 : 0;
+                const pctTrab = totalPosibleHab > 0 ? (totalTrab / totalPosibleHab) * 100 : 0;
                 const pctSab = totalPosibleSab > 0 ? (totalSab / totalPosibleSab) * 100 : 0;
-                const pctAus = totalPosibleAus > 0 ? (totalAus / totalPosibleAus) * 100 : 0;
+                const pctAus = totalPosibleHab > 0 ? (totalAus / totalPosibleHab) * 100 : 0;
                 const promTrab = op > 0 ? totalTrab / op : 0;
                 const promSab = op > 0 ? totalSab / op : 0;
                 const promAus = op > 0 ? totalAus / op : 0;
@@ -378,10 +379,10 @@ export default function CalendarioBrigadas({
                       })}
                       <td
                         className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-slate-800 whitespace-nowrap"
-                        title={`${totalTrab} de ${totalPosibleTrab} días-brigada laborables transcurridos`}
+                        title={`${totalTrab} de ${totalPosibleHab} días-brigada hábiles transcurridos`}
                       >
                         {totalTrab}
-                        <span className="text-slate-400 font-normal"> / {totalPosibleTrab}</span>
+                        <span className="text-slate-400 font-normal"> / {totalPosibleHab}</span>
                       </td>
                       <td
                         className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-amber-600 whitespace-nowrap"
@@ -392,10 +393,10 @@ export default function CalendarioBrigadas({
                       </td>
                       <td
                         className="px-2 py-2 text-right text-[11px] tabular-nums font-bold text-red-600 whitespace-nowrap"
-                        title={`${totalAus} faltas de ${totalPosibleAus} días-brigada hábiles transcurridos`}
+                        title={`${totalAus} faltas de ${totalPosibleHab} días-brigada hábiles transcurridos (complemento de Trab)`}
                       >
                         {totalAus}
-                        <span className="text-red-300 font-normal"> / {totalPosibleAus}</span>
+                        <span className="text-red-300 font-normal"> / {totalPosibleHab}</span>
                       </td>
                     </tr>
                     <tr className="border-t border-slate-100">

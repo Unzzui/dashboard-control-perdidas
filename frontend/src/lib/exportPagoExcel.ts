@@ -681,7 +681,8 @@ export async function exportPagoExcel(
     });
     const zonasOrdenadas = Array.from(grupos.keys()).sort();
 
-    // Acumuladores globales para la fila de totales
+    // Acumuladores globales para la fila de totales.
+    // sumTrabGlobal = solo días HÁBILES trabajados (complementario de Faltas).
     let sumTrabGlobal = 0;
     let sumSabGlobal = 0;
     let sumAusGlobal = 0;
@@ -740,12 +741,14 @@ export async function exportPagoExcel(
 
         // Ausencias: solo hasta "hoy" — no cuenta días futuros
         const ausH = Math.max(0, diasHabilesTranscurridos - diasHabTrab);
-        sumTrabGlobal += t.dias_trabajados_count ?? 0;
+        // Trab en los totales = solo HÁBILES trabajados (complementario de Faltas).
+        sumTrabGlobal += diasHabTrab;
         sumSabGlobal += t.sabados_trabajados_count ?? 0;
         sumAusGlobal += ausH;
 
+        // Per-brigade cell "Trab" también muestra hábiles (no total) para coherencia.
         const totales: Array<[number, string]> = [
-          [t.dias_trabajados_count ?? 0, COLORS.slate800],
+          [diasHabTrab, COLORS.slate800],
           [t.sabados_trabajados_count ?? 0, COLORS.amber],
           [ausH, ausH === 0 ? COLORS.slate500 : ausH <= 3 ? COLORS.amber : COLORS.red],
         ];
@@ -787,17 +790,15 @@ export async function exportPagoExcel(
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
       cell.border = border('thin', COLORS.slate200);
     });
-    // Totales columnas de la derecha — en formato "trabajados / posibles"
-    const laborablesPosiblesPorBrigada = diasHabilesTranscurridos + sabadosTranscurridos;
-    const posibleTrab = brigadasOp * laborablesPosiblesPorBrigada;
+    // Totales columnas — Trab y Faltas comparten denominador (hábiles) y son complementarios.
+    const posibleHab = brigadasOp * diasHabilesTranscurridos;
     const posibleSab = brigadasOp * sabadosTranscurridos;
-    const posibleAus = brigadasOp * diasHabilesTranscurridos;
-    const pctTrabGlobal = posibleTrab > 0 ? (sumTrabGlobal / posibleTrab) * 100 : 0;
+    const pctTrabGlobal = posibleHab > 0 ? (sumTrabGlobal / posibleHab) * 100 : 0;
     const pctSabGlobal = posibleSab > 0 ? (sumSabGlobal / posibleSab) * 100 : 0;
-    const pctAusGlobal = posibleAus > 0 ? (sumAusGlobal / posibleAus) * 100 : 0;
+    const pctAusGlobal = posibleHab > 0 ? (sumAusGlobal / posibleHab) * 100 : 0;
 
     const totTrabCell = wsCal.getCell(r, 3 + dias.length);
-    totTrabCell.value = `${sumTrabGlobal}/${posibleTrab}`;
+    totTrabCell.value = `${sumTrabGlobal}/${posibleHab}`;
     totTrabCell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
     totTrabCell.fill = headerFill(COLORS.slate800);
     totTrabCell.alignment = { vertical: 'middle', horizontal: 'right' };
@@ -811,7 +812,7 @@ export async function exportPagoExcel(
     totSabCell.border = border('medium', COLORS.slate800);
 
     const totAusCell = wsCal.getCell(r, 3 + dias.length + 2);
-    totAusCell.value = `${sumAusGlobal}/${posibleAus}`;
+    totAusCell.value = `${sumAusGlobal}/${posibleHab}`;
     totAusCell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
     totAusCell.fill = headerFill(COLORS.red);
     totAusCell.alignment = { vertical: 'middle', horizontal: 'right' };
@@ -910,7 +911,7 @@ export async function exportPagoExcel(
     { title: '6. Calendario Operativo de Brigadas' },
     { text: '   • Muestra, por brigada, qué días del mes trabajó (cualquier inspección registrada).' },
     { text: '   • Identifica sábados (ámbar), domingos (gris) y feriados (lila) como columnas destacadas.' },
-    { text: '   • Totales por brigada: Días Trab (hábiles + sábados), Sáb Trab y Faltas (días hábiles transcurridos no trabajados — NO incluye días futuros).' },
+    { text: '   • Totales por brigada: Días Trab (hábiles trabajados — L–V), Sáb Trab (sábados, métrica aparte) y Faltas (hábiles no trabajados). Trab + Faltas = hábiles transcurridos. Sábados NO cuentan como falta.' },
     { text: '   • Pie: número de brigadas operativas por cada día del mes visualizado.' },
     { text: '   • Mes visualizado: el último mes del período filtrado con al menos un registro.' },
   ];
