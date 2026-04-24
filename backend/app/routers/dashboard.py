@@ -14,6 +14,7 @@ from app.services.pago_tecnicos import calculate_pago_tecnicos
 from app.services.resultados_fallidos import calculate_resultados_fallidos, calculate_resultados_fallidos_por_zona
 from app.services.analisis_comparativo import calculate_analisis_comparativo
 from app.services.alertas_operativas import calculate_alertas_operativas
+from app.services.calendario_mes import build_calendario_mes
 
 router = APIRouter()
 
@@ -35,6 +36,7 @@ def get_dashboard(params: FilterParams = Depends()):
         "visitas_fallidas_responsabilidad": calculate_visitas_fallidas(filtered),
         "produccion": calculate_produccion(filtered),
         "pago_tecnicos": calculate_pago_tecnicos(filtered),
+        "calendario_mes": build_calendario_mes(filtered),
         "resultados_fallidos": calculate_resultados_fallidos(filtered),
         "resultados_fallidos_por_zona": calculate_resultados_fallidos_por_zona(filtered),
     }
