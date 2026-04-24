@@ -160,10 +160,19 @@ export default function CalendarioBrigadas({
       {/* Matriz */}
       <div className="bg-white rounded-lg border border-slate-200/60 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="text-[10px] border-collapse">
+          <table className="w-full table-fixed text-[10px] border-collapse min-w-[880px]">
+            <colgroup>
+              <col className="w-[180px]" />
+              {dias.map((d) => (
+                <col key={`col-${d}`} />
+              ))}
+              <col className="w-[48px]" />
+              <col className="w-[44px]" />
+              <col className="w-[52px]" />
+            </colgroup>
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 text-left text-[10px] font-semibold uppercase text-slate-500 min-w-[180px]">
+                <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">
                   Brigada
                 </th>
                 {dias.map((d) => {
@@ -171,15 +180,15 @@ export default function CalendarioBrigadas({
                   return (
                     <th
                       key={`num-${d}`}
-                      className={`px-0 py-1 text-center text-[10px] font-semibold text-slate-500 w-6 ${bgCol[tipo]}`}
+                      className={`px-0 py-1 text-center text-[10px] font-semibold text-slate-500 ${bgCol[tipo]}`}
                     >
                       {d}
                     </th>
                   );
                 })}
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50 w-12">Trab</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50 w-12">Sáb</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50 w-14">Aus.H</th>
+                <th className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50">Trab</th>
+                <th className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50">Sáb</th>
+                <th className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-slate-500 bg-slate-50">Aus.H</th>
               </tr>
               <tr>
                 <th className="sticky left-0 z-20 bg-slate-50 px-3 pb-1 text-left text-[9px] uppercase text-slate-400">
@@ -254,18 +263,18 @@ export default function CalendarioBrigadas({
                                 title={`Día ${d}${trabajo ? ' · trabajado' : ''}`}
                               >
                                 <span
-                                  className={`inline-block w-1.5 h-1.5 rounded-full ${dotCls}`}
+                                  className={`inline-block w-2 h-2 rounded-full ${dotCls}`}
                                 />
                               </td>
                             );
                           })}
-                          <td className="px-2 py-1 text-right tabular-nums text-[11px] text-slate-700 font-semibold">
+                          <td className="px-1 py-1 text-right tabular-nums text-[11px] text-slate-700 font-semibold">
                             {t.dias_trabajados_count}
                           </td>
-                          <td className="px-2 py-1 text-right tabular-nums text-[11px] text-amber-600">
+                          <td className="px-1 py-1 text-right tabular-nums text-[11px] text-amber-600">
                             {t.sabados_trabajados_count}
                           </td>
-                          <td className={`px-2 py-1 text-right tabular-nums text-[11px] ${ausenciaColor(ausenciasHabiles)}`}>
+                          <td className={`px-1 py-1 text-right tabular-nums text-[11px] ${ausenciaColor(ausenciasHabiles)}`}>
                             {Math.max(0, ausenciasHabiles)}
                           </td>
                         </tr>
@@ -291,9 +300,9 @@ export default function CalendarioBrigadas({
                     </td>
                   );
                 })}
-                <td className="px-2 py-2" />
-                <td className="px-2 py-2" />
-                <td className="px-2 py-2" />
+                <td className="px-1 py-2" />
+                <td className="px-1 py-2" />
+                <td className="px-1 py-2" />
               </tr>
             </tfoot>
           </table>
