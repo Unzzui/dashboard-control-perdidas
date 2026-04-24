@@ -791,8 +791,10 @@ export async function exportPagoExcel(
     const laborablesPosiblesPorBrigada = diasHabilesTranscurridos + sabadosTranscurridos;
     const posibleTrab = brigadasOp * laborablesPosiblesPorBrigada;
     const posibleSab = brigadasOp * sabadosTranscurridos;
+    const posibleAus = brigadasOp * diasHabilesTranscurridos;
     const pctTrabGlobal = posibleTrab > 0 ? (sumTrabGlobal / posibleTrab) * 100 : 0;
     const pctSabGlobal = posibleSab > 0 ? (sumSabGlobal / posibleSab) * 100 : 0;
+    const pctAusGlobal = posibleAus > 0 ? (sumAusGlobal / posibleAus) * 100 : 0;
 
     const totTrabCell = wsCal.getCell(r, 3 + dias.length);
     totTrabCell.value = `${sumTrabGlobal}/${posibleTrab}`;
@@ -847,8 +849,7 @@ export async function exportPagoExcel(
     cellSabProm.border = border('thin', COLORS.slate200);
 
     const cellAusProm = wsCal.getCell(r, 3 + dias.length + 2);
-    cellAusProm.value = Number(promAus.toFixed(1));
-    cellAusProm.numFmt = '0.0';
+    cellAusProm.value = `${Math.round(pctAusGlobal)}% · ${promAus.toFixed(1)}`;
     cellAusProm.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.red } };
     cellAusProm.fill = headerFill(COLORS.slate50);
     cellAusProm.alignment = { vertical: 'middle', horizontal: 'right' };
