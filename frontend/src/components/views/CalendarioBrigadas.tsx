@@ -47,6 +47,29 @@ export default function CalendarioBrigadas({
     [pagoTecnicos]
   );
 
+  // Días hábiles TRANSCURRIDOS (no futuros): si el mes visualizado es el actual,
+  // cortamos en "hoy". Si es pasado, usamos todos los hábiles del mes.
+  const diasHabilesTranscurridos = useMemo(() => {
+    const hoy = new Date();
+    const esMesActual =
+      calendario.año === hoy.getFullYear() &&
+      calendario.numero_mes === hoy.getMonth() + 1;
+    const esMesPasado =
+      calendario.año < hoy.getFullYear() ||
+      (calendario.año === hoy.getFullYear() && calendario.numero_mes < hoy.getMonth() + 1);
+    // Si es mes futuro, no hay hábiles transcurridos
+    if (!esMesActual && !esMesPasado) return 0;
+    const ultimoDia = esMesActual ? hoy.getDate() : calendario.dias_en_mes;
+    const sabSet = new Set(calendario.sabados);
+    const domSet = new Set(calendario.domingos);
+    const ferSet = new Set(calendario.feriados);
+    let count = 0;
+    for (let d = 1; d <= ultimoDia; d++) {
+      if (!sabSet.has(d) && !domSet.has(d) && !ferSet.has(d)) count += 1;
+    }
+    return count;
+  }, [calendario]);
+
   const kpis = useMemo(() => {
     const operativas = brigadasOperativas.length;
     const totalDias = brigadasOperativas.reduce((a, t) => a + t.dias_trabajados_count, 0);
@@ -54,10 +77,11 @@ export default function CalendarioBrigadas({
     return {
       operativas,
       diasHabiles: calendario.total_habiles,
+      diasHabilesTranscurridos,
       promedioDias: operativas > 0 ? totalDias / operativas : 0,
       promedioSabados: operativas > 0 ? totalSabados / operativas : 0,
     };
-  }, [brigadasOperativas, calendario.total_habiles]);
+  }, [brigadasOperativas, calendario.total_habiles, diasHabilesTranscurridos]);
 
   // Agrupar por zona
   const porZona = useMemo(() => {
@@ -140,8 +164,13 @@ export default function CalendarioBrigadas({
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Días Hábiles del Mes</p>
-          <p className="text-2xl font-bold text-slate-800">{kpis.diasHabiles}</p>
-          <p className="text-[10px] text-slate-400 mt-1">Lun–Vie en {calendario.mes}</p>
+          <p className="text-2xl font-bold text-slate-800">
+            {kpis.diasHabilesTranscurridos}
+            <span className="text-slate-400 font-normal">/{kpis.diasHabiles}</span>
+          </p>
+          <p className="text-[10px] text-slate-400 mt-1">
+            transcurridos · {calendario.mes}
+          </p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Promedio Días/Brigada</p>
@@ -215,8 +244,12 @@ export default function CalendarioBrigadas({
               {porZona.zonasOrdenadas.map((zona) => {
                 const items = porZona.map[zona];
                 const operZona = items.filter((t) => t.dias_trabajados_count > 0).length;
-                const totDiasZona = items.reduce((a, t) => a + t.dias_trabajados_count, 0);
-                const promZona = operZona > 0 ? totDiasZona / operZona : 0;
+                // Días OPERADOS: días distintos donde al menos una brigada de la zona trabajó
+                const diasOperadosSet = new Set<number>();
+                items.forEach((t) => t.dias_trabajados.forEach((d) => diasOperadosSet.add(d)));
+                const diasOperadosZona = diasOperadosSet.size;
+                const totDiasBrigZona = items.reduce((a, t) => a + t.dias_trabajados_count, 0);
+                const promZona = operZona > 0 ? totDiasBrigZona / operZona : 0;
                 return (
                   <React.Fragment key={zona}>
                     <tr className="bg-slate-800 text-white">
@@ -229,7 +262,7 @@ export default function CalendarioBrigadas({
                         className="px-2 py-1.5 text-[10px] text-slate-200"
                         colSpan={calendario.dias_en_mes + 3}
                       >
-                        {operZona} brigadas activas · {totDiasZona} días trab · prom {promZona.toFixed(1)} d/brigada
+                        {operZona} brigadas activas · {diasOperadosZona} días operados · prom {promZona.toFixed(1)} d/brigada
                       </td>
                     </tr>
                     {items.map((t, idx) => {
@@ -240,7 +273,10 @@ export default function CalendarioBrigadas({
                           !domingosSet.has(d) &&
                           !feriadosSet.has(d)
                       ).length;
-                      const ausenciasHabiles = calendario.total_habiles - diasHabilesTrabajados;
+                      const ausenciasHabiles = Math.max(
+                        0,
+                        diasHabilesTranscurridos - diasHabilesTrabajados
+                      );
                       return (
                         <tr
                           key={`${zona}-${t.nombre}-${idx}`}
@@ -285,25 +321,65 @@ export default function CalendarioBrigadas({
               })}
             </tbody>
             <tfoot className="bg-slate-50 border-t-2 border-slate-300">
-              <tr>
-                <td className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase text-slate-500">
-                  Brigadas operativas/día
-                </td>
-                {dias.map((d) => {
-                  const tipo = tipoDia(d, sabadosSet, domingosSet, feriadosSet);
-                  return (
-                    <td
-                      key={`tot-${d}`}
-                      className={`px-0 py-1 text-center text-[10px] tabular-nums text-slate-600 ${bgCol[tipo]}`}
-                    >
-                      {operativasPorDia[d] || ''}
-                    </td>
-                  );
-                })}
-                <td className="px-1 py-2" />
-                <td className="px-1 py-2" />
-                <td className="px-1 py-2" />
-              </tr>
+              {(() => {
+                const totalTrab = pagoTecnicos.reduce((a, t) => a + t.dias_trabajados_count, 0);
+                const totalSab = pagoTecnicos.reduce((a, t) => a + t.sabados_trabajados_count, 0);
+                const totalAus = pagoTecnicos.reduce((a, t) => {
+                  const habTrab = t.dias_trabajados.filter(
+                    (d) => !sabadosSet.has(d) && !domingosSet.has(d) && !feriadosSet.has(d)
+                  ).length;
+                  return a + Math.max(0, diasHabilesTranscurridos - habTrab);
+                }, 0);
+                const op = brigadasOperativas.length;
+                const promTrab = op > 0 ? totalTrab / op : 0;
+                const promSab = op > 0 ? totalSab / op : 0;
+                const promAus = op > 0 ? totalAus / op : 0;
+
+                return (
+                  <>
+                    <tr className="border-t border-slate-200">
+                      <td className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase text-slate-500">
+                        Brigadas operativas/día
+                      </td>
+                      {dias.map((d) => {
+                        const tipo = tipoDia(d, sabadosSet, domingosSet, feriadosSet);
+                        return (
+                          <td
+                            key={`tot-${d}`}
+                            className={`px-0 py-1 text-center text-[10px] tabular-nums text-slate-600 ${bgCol[tipo]}`}
+                          >
+                            {operativasPorDia[d] || ''}
+                          </td>
+                        );
+                      })}
+                      <td className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-slate-800">
+                        {totalTrab}
+                      </td>
+                      <td className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-amber-600">
+                        {totalSab}
+                      </td>
+                      <td className="px-1 py-2 text-right text-[11px] tabular-nums font-bold text-red-600">
+                        {totalAus}
+                      </td>
+                    </tr>
+                    <tr className="border-t border-slate-100">
+                      <td className="sticky left-0 z-10 bg-slate-50 px-3 py-1.5 text-[10px] uppercase text-slate-400">
+                        Promedio por brigada
+                      </td>
+                      <td className="px-0 py-1.5" colSpan={calendario.dias_en_mes} />
+                      <td className="px-1 py-1.5 text-right text-[11px] tabular-nums text-slate-600">
+                        {promTrab.toFixed(1)}
+                      </td>
+                      <td className="px-1 py-1.5 text-right text-[11px] tabular-nums text-amber-600">
+                        {promSab.toFixed(1)}
+                      </td>
+                      <td className="px-1 py-1.5 text-right text-[11px] tabular-nums text-red-600">
+                        {promAus.toFixed(1)}
+                      </td>
+                    </tr>
+                  </>
+                );
+              })()}
             </tfoot>
           </table>
         </div>

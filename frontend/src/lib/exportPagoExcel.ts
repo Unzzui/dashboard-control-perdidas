@@ -574,6 +574,26 @@ export async function exportPagoExcel(
 
     const totalCols = 2 + dias.length + 3;
 
+    // Días hábiles TRANSCURRIDOS (excluye días futuros dentro del mes actual)
+    const hoy = new Date();
+    const esMesActual =
+      calendarioMes.año === hoy.getFullYear() &&
+      calendarioMes.numero_mes === hoy.getMonth() + 1;
+    const esMesPasado =
+      calendarioMes.año < hoy.getFullYear() ||
+      (calendarioMes.año === hoy.getFullYear() && calendarioMes.numero_mes < hoy.getMonth() + 1);
+    const ultimoDiaRel = esMesActual
+      ? hoy.getDate()
+      : esMesPasado
+      ? calendarioMes.dias_en_mes
+      : 0;
+    let diasHabilesTranscurridos = 0;
+    for (let d = 1; d <= ultimoDiaRel; d++) {
+      if (!sabadosSet.has(d) && !domingosSet.has(d) && !feriadosSet.has(d)) {
+        diasHabilesTranscurridos += 1;
+      }
+    }
+
     // Fila 1: título
     wsCal.mergeCells(1, 1, 1, totalCols);
     wsCal.getCell(1, 1).value = `Calendario Operativo — ${calendarioMes.mes} ${calendarioMes.año}`;
@@ -583,7 +603,7 @@ export async function exportPagoExcel(
     // Fila 2: subtítulo
     wsCal.mergeCells(2, 1, 2, totalCols);
     const brigadasOp = pagoTecnicos.filter((t) => (t.dias_trabajados_count ?? 0) > 0).length;
-    wsCal.getCell(2, 1).value = `Período: ${periodo} · ${brigadasOp} brigadas operativas · ${calendarioMes.total_habiles} días hábiles`;
+    wsCal.getCell(2, 1).value = `Período: ${periodo} · ${brigadasOp} brigadas operativas · ${diasHabilesTranscurridos}/${calendarioMes.total_habiles} días hábiles transcurridos`;
     wsCal.getCell(2, 1).font = { name: 'Inter', size: 9, color: { argb: COLORS.slate500 } };
     wsCal.getRow(2).height = 14;
 
@@ -661,19 +681,28 @@ export async function exportPagoExcel(
     });
     const zonasOrdenadas = Array.from(grupos.keys()).sort();
 
+    // Acumuladores globales para la fila de totales
+    let sumTrabGlobal = 0;
+    let sumSabGlobal = 0;
+    let sumAusGlobal = 0;
+
     let r = 6;
     zonasOrdenadas.forEach((zona) => {
       const items = grupos.get(zona)!.slice().sort(
         (a, b) => (b.dias_trabajados_count ?? 0) - (a.dias_trabajados_count ?? 0)
       );
       const operZ = items.filter((t) => (t.dias_trabajados_count ?? 0) > 0).length;
-      const totDiasZ = items.reduce((a, t) => a + (t.dias_trabajados_count ?? 0), 0);
-      const promZ = operZ > 0 ? totDiasZ / operZ : 0;
+      // Días OPERADOS: días distintos en que alguna brigada de la zona trabajó
+      const diasOpSetZ = new Set<number>();
+      items.forEach((t) => (t.dias_trabajados ?? []).forEach((d) => diasOpSetZ.add(d)));
+      const diasOpZ = diasOpSetZ.size;
+      const totDiasBrigZ = items.reduce((a, t) => a + (t.dias_trabajados_count ?? 0), 0);
+      const promZ = operZ > 0 ? totDiasBrigZ / operZ : 0;
 
       // Subheader zona
       wsCal.mergeCells(r, 1, r, totalCols);
       const cZona = wsCal.getCell(r, 1);
-      cZona.value = `${zona}  ·  ${operZ} brigadas activas  ·  ${totDiasZ} días trab  ·  prom ${promZ.toFixed(1)}`;
+      cZona.value = `${zona}  ·  ${operZ} brigadas activas  ·  ${diasOpZ} días operados  ·  prom ${promZ.toFixed(1)} d/brigada`;
       cZona.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
       cZona.fill = headerFill(COLORS.primary);
       cZona.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -709,7 +738,12 @@ export async function exportPagoExcel(
           cell.border = border('thin', COLORS.slate100);
         });
 
-        const ausH = Math.max(0, calendarioMes.total_habiles - diasHabTrab);
+        // Ausencias: solo hasta "hoy" — no cuenta días futuros
+        const ausH = Math.max(0, diasHabilesTranscurridos - diasHabTrab);
+        sumTrabGlobal += t.dias_trabajados_count ?? 0;
+        sumSabGlobal += t.sabados_trabajados_count ?? 0;
+        sumAusGlobal += ausH;
+
         const totales: Array<[number, string]> = [
           [t.dias_trabajados_count ?? 0, COLORS.slate800],
           [t.sabados_trabajados_count ?? 0, COLORS.amber],
@@ -728,7 +762,7 @@ export async function exportPagoExcel(
       });
     });
 
-    // Fila final: brigadas operativas por día
+    // Fila final 1: brigadas operativas por día (conteo por columna)
     wsCal.mergeCells(r, 1, r, 2);
     const cTotLbl = wsCal.getCell(r, 1);
     cTotLbl.value = 'Brigadas operativas/día';
@@ -753,12 +787,60 @@ export async function exportPagoExcel(
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
       cell.border = border('thin', COLORS.slate200);
     });
-    [0, 1, 2].forEach((i) => {
-      const cell = wsCal.getCell(r, 3 + dias.length + i);
-      cell.fill = headerFill(COLORS.slate800);
-      cell.border = border('medium', COLORS.slate800);
-    });
+    // Totales columnas de la derecha
+    const totTrabCell = wsCal.getCell(r, 3 + dias.length);
+    totTrabCell.value = sumTrabGlobal;
+    totTrabCell.numFmt = numFmt;
+    totTrabCell.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+    totTrabCell.fill = headerFill(COLORS.slate800);
+    totTrabCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    totTrabCell.border = border('medium', COLORS.slate800);
+
+    const totSabCell = wsCal.getCell(r, 3 + dias.length + 1);
+    totSabCell.value = sumSabGlobal;
+    totSabCell.numFmt = numFmt;
+    totSabCell.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+    totSabCell.fill = headerFill(COLORS.amber);
+    totSabCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    totSabCell.border = border('medium', COLORS.slate800);
+
+    const totAusCell = wsCal.getCell(r, 3 + dias.length + 2);
+    totAusCell.value = sumAusGlobal;
+    totAusCell.numFmt = numFmt;
+    totAusCell.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+    totAusCell.fill = headerFill(COLORS.red);
+    totAusCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    totAusCell.border = border('medium', COLORS.slate800);
     wsCal.getRow(r).height = 18;
+    r += 1;
+
+    // Fila final 2: promedios por brigada
+    wsCal.mergeCells(r, 1, r, 2 + dias.length);
+    const cPromLbl = wsCal.getCell(r, 1);
+    cPromLbl.value = 'Promedio por brigada operativa';
+    cPromLbl.font = { name: 'Inter', size: 9, italic: true, color: { argb: COLORS.slate500 } };
+    cPromLbl.fill = headerFill(COLORS.slate50);
+    cPromLbl.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+    cPromLbl.border = border('thin', COLORS.slate200);
+
+    const promTrab = brigadasOp > 0 ? sumTrabGlobal / brigadasOp : 0;
+    const promSab = brigadasOp > 0 ? sumSabGlobal / brigadasOp : 0;
+    const promAus = brigadasOp > 0 ? sumAusGlobal / brigadasOp : 0;
+    const promRow: Array<[number, string]> = [
+      [promTrab, COLORS.slate800],
+      [promSab, COLORS.amber],
+      [promAus, COLORS.red],
+    ];
+    promRow.forEach(([v, color], i) => {
+      const cell = wsCal.getCell(r, 3 + dias.length + i);
+      cell.value = Number(v.toFixed(1));
+      cell.numFmt = '0.0';
+      cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: color } };
+      cell.fill = headerFill(COLORS.slate50);
+      cell.alignment = { vertical: 'middle', horizontal: 'right' };
+      cell.border = border('thin', COLORS.slate200);
+    });
+    wsCal.getRow(r).height = 16;
 
     // Anchos de columna
     wsCal.getColumn(1).width = 30;
