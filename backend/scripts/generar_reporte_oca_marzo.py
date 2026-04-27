@@ -115,6 +115,35 @@ def compute_global_metrics(df: pd.DataFrame) -> dict:
     }
 
 
+def compute_by_dimension(df: pd.DataFrame, dim_col: str) -> pd.DataFrame:
+    """Agrupa por la dimensión dada y calcula métricas por grupo.
+
+    Returns DataFrame con columnas:
+      [dim_col], Total, Normal, CNR, Fallidas, Fallidas_CGE, Fallidas_OCA,
+      Eff_Hallazgo, Eff_Operativa, Eff_Ajustada
+    Filas vacías o nulas en la dimensión se etiquetan como "Sin asignar".
+    """
+    work = df.copy()
+    work[dim_col] = work[dim_col].fillna("").replace("", "Sin asignar")
+
+    rows = []
+    for grupo, sub in work.groupby(dim_col, sort=True):
+        m = compute_global_metrics(sub)
+        rows.append({
+            dim_col: grupo,
+            "Total": m["total"],
+            "Normal": m["normal"],
+            "CNR": m["cnr"],
+            "Fallidas": m["fallidas"],
+            "Fallidas_CGE": m["fallidas_cge"],
+            "Fallidas_OCA": m["fallidas_oca"],
+            "Eff_Hallazgo": m["eff_hallazgo"],
+            "Eff_Operativa": m["eff_operativa"],
+            "Eff_Ajustada": m["eff_ajustada"],
+        })
+    return pd.DataFrame(rows)
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")

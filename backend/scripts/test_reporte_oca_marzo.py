@@ -101,10 +101,38 @@ def test_compute_global_metrics_known_values() -> None:
     print("PASS test_compute_global_metrics_known_values")
 
 
+def test_compute_by_dimension_two_groups() -> None:
+    df = _df_sintetico_metricas().copy()
+    # Asignar primeras 10 filas a "ZONA A", resto a "ZONA B"
+    df["Regional"] = ["ZONA A"] * 10 + ["ZONA B"] * 10
+    out = r.compute_by_dimension(df, "Regional")
+    assert list(out.columns[:1]) == ["Regional"], out.columns.tolist()
+    expected_cols = {
+        "Regional", "Total", "Normal", "CNR", "Fallidas",
+        "Fallidas_CGE", "Fallidas_OCA",
+        "Eff_Hallazgo", "Eff_Operativa", "Eff_Ajustada",
+    }
+    assert expected_cols.issubset(set(out.columns)), out.columns.tolist()
+    # ZONA A son 10 Normal puros → 100% en todas las efectividades
+    a = out[out["Regional"] == "ZONA A"].iloc[0]
+    assert a["Total"] == 10
+    assert a["Normal"] == 10
+    assert abs(a["Eff_Hallazgo"] - 1.0) < 1e-9
+    assert abs(a["Eff_Operativa"] - 1.0) < 1e-9
+    # ZONA B tiene los CNR + fallidas + anulación → mismas cifras del global excepto los Normal
+    b = out[out["Regional"] == "ZONA B"].iloc[0]
+    assert b["Total"] == 10
+    assert b["CNR"] == 5
+    assert b["Fallidas"] == 4
+    assert b["Fallidas_CGE"] == 1
+    print("PASS test_compute_by_dimension_two_groups")
+
+
 TESTS = [
     test_filter_period_keeps_only_march_2026,
     test_load_data_real_returns_dataframe,
     test_compute_global_metrics_known_values,
+    test_compute_by_dimension_two_groups,
 ]
 
 
