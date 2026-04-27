@@ -49,9 +49,62 @@ def test_load_data_real_returns_dataframe() -> None:
     print("PASS test_load_data_real_returns_dataframe")
 
 
+def _df_sintetico_metricas() -> pd.DataFrame:
+    """20 visitas con composición conocida.
+
+    - Normal: 10
+    - CNR: 5 (con kWh: 100 + 200 + 50 + 0 + 0 = 350)
+    - Visita fallida: 4 (1 con Responsabilidad CGE, 3 sin asignar)
+    - Cierre por anulación: 1
+    - Mantenimiento Medidor: 0
+    """
+    rv = (
+        ["Normal"] * 10
+        + ["CNR"] * 5
+        + ["Visita fallida"] * 4
+        + ["Cierre por anulación"] * 1
+    )
+    resp = (
+        [""] * 10
+        + ["Responsabilidad Contratista"] * 5
+        + ["Responsabilidad CGE"] + [""] * 3
+        + [""] * 1
+    )
+    kwh = [0] * 10 + [100, 200, 50, 0, 0] + [0] * 4 + [0]
+    return pd.DataFrame({
+        "Resultado visita": rv,
+        "Responsabilidad": resp,
+        "kWh CNR": kwh,
+        "Resultado final": [""] * 20,
+    })
+
+
+def test_compute_global_metrics_known_values() -> None:
+    df = _df_sintetico_metricas()
+    m = r.compute_global_metrics(df)
+    assert m["total"] == 20, m["total"]
+    assert m["normal"] == 10
+    assert m["cnr"] == 5
+    assert m["fallidas"] == 4
+    assert m["fallidas_cge"] == 1
+    assert m["fallidas_oca"] == 0  # ninguna fallida marcada como Contratista
+    assert m["fallidas_sin_asignar"] == 3
+    assert m["kwh_cnr"] == 350
+    # Efectividad de Hallazgo = (10 + 5) / 20 = 0.75
+    assert abs(m["eff_hallazgo"] - 0.75) < 1e-9, m["eff_hallazgo"]
+    # Efectividad Operativa = 1 - (4 / 20) = 0.80
+    assert abs(m["eff_operativa"] - 0.80) < 1e-9
+    # Efectividad Ajustada = 1 - (3 / (20 - 1)) = 1 - 3/19
+    assert abs(m["eff_ajustada"] - (1 - 3 / 19)) < 1e-9
+    # % fallidas atribuibles a CGE = 1 / 4 = 0.25
+    assert abs(m["pct_fallidas_cge"] - 0.25) < 1e-9
+    print("PASS test_compute_global_metrics_known_values")
+
+
 TESTS = [
     test_filter_period_keeps_only_march_2026,
     test_load_data_real_returns_dataframe,
+    test_compute_global_metrics_known_values,
 ]
 
 

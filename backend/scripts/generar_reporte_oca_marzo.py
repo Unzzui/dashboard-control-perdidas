@@ -61,6 +61,60 @@ def filter_period(df: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
     return df.loc[mask].copy()
 
 
+def compute_global_metrics(df: pd.DataFrame) -> dict:
+    """Calcula KPIs globales del reporte.
+
+    Returns dict con:
+      total, normal, cnr, fallidas, anulacion, mantenimiento,
+      fallidas_cge, fallidas_oca, fallidas_sin_asignar,
+      kwh_cnr, pct_fallidas_cge,
+      eff_hallazgo, eff_operativa, eff_ajustada
+    """
+    total = len(df)
+    rv = df["Resultado visita"]
+    resp = df["Responsabilidad"].fillna("")
+
+    normal = int((rv == RV_NORMAL).sum())
+    cnr = int((rv == RV_CNR).sum())
+    fallidas = int((rv == RV_FALLIDA).sum())
+    anulacion = int((rv == RV_ANULACION).sum())
+    mantenimiento = int((rv == RV_MANTENIMIENTO).sum())
+
+    is_fallida = rv == RV_FALLIDA
+    fallidas_cge = int((is_fallida & (resp == RESP_CGE)).sum())
+    fallidas_oca = int((is_fallida & (resp == RESP_OCA)).sum())
+    fallidas_sin_asignar = fallidas - fallidas_cge - fallidas_oca
+
+    kwh_cnr = int(df["kWh CNR"].sum())
+
+    eff_hallazgo = (normal + cnr) / total if total else 0.0
+    eff_operativa = 1 - (fallidas / total) if total else 0.0
+    denom_ajustada = total - fallidas_cge
+    eff_ajustada = (
+        1 - ((fallidas - fallidas_cge) / denom_ajustada)
+        if denom_ajustada
+        else 0.0
+    )
+    pct_fallidas_cge = fallidas_cge / fallidas if fallidas else 0.0
+
+    return {
+        "total": total,
+        "normal": normal,
+        "cnr": cnr,
+        "fallidas": fallidas,
+        "anulacion": anulacion,
+        "mantenimiento": mantenimiento,
+        "fallidas_cge": fallidas_cge,
+        "fallidas_oca": fallidas_oca,
+        "fallidas_sin_asignar": fallidas_sin_asignar,
+        "kwh_cnr": kwh_cnr,
+        "pct_fallidas_cge": pct_fallidas_cge,
+        "eff_hallazgo": eff_hallazgo,
+        "eff_operativa": eff_operativa,
+        "eff_ajustada": eff_ajustada,
+    }
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")
