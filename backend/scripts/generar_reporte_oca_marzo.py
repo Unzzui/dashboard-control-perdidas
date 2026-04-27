@@ -491,7 +491,48 @@ def build_resumen_sheet(wb: Workbook, m: dict) -> None:
 
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
-    raise NotImplementedError("Implementado en tareas posteriores")
+    print(f"Cargando {DATA_PATH}...")
+    df_full = load_data(DATA_PATH)
+    print(f"  {len(df_full):,} registros totales")
+
+    df = filter_period(df_full, year=YEAR, month=MONTH)
+    print(f"Filtradas {len(df):,} inspecciones de marzo {YEAR}")
+
+    metrics = compute_global_metrics(df)
+    print(
+        f"  Total {metrics['total']:,} | "
+        f"CNR {metrics['cnr']:,} | "
+        f"Fallidas {metrics['fallidas']:,} (CGE: {metrics['fallidas_cge']:,}) | "
+        f"kWh CNR {metrics['kwh_cnr']:,}"
+    )
+
+    by_regional = compute_by_dimension(df, "Regional")
+    by_zona = compute_by_dimension(df, "zona")
+    by_campana = compute_by_dimension(df, "Tipo de Campaña")
+    cross_fallidas = compute_failed_cross(df)
+
+    wb = Workbook()
+    wb.remove(wb.active)  # quitar Sheet por defecto
+    build_resumen_sheet(wb, metrics)
+    build_resultados_sheet(wb, df, metrics)
+    build_fallidas_sheet(wb, cross_fallidas)
+    build_efectividad_dimension_sheet(
+        wb, "Efectividad Regional",
+        "Efectividad por Regional — Marzo 2026", "Regional", by_regional,
+    )
+    build_efectividad_dimension_sheet(
+        wb, "Efectividad Zona",
+        "Efectividad por Zona — Marzo 2026", "Zona", by_zona,
+    )
+    build_efectividad_dimension_sheet(
+        wb, "Efectividad Campaña",
+        "Efectividad por Tipo de Campaña — Marzo 2026", "Tipo de Campaña", by_campana,
+    )
+    build_metodologia_sheet(wb)
+
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(OUTPUT_PATH)
+    print(f"OK Reporte escrito en {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":
