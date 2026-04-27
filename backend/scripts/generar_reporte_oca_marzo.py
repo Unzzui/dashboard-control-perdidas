@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
+
 # --- Paths ---
 ROOT = Path(__file__).resolve().parents[2]
 DATA_PATH = ROOT / "backend" / "data" / "resultado_consolidado.parquet"
@@ -40,6 +42,23 @@ RV_CNR = "CNR"
 RV_FALLIDA = "Visita fallida"
 RV_ANULACION = "Cierre por anulación"
 RV_MANTENIMIENTO = "Mantenimiento Medidor"
+
+
+def load_data(path: Path) -> pd.DataFrame:
+    """Carga el parquet consolidado."""
+    return pd.read_parquet(path)
+
+
+def filter_period(df: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+    """Filtra registros cuya Fecha ejecución cae dentro del mes indicado.
+
+    Las filas con Fecha ejecución nula o fuera del rango se descartan.
+    """
+    fechas = pd.to_datetime(df["Fecha ejecución"], format="ISO8601", errors="coerce")
+    inicio = pd.Timestamp(year=year, month=month, day=1)
+    fin = (inicio + pd.offsets.MonthBegin(1))
+    mask = (fechas >= inicio) & (fechas < fin)
+    return df.loc[mask].copy()
 
 
 def main() -> None:
