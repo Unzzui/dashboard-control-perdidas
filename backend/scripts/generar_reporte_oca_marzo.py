@@ -313,6 +313,33 @@ def build_metodologia_sheet(wb: Workbook) -> None:
     ws.column_dimensions["A"].width = 110
 
 
+def build_resultados_sheet(wb: Workbook, df: pd.DataFrame, metrics: dict) -> None:
+    ws = wb.create_sheet("Resultados Globales")
+    ws.sheet_view.showGridLines = False
+    row = write_title(ws, 1, "Resultados Globales — Marzo 2026")
+    row = write_section(ws, row, "Distribución por Resultado de Visita")
+    row += 1
+
+    total = metrics["total"]
+    orden = [
+        (RV_NORMAL, metrics["normal"]),
+        (RV_CNR, metrics["cnr"]),
+        (RV_FALLIDA, metrics["fallidas"]),
+        (RV_ANULACION, metrics["anulacion"]),
+        (RV_MANTENIMIENTO, metrics["mantenimiento"]),
+    ]
+    rows = [
+        {"Resultado": k, "Cantidad": v, "% Total": (v / total) if total else 0.0}
+        for k, v in orden
+    ]
+    rows.append({"Resultado": "TOTAL", "Cantidad": total, "% Total": 1.0})
+    tabla = pd.DataFrame(rows)
+    write_table(
+        ws, tabla, start_row=row, start_col=1,
+        pct_cols=("% Total",), int_cols=("Cantidad",),
+    )
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")
