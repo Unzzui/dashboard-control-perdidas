@@ -423,6 +423,72 @@ def build_efectividad_dimension_sheet(
     write_table(ws, df, start_row=row, int_cols=int_cols, pct_cols=pct_cols)
 
 
+def build_resumen_sheet(wb: Workbook, m: dict) -> None:
+    """Resumen ejecutivo con KPIs en bloques tipo card."""
+    ws = wb.create_sheet("Resumen Ejecutivo", 0)
+    ws.sheet_view.showGridLines = False
+
+    write_title(ws, 1, "Reporte de Efectividad OCA — Marzo 2026")
+    sub = ws.cell(row=2, column=1, value="Inspecciones ejecutadas en marzo 2026")
+    sub.font = FONT_KPI_HINT
+
+    # KPIs en una grilla 2x3 (filas 4-5 etiquetas/valores, fila 6 hint)
+    # Cada KPI ocupa 2 columnas. Distribuimos 5 KPIs en filas 4-7 / 9-12 / 14-17.
+    kpis = [
+        ("Total Inspecciones",
+         f"{m['total']:,}",
+         "Visitas con Fecha ejecución en marzo 2026"),
+        ("Resultado Conclusivo",
+         f"{(m['normal'] + m['cnr']):,} ({m['eff_hallazgo']:.1%})",
+         "Normal + CNR"),
+        ("CNR Detectados",
+         f"{m['cnr']:,} | {m['kwh_cnr']:,} kWh",
+         "Casos y energía recuperada al sistema"),
+        ("Visitas Fallidas",
+         f"{m['fallidas']:,} ({m['pct_fallidas_cge']:.1%} CGE)",
+         f"{m['fallidas_cge']:,} atribuibles a CGE"),
+        ("Efectividad Operativa",
+         f"{m['eff_operativa']:.1%}  →  {m['eff_ajustada']:.1%}",
+         "Bruta vs Ajustada por responsabilidad CGE"),
+    ]
+
+    for i, (label, value, hint) in enumerate(kpis):
+        # 2 KPIs por fila (cols 1-3 y 4-6); última fila puede tener uno solo
+        block_row = 4 + (i // 2) * 5
+        block_col = 1 + (i % 2) * 4
+        l = ws.cell(row=block_row, column=block_col, value=label.upper())
+        l.font = FONT_KPI_LABEL
+        v = ws.cell(row=block_row + 1, column=block_col, value=value)
+        v.font = FONT_KPI_VALUE
+        h = ws.cell(row=block_row + 3, column=block_col, value=hint)
+        h.font = FONT_KPI_HINT
+        # Combinar etiquetas/valores en 3 columnas para ancho de card
+        ws.merge_cells(start_row=block_row, start_column=block_col,
+                       end_row=block_row, end_column=block_col + 2)
+        ws.merge_cells(start_row=block_row + 1, start_column=block_col,
+                       end_row=block_row + 1, end_column=block_col + 2)
+        ws.merge_cells(start_row=block_row + 3, start_column=block_col,
+                       end_row=block_row + 3, end_column=block_col + 2)
+
+    # Mensaje de cierre defensivo
+    cierre_row = 4 + ((len(kpis) + 1) // 2) * 5 + 2
+    msg = (
+        f"En marzo 2026 OCA ejecutó {m['total']:,} inspecciones con efectividad "
+        f"operativa de {m['eff_operativa']:.1%}. Al ajustar por las "
+        f"{m['fallidas_cge']:,} visitas fallidas cuya responsabilidad recae en "
+        f"CGE, la efectividad real de OCA asciende a {m['eff_ajustada']:.1%}, "
+        f"con {m['cnr']:,} CNR detectados y {m['kwh_cnr']:,} kWh recuperados al sistema."
+    )
+    cell = ws.cell(row=cierre_row, column=1, value=msg)
+    cell.font = FONT_CELL
+    cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+    ws.merge_cells(start_row=cierre_row, start_column=1, end_row=cierre_row, end_column=7)
+    ws.row_dimensions[cierre_row].height = 60
+
+    for col in range(1, 8):
+        ws.column_dimensions[get_column_letter(col)].width = 22
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")
