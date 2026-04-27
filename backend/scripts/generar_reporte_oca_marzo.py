@@ -11,6 +11,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 # --- Paths ---
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +46,99 @@ RV_CNR = "CNR"
 RV_FALLIDA = "Visita fallida"
 RV_ANULACION = "Cierre por anulación"
 RV_MANTENIMIENTO = "Mantenimiento Medidor"
+
+# --- Estilos reusables ---
+FONT_TITLE = Font(name="Calibri", size=16, bold=True, color=OCA_BLUE)
+FONT_SECTION = Font(name="Calibri", size=10, bold=True, color=SLATE_500)
+FONT_HEADER = Font(name="Calibri", size=10, bold=True, color=WHITE)
+FONT_ZONE = Font(name="Calibri", size=11, bold=True, color=WHITE)
+FONT_KPI_LABEL = Font(name="Calibri", size=9, color=SLATE_400)
+FONT_KPI_VALUE = Font(name="Calibri", size=22, bold=True, color=SLATE_800)
+FONT_KPI_HINT = Font(name="Calibri", size=9, color=SLATE_500)
+FONT_CELL = Font(name="Calibri", size=10, color=SLATE_800)
+FONT_CELL_DIM = Font(name="Calibri", size=10, color=SLATE_500)
+
+FILL_HEADER = PatternFill("solid", fgColor=OCA_BLUE)
+FILL_ZONE = PatternFill("solid", fgColor=SLATE_800)
+FILL_ALT = PatternFill("solid", fgColor=SLATE_50)
+FILL_KPI_CARD = PatternFill("solid", fgColor=WHITE)
+
+THIN = Side(border_style="thin", color=SLATE_200)
+BORDER_CELL = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+
+ALIGN_LEFT = Alignment(horizontal="left", vertical="center", wrap_text=False)
+ALIGN_CENTER = Alignment(horizontal="center", vertical="center")
+ALIGN_RIGHT = Alignment(horizontal="right", vertical="center")
+
+FMT_INT = "#,##0"
+FMT_PCT = "0.0%"
+
+
+def write_table(
+    ws: Worksheet,
+    df: pd.DataFrame,
+    start_row: int,
+    start_col: int = 1,
+    pct_cols: tuple[str, ...] = (),
+    int_cols: tuple[str, ...] = (),
+) -> int:
+    """Escribe un DataFrame como tabla con estilos. Devuelve la fila siguiente libre.
+
+    pct_cols: nombres de columnas a formatear como porcentaje.
+    int_cols: nombres de columnas a formatear como entero con miles.
+    Resto de columnas numéricas: formato general.
+    """
+    # Header
+    for j, col in enumerate(df.columns):
+        cell = ws.cell(row=start_row, column=start_col + j, value=str(col).upper())
+        cell.font = FONT_HEADER
+        cell.fill = FILL_HEADER
+        cell.alignment = ALIGN_CENTER
+        cell.border = BORDER_CELL
+    # Filas
+    for i, (_, row) in enumerate(df.iterrows()):
+        excel_row = start_row + 1 + i
+        is_alt = i % 2 == 1
+        for j, col in enumerate(df.columns):
+            val = row[col]
+            cell = ws.cell(row=excel_row, column=start_col + j, value=val)
+            cell.font = FONT_CELL
+            cell.border = BORDER_CELL
+            if is_alt:
+                cell.fill = FILL_ALT
+            if col in pct_cols:
+                cell.number_format = FMT_PCT
+                cell.alignment = ALIGN_RIGHT
+            elif col in int_cols:
+                cell.number_format = FMT_INT
+                cell.alignment = ALIGN_RIGHT
+            elif j == 0:
+                cell.alignment = ALIGN_LEFT
+            else:
+                cell.alignment = ALIGN_RIGHT
+    # Anchos de columna
+    for j, col in enumerate(df.columns):
+        letter = get_column_letter(start_col + j)
+        max_len = max(
+            len(str(col)),
+            *[len(str(v)) for v in df[col].astype(str).tolist()],
+        )
+        ws.column_dimensions[letter].width = max(12, min(40, max_len + 4))
+    return start_row + len(df) + 2
+
+
+def write_title(ws: Worksheet, row: int, text: str, col: int = 1) -> int:
+    """Escribe un título de hoja. Devuelve la siguiente fila libre."""
+    cell = ws.cell(row=row, column=col, value=text)
+    cell.font = FONT_TITLE
+    return row + 2
+
+
+def write_section(ws: Worksheet, row: int, text: str, col: int = 1) -> int:
+    """Escribe un encabezado de sección en mayúsculas grises."""
+    cell = ws.cell(row=row, column=col, value=text.upper())
+    cell.font = FONT_SECTION
+    return row + 1
 
 
 def load_data(path: Path) -> pd.DataFrame:
