@@ -363,6 +363,66 @@ def build_fallidas_sheet(wb: Workbook, cross: pd.DataFrame) -> None:
     write_table(ws, tabla, start_row=row, int_cols=int_cols)
 
 
+def build_efectividad_dimension_sheet(
+    wb: Workbook,
+    sheet_name: str,
+    title: str,
+    dim_label: str,
+    dim_df: pd.DataFrame,
+) -> None:
+    """Construye una hoja con la tabla de efectividad por dimensión.
+
+    dim_df viene de compute_by_dimension; se renombra la primera columna a dim_label.
+    Se agrega una fila TOTAL al final con totales y efectividades recalculadas.
+    """
+    ws = wb.create_sheet(sheet_name)
+    ws.sheet_view.showGridLines = False
+    row = write_title(ws, 1, title)
+    row = write_section(ws, row, f"Métricas por {dim_label}")
+    row += 1
+
+    df = dim_df.copy()
+    first_col = df.columns[0]
+    df = df.rename(columns={first_col: dim_label})
+
+    # Recomputar efectividades del total a partir de los recuentos
+    total = int(df["Total"].sum())
+    fallidas = int(df["Fallidas"].sum())
+    fallidas_cge = int(df["Fallidas_CGE"].sum())
+    normal = int(df["Normal"].sum())
+    cnr = int(df["CNR"].sum())
+    eff_h = (normal + cnr) / total if total else 0.0
+    eff_o = 1 - (fallidas / total) if total else 0.0
+    denom = total - fallidas_cge
+    eff_a = 1 - ((fallidas - fallidas_cge) / denom) if denom else 0.0
+    total_row = {
+        dim_label: "TOTAL",
+        "Total": total,
+        "Normal": normal,
+        "CNR": cnr,
+        "Fallidas": fallidas,
+        "Fallidas_CGE": fallidas_cge,
+        "Fallidas_OCA": int(df["Fallidas_OCA"].sum()),
+        "Eff_Hallazgo": eff_h,
+        "Eff_Operativa": eff_o,
+        "Eff_Ajustada": eff_a,
+    }
+    df = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+
+    # Renombrar columnas para presentación
+    df = df.rename(columns={
+        "Eff_Hallazgo": "Ef. Hallazgo",
+        "Eff_Operativa": "Ef. Operativa",
+        "Eff_Ajustada": "Ef. Ajustada CGE",
+        "Fallidas_CGE": "Fallidas CGE",
+        "Fallidas_OCA": "Fallidas OCA",
+    })
+
+    int_cols = ("Total", "Normal", "CNR", "Fallidas", "Fallidas CGE", "Fallidas OCA")
+    pct_cols = ("Ef. Hallazgo", "Ef. Operativa", "Ef. Ajustada CGE")
+    write_table(ws, df, start_row=row, int_cols=int_cols, pct_cols=pct_cols)
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")
