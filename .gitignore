@@ -48,3 +48,6 @@ htmlcov/
 # Misc
 *.bak
 *.tmp
+
+# Generated reports
+backend/data/reporte_oca_marzo_2026.xlsx

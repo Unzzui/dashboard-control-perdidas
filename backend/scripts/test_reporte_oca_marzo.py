@@ -159,12 +159,36 @@ def test_compute_failed_cross_matrix() -> None:
     print("PASS test_compute_failed_cross_matrix")
 
 
+def test_end_to_end_generates_workbook() -> None:
+    """Ejecuta main y valida estructura del .xlsx producido."""
+    import openpyxl
+    r.main()
+    assert r.OUTPUT_PATH.exists(), f"No se generó {r.OUTPUT_PATH}"
+    wb = openpyxl.load_workbook(r.OUTPUT_PATH)
+    expected = [
+        "Resumen Ejecutivo",
+        "Resultados Globales",
+        "Fallidas y Responsabilidad",
+        "Efectividad Regional",
+        "Efectividad Zona",
+        "Efectividad Campaña",
+        "Metodología",
+    ]
+    assert wb.sheetnames == expected, wb.sheetnames
+    # La hoja Resultados Globales debe tener una fila TOTAL
+    ws = wb["Resultados Globales"]
+    valores_col_a = [ws.cell(row=i, column=1).value for i in range(1, 20)]
+    assert "TOTAL" in valores_col_a, valores_col_a
+    print("PASS test_end_to_end_generates_workbook")
+
+
 TESTS = [
     test_filter_period_keeps_only_march_2026,
     test_load_data_real_returns_dataframe,
     test_compute_global_metrics_known_values,
     test_compute_by_dimension_two_groups,
     test_compute_failed_cross_matrix,
+    test_end_to_end_generates_workbook,
 ]
 
 
