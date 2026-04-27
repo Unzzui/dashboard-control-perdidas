@@ -260,6 +260,59 @@ def compute_failed_cross(df: pd.DataFrame) -> pd.DataFrame:
     return cross
 
 
+def build_metodologia_sheet(wb: Workbook) -> None:
+    ws = wb.create_sheet("Metodología")
+    ws.sheet_view.showGridLines = False
+    row = write_title(ws, 1, "Metodología del Reporte")
+
+    bloques = [
+        ("Fuente de datos",
+         "Archivo backend/data/resultado_consolidado.parquet. "
+         "Universo histórico: jul-2024 a abr-2026. Único contratista presente: OCA."),
+        ("Periodo del reporte",
+         "Marzo 2026. Filtro aplicado sobre el campo Fecha ejecución "
+         "en el rango [2026-03-01, 2026-04-01). Las visitas sin Fecha "
+         "ejecución se descartan del análisis."),
+        ("Definiciones de Resultado de visita",
+         "Normal: visita ejecutada, servicio sin anomalías. "
+         "CNR: visita ejecutada, se detectó Consumo No Registrado (hallazgo positivo). "
+         "Visita fallida: no se pudo completar la inspección. "
+         "Cierre por anulación: orden anulada antes/durante ejecución. "
+         "Mantenimiento Medidor: intervención técnica sobre el equipo."),
+        ("Responsabilidad",
+         "Campo Responsabilidad del registro. "
+         "Responsabilidad Contratista: atribuible a OCA. "
+         "Responsabilidad CGE: atribuible al cliente o a condiciones del sistema CGE "
+         "(casa deshabitada, desconectado en BT/MT, sin empalme, sitio eriazo, "
+         "zona peligrosa, sin acceso por caja tortuga, etc.). "
+         "Sin asignar: el campo viene vacío en el origen y se reporta tal cual."),
+        ("Métricas de efectividad",
+         "Se reportan tres en paralelo:"),
+        ("    Efectividad de Hallazgo",
+         "(Normal + CNR) / Total visitas. Mide la proporción de visitas con resultado conclusivo."),
+        ("    Efectividad Operativa",
+         "1 - (Visitas fallidas / Total visitas). Mide la capacidad de OCA de completar la visita."),
+        ("    Efectividad Ajustada por CGE",
+         "1 - (Fallidas no CGE / (Total - Fallidas CGE)). Excluye del cálculo las "
+         "visitas fallidas atribuibles a CGE. Refleja la efectividad real de OCA "
+         "descontando las causas que no controla."),
+        ("Alcance",
+         "Solo se reporta volumen físico (kWh CNR detectados). "
+         "No se incluye valorización monetaria ni comparativos contra otros meses."),
+    ]
+
+    for label, body in bloques:
+        ws.cell(row=row, column=1, value=label).font = FONT_SECTION
+        row += 1
+        cell = ws.cell(row=row, column=1, value=body)
+        cell.font = FONT_CELL
+        cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        ws.row_dimensions[row].height = 45
+        row += 2
+
+    ws.column_dimensions["A"].width = 110
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")
