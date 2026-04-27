@@ -144,6 +144,25 @@ def compute_by_dimension(df: pd.DataFrame, dim_col: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def compute_failed_cross(df: pd.DataFrame) -> pd.DataFrame:
+    """Cross-tab Resultado final × Responsabilidad para visitas fallidas.
+
+    Returns DataFrame indexado por Resultado final con columnas:
+      [RESP_OCA, RESP_CGE, "Sin asignar"]. Incluye totales en el orden dado.
+    """
+    fallidas = df[df["Resultado visita"] == RV_FALLIDA].copy()
+    resp = fallidas["Responsabilidad"].fillna("").replace("", "Sin asignar")
+    fallidas = fallidas.assign(_resp=resp)
+    cross = pd.crosstab(fallidas["Resultado final"], fallidas["_resp"])
+    # Garantizar las 3 columnas en orden estable
+    for col in [RESP_OCA, RESP_CGE, "Sin asignar"]:
+        if col not in cross.columns:
+            cross[col] = 0
+    cross = cross[[RESP_OCA, RESP_CGE, "Sin asignar"]]
+    cross = cross.sort_values(by=cross.columns.tolist(), ascending=False)
+    return cross
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")

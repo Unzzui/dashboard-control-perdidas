@@ -128,11 +128,43 @@ def test_compute_by_dimension_two_groups() -> None:
     print("PASS test_compute_by_dimension_two_groups")
 
 
+def test_compute_failed_cross_matrix() -> None:
+    df = pd.DataFrame({
+        "Resultado visita": [
+            "Visita fallida", "Visita fallida", "Visita fallida",
+            "Visita fallida", "Visita fallida",
+            "Normal",  # debe excluirse
+        ],
+        "Resultado final": [
+            "Casa cerrada", "Casa cerrada", "Casa deshabitada",
+            "Sitio eriazo", "Cliente no permite revisión",
+            "Servicio normal",
+        ],
+        "Responsabilidad": [
+            "Responsabilidad Contratista", "", "Responsabilidad CGE",
+            "Responsabilidad CGE", "", "",
+        ],
+    })
+    out = r.compute_failed_cross(df)
+    # Solo 5 filas (las fallidas)
+    assert int(out.values.sum()) == 5, out
+    # Casa cerrada: 1 OCA, 1 sin asignar
+    fila_casa_cerrada = out.loc["Casa cerrada"]
+    assert fila_casa_cerrada["Responsabilidad Contratista"] == 1
+    assert fila_casa_cerrada["Sin asignar"] == 1
+    # Casa deshabitada: 1 CGE
+    assert out.loc["Casa deshabitada", "Responsabilidad CGE"] == 1
+    # Sitio eriazo: 1 CGE
+    assert out.loc["Sitio eriazo", "Responsabilidad CGE"] == 1
+    print("PASS test_compute_failed_cross_matrix")
+
+
 TESTS = [
     test_filter_period_keeps_only_march_2026,
     test_load_data_real_returns_dataframe,
     test_compute_global_metrics_known_values,
     test_compute_by_dimension_two_groups,
+    test_compute_failed_cross_matrix,
 ]
 
 
