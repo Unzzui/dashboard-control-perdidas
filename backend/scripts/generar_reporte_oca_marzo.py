@@ -340,6 +340,29 @@ def build_resultados_sheet(wb: Workbook, df: pd.DataFrame, metrics: dict) -> Non
     )
 
 
+def build_fallidas_sheet(wb: Workbook, cross: pd.DataFrame) -> None:
+    ws = wb.create_sheet("Fallidas y Responsabilidad")
+    ws.sheet_view.showGridLines = False
+    row = write_title(ws, 1, "Visitas Fallidas — Distribución por Responsabilidad")
+    row = write_section(
+        ws, row,
+        "Causa raíz (Resultado final) cruzada con Responsabilidad",
+    )
+    row += 1
+
+    tabla = cross.copy()
+    tabla["Total"] = tabla.sum(axis=1)
+    # Fila de totales
+    total_row = pd.DataFrame(tabla.sum(axis=0)).T
+    total_row.index = ["TOTAL"]
+    tabla = pd.concat([tabla, total_row])
+    tabla.insert(0, "Causa (Resultado final)", tabla.index)
+    tabla = tabla.reset_index(drop=True)
+
+    int_cols = (RESP_OCA, RESP_CGE, "Sin asignar", "Total")
+    write_table(ws, tabla, start_row=row, int_cols=int_cols)
+
+
 def main() -> None:
     """Orquesta carga, cómputo y render del reporte."""
     raise NotImplementedError("Implementado en tareas posteriores")
