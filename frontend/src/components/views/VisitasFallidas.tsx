@@ -22,6 +22,9 @@ const COLOR_OCA = '#f59e0b';      // amber-500
 const COLOR_CGE_DIM = '#47556966'; // slate-600 a 40% alpha
 const COLOR_OCA_DIM = '#f59e0b66'; // amber-500 a 40% alpha
 
+// Meta operacional: las brigadas se evalúan contra ≥8 efectivas/día (acuerdo CGE).
+const META_EFECTIVAS_DIA = 8;
+
 const cantidadFor = (r: ResultadoFallido, f: ResponsabilidadFiltro): number =>
   f === 'CGE' ? r.cantidad_cge : f === 'OCA' ? r.cantidad_oca : r.cantidad;
 
@@ -35,10 +38,11 @@ export default function VisitasFallidas({
 }: VisitasFallidasProps) {
   const [filtro, setFiltro] = useState<ResponsabilidadFiltro>(null);
 
-  // Promedio de efectivas/día — métrica operacional clave (meta 8/día).
-  // A: ponderado por brigada-día (sum efectivas / sum días). Es el oficial.
-  // B: promedio simple de promedios — se muestra como nota aclaratoria.
-  const { promedioPonderado, promedioSimple } = useMemo(() => {
+  // Promedio de efectivas/día — métrica operacional contra la que CGE evalúa.
+  // - ponderado: sum(efectivas) / sum(dias) — peso por brigada-día, es el oficial.
+  // - simple: promedio aritmético de promedios — referencia aclaratoria.
+  // - ajustadoSinCGE: hipotético si las fallidas-CGE se contaran como efectivas.
+  const { promedioPonderado, promedioSimple, promedioAjustadoSinCGE, totalDiasBrigada } = useMemo(() => {
     const totalEfectivas = tecnicos.reduce((acc, t) => acc + t.efectivas, 0);
     const totalDias = tecnicos.reduce((acc, t) => acc + t.dias_trabajados, 0);
     const ponderado = totalDias > 0 ? totalEfectivas / totalDias : 0;
@@ -48,8 +52,28 @@ export default function VisitasFallidas({
       ? conDias.reduce((acc, t) => acc + (t.efectivas / t.dias_trabajados), 0) / conDias.length
       : 0;
 
-    return { promedioPonderado: ponderado, promedioSimple: simple };
-  }, [tecnicos]);
+    const ajustado = totalDias > 0
+      ? (totalEfectivas + kpis.total_visita_fallida_cge) / totalDias
+      : 0;
+
+    return {
+      promedioPonderado: ponderado,
+      promedioSimple: simple,
+      promedioAjustadoSinCGE: ajustado,
+      totalDiasBrigada: totalDias,
+    };
+  }, [tecnicos, kpis.total_visita_fallida_cge]);
+
+  // Estado vs meta (afecta colores de la barra de progreso y la brecha).
+  const pctMeta = META_EFECTIVAS_DIA > 0 ? (promedioPonderado / META_EFECTIVAS_DIA * 100) : 0;
+  const brechaMeta = promedioPonderado - META_EFECTIVAS_DIA;
+  const metaColor = brechaMeta >= 0 ? 'text-green-600'
+                  : pctMeta >= 90    ? 'text-amber-600'
+                                     : 'text-red-600';
+  const metaBarColor = brechaMeta >= 0 ? 'bg-green-500'
+                     : pctMeta >= 90    ? 'bg-amber-500'
+                                        : 'bg-red-500';
+  const deltaAjustado = promedioAjustadoSinCGE - promedioPonderado;
 
   // ============================================================
   // BLOQUE 1: KPIs globales (no responden al filtro)
@@ -302,32 +326,100 @@ export default function VisitasFallidas({
   return (
     <div className="space-y-6">
       {/* ============== BLOQUE 1: KPIs globales ============== */}
-      <div>
-        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Operación global</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="space-y-4">
+        <p className="text-[10px] uppercase tracking-wider text-slate-400">Operación global</p>
+
+        {/* HERO: Promedio Efectivas/Día */}
+        <div className="bg-white rounded-lg border border-slate-200/60 p-5">
+          <div className="flex items-baseline justify-between mb-3">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+              Promedio Efectivas/Día
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400">
+              Métrica de evaluación CGE · Meta {META_EFECTIVAS_DIA.toFixed(1)}/día
+            </p>
+          </div>
+
+          <div className="flex items-baseline gap-3 mb-3">
+            <p className="text-5xl font-bold text-slate-800 leading-none">
+              {promedioPonderado.toFixed(1)}
+            </p>
+            <p className="text-sm text-slate-400">efectivas/día</p>
+            <p className={`text-sm font-medium ml-auto ${metaColor}`}>
+              {brechaMeta >= 0 ? '+' : ''}{brechaMeta.toFixed(1)} vs meta
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-2 ${metaBarColor} rounded-full transition-all`}
+                style={{ width: `${Math.min(pctMeta, 100)}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-500 w-24 text-right tabular-nums">
+              {pctMeta.toFixed(1)}% de meta
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-slate-100">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                Si CGE no se contara
+              </p>
+              <p className="text-lg font-semibold text-slate-800">
+                {promedioAjustadoSinCGE.toFixed(1)}<span className="text-xs font-normal text-slate-400">/día</span>
+              </p>
+              <p className="text-[10px] text-green-600 mt-0.5">
+                +{deltaAjustado.toFixed(1)} vs actual
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                Promedio simple
+              </p>
+              <p className="text-lg font-semibold text-slate-800">
+                {promedioSimple.toFixed(1)}<span className="text-xs font-normal text-slate-400">/día</span>
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                No ponderado por días
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                Base del cálculo
+              </p>
+              <p className="text-lg font-semibold text-slate-800">
+                {totalDiasBrigada.toLocaleString('es-CL')}<span className="text-xs font-normal text-slate-400"> días-brigada</span>
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                {tecnicos.length} brigadas
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* KPIs secundarios */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg border border-slate-200/60 p-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Visitas</p>
             <p className="text-2xl font-bold text-slate-800">{kpis.total_registros.toLocaleString('es-CL')}</p>
+            <p className="text-[10px] text-slate-400 mt-1">Universo del período</p>
           </div>
           <div className="bg-white rounded-lg border border-slate-200/60 p-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectividad</p>
             <p className="text-2xl font-bold text-slate-800">{kpis.pct_efectivas.toFixed(1)}%</p>
-            <p className="text-[10px] text-slate-400 mt-1">Real</p>
-          </div>
-          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Promedio Efectivas/Día</p>
-            <p className="text-2xl font-bold text-slate-800">{promedioPonderado.toFixed(1)}</p>
-            <p className="text-[10px] text-slate-400 mt-1">Ponderado · simple: {promedioSimple.toFixed(1)}</p>
+            <p className="text-[10px] text-slate-400 mt-1">Real, sin ajustes</p>
           </div>
           <div className="bg-white rounded-lg border border-slate-200/60 p-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efec. sin CGE (excluida)</p>
             <p className="text-2xl font-bold text-slate-800">{kpis.pct_efectivas_sin_cge_excluida.toFixed(1)}%</p>
-            <p className="text-[10px] text-green-600 mt-1">+{deltaExcluida.toFixed(1)} pp vs efectividad</p>
+            <p className="text-[10px] text-green-600 mt-1">+{deltaExcluida.toFixed(1)} pp vs real</p>
           </div>
           <div className="bg-white rounded-lg border border-slate-200/60 p-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efec. sin CGE (reclasif.)</p>
             <p className="text-2xl font-bold text-slate-800">{kpis.pct_efectivas_sin_cge_reclasificada.toFixed(1)}%</p>
-            <p className="text-[10px] text-green-600 mt-1">+{deltaReclasificada.toFixed(1)} pp vs efectividad</p>
+            <p className="text-[10px] text-green-600 mt-1">+{deltaReclasificada.toFixed(1)} pp vs real</p>
           </div>
         </div>
       </div>

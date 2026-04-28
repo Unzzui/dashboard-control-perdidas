@@ -13,6 +13,7 @@ const defaultData: DashboardData = {
     total_efectivas: 0,
     pct_efectivas: 0,
     total_visita_fallida_cge: 0,
+    total_visita_fallida_oca: 0,
     pct_efectivas_sin_cge_excluida: 0,
     pct_efectivas_sin_cge_reclasificada: 0,
     cnr_falla: 0,

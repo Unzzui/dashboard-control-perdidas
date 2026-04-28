@@ -127,8 +127,8 @@ function DashboardContent() {
         return (
           <VisitasFallidas
             responsabilidad={data.visitas_fallidas_responsabilidad}
-            totalCGE={data.visitas_fallidas_responsabilidad.reduce((acc, r) => acc + r.responsabilidad_cge, 0)}
-            totalContratista={data.visitas_fallidas_responsabilidad.reduce((acc, r) => acc + r.responsabilidad_contratista, 0)}
+            totalCGE={data.kpis.total_visita_fallida_cge}
+            totalContratista={data.kpis.total_visita_fallida_oca}
             resultadosFallidos={data.resultados_fallidos || []}
             kpis={data.kpis}
             tecnicos={data.tecnicos}

@@ -119,6 +119,7 @@ export interface KPIData {
   total_efectivas: number;
   pct_efectivas: number;
   total_visita_fallida_cge: number;
+  total_visita_fallida_oca: number;
   pct_efectivas_sin_cge_excluida: number;
   pct_efectivas_sin_cge_reclasificada: number;
   cnr_falla: number;

@@ -15,6 +15,12 @@ def calculate_kpis(filtered: pd.DataFrame) -> dict:
             (filtered['Responsabilidad'] == 'Responsabilidad CGE')
         ).sum()
     )
+    total_visita_fallida_oca = int(
+        (
+            (filtered['Resultado visita'] == 'Visita fallida') &
+            (filtered['Responsabilidad'] == 'Responsabilidad Contratista')
+        ).sum()
+    )
 
     cnr_tipo = filtered[filtered['Resultado visita'] == 'CNR']['Tipo_CNR.Tipo de CNR'].value_counts()
     cnr_falla = int(cnr_tipo.get('CNR Falla', 0))
@@ -43,6 +49,7 @@ def calculate_kpis(filtered: pd.DataFrame) -> dict:
         "total_efectivas": total_efectivas,
         "pct_efectivas": pct_efectivas,
         "total_visita_fallida_cge": total_visita_fallida_cge,
+        "total_visita_fallida_oca": total_visita_fallida_oca,
         "pct_efectivas_sin_cge_excluida": pct_efectivas_sin_cge_excluida,
         "pct_efectivas_sin_cge_reclasificada": pct_efectivas_sin_cge_reclasificada,
         "cnr_falla": cnr_falla,

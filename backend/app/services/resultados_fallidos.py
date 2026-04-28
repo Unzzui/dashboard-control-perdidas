@@ -28,7 +28,7 @@ def calculate_resultados_fallidos(df: pd.DataFrame) -> list:
             "cantidad_oca": oca,
         })
 
-    return sorted(data, key=lambda x: x['cantidad'], reverse=True)[:15]
+    return sorted(data, key=lambda x: x['cantidad'], reverse=True)
 
 
 def calculate_resultados_fallidos_por_zona(df: pd.DataFrame) -> dict:
@@ -71,7 +71,7 @@ def calculate_resultados_fallidos_por_zona(df: pd.DataFrame) -> dict:
                 "cantidad_oca": oca,
             })
 
-        zona_data = sorted(zona_data, key=lambda x: x['cantidad'], reverse=True)[:15]
+        zona_data = sorted(zona_data, key=lambda x: x['cantidad'], reverse=True)
         result[zona] = zona_data
 
     return result
