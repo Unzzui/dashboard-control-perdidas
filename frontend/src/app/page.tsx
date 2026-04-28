@@ -89,8 +89,8 @@ function DashboardContent() {
         return (
           <ControlMetas
             tecnicos={data.tecnicos}
-            mesesSeleccionados={filters.mes}
             filters={filters}
+            calendarioMes={data.calendario_mes}
           />
         );
       case 'indicadores':
@@ -130,6 +130,7 @@ function DashboardContent() {
             totalCGE={data.visitas_fallidas_responsabilidad.reduce((acc, r) => acc + r.responsabilidad_cge, 0)}
             totalContratista={data.visitas_fallidas_responsabilidad.reduce((acc, r) => acc + r.responsabilidad_contratista, 0)}
             resultadosFallidos={data.resultados_fallidos || []}
+            kpis={data.kpis}
           />
         );
       case 'normalizaciones':
