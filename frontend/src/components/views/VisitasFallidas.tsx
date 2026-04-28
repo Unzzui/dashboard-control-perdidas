@@ -216,6 +216,7 @@ export default function VisitasFallidas({
         textStyle: { fontSize: 11, color: '#475569' },
         itemWidth: 10,
         itemHeight: 10,
+        selectedMode: false,
       } : undefined,
       tooltip: {
         trigger: 'axis',

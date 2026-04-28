@@ -66,6 +66,7 @@ const DonutChart = memo(function DonutChart({ data, title, colors, onElementClic
       orient: 'horizontal',
       bottom: 0,
       textStyle: { fontSize: 11 },
+      selectedMode: onElementClick ? false : true,
     },
     series: [
       {
