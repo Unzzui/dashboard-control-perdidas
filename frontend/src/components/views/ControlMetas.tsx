@@ -1,18 +1,18 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { TecnicoRanking, DetalleTecnicoDiario, Filters, InspeccionesDia } from '@/types';
+import { TecnicoRanking, DetalleTecnicoDiario, Filters, InspeccionesDia, CalendarioMes, KPIData } from '@/types';
 import { getDetalleTecnicoDiario, getInspeccionesDia } from '@/lib/api';
 
 interface ControlMetasProps {
   tecnicos: TecnicoRanking[];
-  mesesSeleccionados: string[];
   filters: Filters;
+  calendarioMes?: CalendarioMes | null;
+  kpis: KPIData;
 }
 
 const META_EFECTIVAS_MES = 160;
 const META_EFECTIVAS_DIA = 8;
-const DIAS_HABILES_MES = 20;
 
 type EstadoMeta = 'cumplida' | 'en_camino' | 'no_alcanzara';
 type FiltroVista = 'todos' | 'cumplida' | 'en_camino' | 'no_alcanzara';
@@ -37,7 +37,7 @@ interface BrigadaMeta {
   cumpleMetaGlobal: boolean;
 }
 
-export default function ControlMetas({ tecnicos, mesesSeleccionados, filters }: ControlMetasProps) {
+export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }: ControlMetasProps) {
   const [vistaActiva, setVistaActiva] = useState<FiltroVista>('todos');
   const [zonaExpandida, setZonaExpandida] = useState<string | null>(null);
   const [brigadaSeleccionada, setBrigadaSeleccionada] = useState<BrigadaMeta | null>(null);
@@ -113,28 +113,32 @@ export default function ControlMetas({ tecnicos, mesesSeleccionados, filters }: 
     }
   }, [brigadaSeleccionada, filters]);
 
-  // Calcular días restantes del mes
+  // Días hábiles restantes contados sobre el calendario real (excluye sáb/dom/feriados CL).
   const diasRestantes = useMemo(() => {
+    if (!calendarioMes) return 0;
     const hoy = new Date();
-    const mesActualNum = hoy.getMonth();
-    const diaActual = hoy.getDate();
-    const MESES_NOMBRES = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
-    ];
-    const mesActualNombre = MESES_NOMBRES[mesActualNum];
+    const esMesActualCal =
+      calendarioMes.año === hoy.getFullYear() &&
+      calendarioMes.numero_mes === hoy.getMonth() + 1;
+    const esMesPasado =
+      calendarioMes.año < hoy.getFullYear() ||
+      (calendarioMes.año === hoy.getFullYear() && calendarioMes.numero_mes < hoy.getMonth() + 1);
 
-    const diasHabilesTranscurridos = Math.round(diaActual * 0.7);
+    if (esMesPasado) return 0;
 
-    if (!mesesSeleccionados || mesesSeleccionados.length === 0) {
-      return Math.max(0, DIAS_HABILES_MES - diasHabilesTranscurridos);
+    const sabados = new Set(calendarioMes.sabados);
+    const domingos = new Set(calendarioMes.domingos);
+    const feriados = new Set(calendarioMes.feriados);
+    const desde = esMesActualCal ? hoy.getDate() + 1 : 1;
+
+    let restantes = 0;
+    for (let d = desde; d <= calendarioMes.dias_en_mes; d++) {
+      if (!sabados.has(d) && !domingos.has(d) && !feriados.has(d)) {
+        restantes += 1;
+      }
     }
-
-    const mesSeleccionado = mesesSeleccionados[0]?.toLowerCase();
-    const esMesActual = mesesSeleccionados.length === 1 && mesSeleccionado === mesActualNombre;
-
-    return esMesActual ? Math.max(0, DIAS_HABILES_MES - diasHabilesTranscurridos) : 0;
-  }, [mesesSeleccionados]);
+    return restantes;
+  }, [calendarioMes]);
 
   // Procesar brigadas agrupadas por zona
   const { brigadasPorZona, stats, zonasStats, todasLasBrigadas } = useMemo(() => {
@@ -206,13 +210,17 @@ export default function ControlMetas({ tecnicos, mesesSeleccionados, filters }: 
       });
     });
 
-    // Stats globales
+    // Stats globales: deduplicar por técnico para que quien apoya otra zona no cuente dos veces.
+    // Las métricas de cada brigada ya son globales cuando trabajaEnMultiplesZonas, así que cualquier
+    // fila del técnico representa los mismos totales.
     const allBrigadas = Object.values(porZona).flat();
-    const total = allBrigadas.length;
-    const cumplidas = allBrigadas.filter(b => b.estado === 'cumplida').length;
-    const enCamino = allBrigadas.filter(b => b.estado === 'en_camino').length;
-    const noAlcanzara = allBrigadas.filter(b => b.estado === 'no_alcanzara').length;
-    const promedioEfectivas = total > 0 ? allBrigadas.reduce((a, b) => a + b.efectivasDia, 0) / total : 0;
+    const brigadasUnicas = Array.from(new Map(allBrigadas.map(b => [b.nombre, b])).values());
+    const total = brigadasUnicas.length;
+    const cumplidas = brigadasUnicas.filter(b => b.estado === 'cumplida').length;
+    const enCamino = brigadasUnicas.filter(b => b.estado === 'en_camino').length;
+    const noAlcanzara = brigadasUnicas.filter(b => b.estado === 'no_alcanzara').length;
+    // Métrica oficial calculada en el backend (single source of truth para todas las vistas).
+    const promedioEfectivas = kpis.promedio_efectivas_oficial;
 
     return {
       brigadasPorZona: porZona,
@@ -220,7 +228,7 @@ export default function ControlMetas({ tecnicos, mesesSeleccionados, filters }: 
       zonasStats,
       todasLasBrigadas: allBrigadas
     };
-  }, [tecnicos, diasRestantes]);
+  }, [tecnicos, diasRestantes, kpis.promedio_efectivas_oficial]);
 
   // Funciones de navegación entre trabajadores
   const navegarTrabajador = (direccion: 'anterior' | 'siguiente') => {

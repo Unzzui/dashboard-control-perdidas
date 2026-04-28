@@ -91,6 +91,7 @@ function DashboardContent() {
             tecnicos={data.tecnicos}
             filters={filters}
             calendarioMes={data.calendario_mes}
+            kpis={data.kpis}
           />
         );
       case 'indicadores':
@@ -131,7 +132,6 @@ function DashboardContent() {
             totalContratista={data.kpis.total_visita_fallida_oca}
             resultadosFallidos={data.resultados_fallidos || []}
             kpis={data.kpis}
-            tecnicos={data.tecnicos}
           />
         );
       case 'normalizaciones':

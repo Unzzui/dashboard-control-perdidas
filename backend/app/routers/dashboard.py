@@ -15,6 +15,7 @@ from app.services.resultados_fallidos import calculate_resultados_fallidos, calc
 from app.services.analisis_comparativo import calculate_analisis_comparativo
 from app.services.alertas_operativas import calculate_alertas_operativas
 from app.services.calendario_mes import build_calendario_mes
+from app.services.promedio_efectivas import calculate_promedio_efectivas
 
 router = APIRouter()
 
@@ -24,13 +25,22 @@ def get_dashboard(params: FilterParams = Depends()):
     df = get_dataframe()
     filtered = apply_filters(df, params)
 
+    kpis = calculate_kpis(filtered)
+    tecnicos = calculate_tecnicos(filtered)
+
+    # Single source of truth para "promedio efectivas/día" (alineado con Control Metas).
+    # Se inyecta dentro de kpis para que cualquier vista lo consuma desde un solo lugar.
+    kpis.update(
+        calculate_promedio_efectivas(tecnicos, kpis.get("total_visita_fallida_cge", 0))
+    )
+
     return {
-        "kpis": calculate_kpis(filtered),
+        "kpis": kpis,
         "zonas": calculate_zonas(filtered),
         "daily": calculate_daily(filtered),
         "daily_por_zona": calculate_daily_por_zona(filtered),
         "mensual": calculate_mensual(filtered),
-        "tecnicos": calculate_tecnicos(filtered),
+        "tecnicos": tecnicos,
         "campanas": calculate_campanas(filtered),
         "normalizaciones": calculate_normalizaciones(filtered),
         "visitas_fallidas_responsabilidad": calculate_visitas_fallidas(filtered),

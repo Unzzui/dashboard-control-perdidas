@@ -122,6 +122,11 @@ export interface KPIData {
   total_visita_fallida_oca: number;
   pct_efectivas_sin_cge_excluida: number;
   pct_efectivas_sin_cge_reclasificada: number;
+  promedio_efectivas_oficial: number;
+  promedio_efectivas_ponderado: number;
+  promedio_efectivas_ajustado_sin_cge: number;
+  total_dias_brigada: number;
+  total_brigadas_unicas: number;
   cnr_falla: number;
   pct_cnr_falla: number;
   cnr_hurto: number;

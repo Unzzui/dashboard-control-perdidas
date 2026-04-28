@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { VisitaFallidaResponsabilidad, ResultadoFallido, KPIData, TecnicoRanking } from '@/types';
+import { VisitaFallidaResponsabilidad, ResultadoFallido, KPIData } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import DonutChart, { DonutClickEvent } from '@/components/charts/DonutChart';
 
@@ -14,7 +14,6 @@ interface VisitasFallidasProps {
   totalContratista: number;
   resultadosFallidos: ResultadoFallido[];
   kpis: KPIData;
-  tecnicos: TecnicoRanking[];
 }
 
 const COLOR_CGE = '#475569';      // slate-600
@@ -34,61 +33,18 @@ export default function VisitasFallidas({
   totalContratista,
   resultadosFallidos,
   kpis,
-  tecnicos,
 }: VisitasFallidasProps) {
   const [filtro, setFiltro] = useState<ResponsabilidadFiltro>(null);
 
-  // Promedio de efectivas/día — métrica oficial alineada con Control Metas.
-  // 1) Deduplicar por brigada (técnicos en múltiples zonas cuentan una vez).
-  // 2) Para multi-zona usar promedio_efectivas_global (ya ponderado por días dentro
-  //    de la brigada); para una sola zona usar promedio_efectivas.
-  // 3) Promedio aritmético sobre brigadas únicas → mismo número que ControlMetas.
-  // El "ponderado por brigada-día" se calcula también como métrica comparativa.
-  // El "ajustado sin CGE" escala la métrica oficial por el ratio de recuperación
-  //    si las fallidas-CGE se contaran como efectivas.
-  const {
-    promedioOficial,
-    promedioPonderadoBrigadaDia,
-    promedioAjustadoSinCGE,
-    totalDiasBrigada,
-    brigadasUnicas,
-  } = useMemo(() => {
-    const dedupe = Array.from(
-      new Map(tecnicos.map(t => [
-        t.nombre,
-        {
-          efectivasDia: t.cantidad_zonas > 1 ? t.promedio_efectivas_global : t.promedio_efectivas,
-          efectivas: t.cantidad_zonas > 1 ? t.efectivas_global : t.efectivas,
-          dias: t.cantidad_zonas > 1 ? t.dias_global : t.dias_trabajados,
-        },
-      ])).values()
-    );
+  // Promedio efectivas/día — calculado en el backend (single source of truth).
+  // El valor oficial coincide con el que muestra Control Metas.
+  const promedioOficial = kpis.promedio_efectivas_oficial;
+  const promedioPonderadoBrigadaDia = kpis.promedio_efectivas_ponderado;
+  const promedioAjustadoSinCGE = kpis.promedio_efectivas_ajustado_sin_cge;
+  const totalDiasBrigada = kpis.total_dias_brigada;
+  const brigadasUnicas = kpis.total_brigadas_unicas;
 
-    const oficial = dedupe.length > 0
-      ? dedupe.reduce((acc, b) => acc + b.efectivasDia, 0) / dedupe.length
-      : 0;
-
-    const totalEfectivas = dedupe.reduce((acc, b) => acc + b.efectivas, 0);
-    const totalDias = dedupe.reduce((acc, b) => acc + b.dias, 0);
-    const ponderado = totalDias > 0 ? totalEfectivas / totalDias : 0;
-
-    // Aplicar a la métrica oficial el mismo ratio de recuperación que las fallidas-CGE
-    // contribuirían si fueran efectivas (escala proporcional sobre los días reales).
-    const ratio = totalEfectivas > 0
-      ? (totalEfectivas + kpis.total_visita_fallida_cge) / totalEfectivas
-      : 1;
-    const ajustado = oficial * ratio;
-
-    return {
-      promedioOficial: oficial,
-      promedioPonderadoBrigadaDia: ponderado,
-      promedioAjustadoSinCGE: ajustado,
-      totalDiasBrigada: totalDias,
-      brigadasUnicas: dedupe.length,
-    };
-  }, [tecnicos, kpis.total_visita_fallida_cge]);
-
-  // Estado vs meta — usa la métrica oficial (la misma que muestra ControlMetas).
+  // Estado vs meta — usa la métrica oficial.
   const pctMeta = META_EFECTIVAS_DIA > 0 ? (promedioOficial / META_EFECTIVAS_DIA * 100) : 0;
   const brechaMeta = promedioOficial - META_EFECTIVAS_DIA;
   const metaColor = brechaMeta >= 0 ? 'text-green-600'
