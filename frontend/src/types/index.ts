@@ -118,6 +118,9 @@ export interface KPIData {
   pct_visita_fallida: number;
   total_efectivas: number;
   pct_efectivas: number;
+  total_visita_fallida_cge: number;
+  pct_efectivas_sin_cge_excluida: number;
+  pct_efectivas_sin_cge_reclasificada: number;
   cnr_falla: number;
   pct_cnr_falla: number;
   cnr_hurto: number;
@@ -230,6 +233,8 @@ export interface DashboardData {
 export interface ResultadoFallido {
   resultado: string;
   cantidad: number;
+  cantidad_cge: number;
+  cantidad_oca: number;
 }
 
 export interface AtrasoZona {
