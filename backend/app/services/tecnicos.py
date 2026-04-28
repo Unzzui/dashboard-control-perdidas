@@ -98,11 +98,18 @@ def calculate_tecnicos(filtered: pd.DataFrame) -> list:
         'efectivas': 'sum',
         'visitas_totales': 'sum',
         'kwh': 'sum',
-        'dias': 'sum',  # Suma de días trabajados en todas las zonas
     }).reset_index()
 
     totales_globales.columns = ['nombre', 'cnr_global', 'normal_global', 'efectivas_global',
-                                 'visitas_totales_global', 'kwh_global', 'dias_global']
+                                 'visitas_totales_global', 'kwh_global']
+
+    # dias_global: días únicos calendario donde el técnico trabajó en CUALQUIER zona.
+    # NO se suman los días por zona — si trabaja el mismo día en zona A y B, cuenta como 1.
+    # Sumar hubiera inflado el denominador y bajado falsamente el promedio_efectivas_global.
+    dias_globales = ejecutores.groupby('Nombre asignado', observed=True)['fecha_date'].nunique().reset_index()
+    dias_globales.columns = ['nombre', 'dias_global']
+    totales_globales = totales_globales.merge(dias_globales, on='nombre', how='left')
+    totales_globales['dias_global'] = totales_globales['dias_global'].clip(lower=1)
 
     # Calcular promedios globales
     totales_globales['promedio_efectivas_global'] = (totales_globales['efectivas_global'] / totales_globales['dias_global']).round(1)
