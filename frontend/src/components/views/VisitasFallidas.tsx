@@ -21,6 +21,9 @@ const COLOR_OCA = '#f59e0b';      // amber-500
 const COLOR_CGE_DIM = '#47556966'; // slate-600 a 40% alpha
 const COLOR_OCA_DIM = '#f59e0b66'; // amber-500 a 40% alpha
 
+const cantidadFor = (r: ResultadoFallido, f: ResponsabilidadFiltro): number =>
+  f === 'CGE' ? r.cantidad_cge : f === 'OCA' ? r.cantidad_oca : r.cantidad;
+
 export default function VisitasFallidas({
   responsabilidad,
   totalCGE,
@@ -158,20 +161,20 @@ export default function VisitasFallidas({
 
   // Top 10 (filtra por responsabilidad activa)
   const { topResultados, otrosResultados, totalResultados } = useMemo(() => {
-    const getCantidad = (r: ResultadoFallido) =>
-      filtro === 'CGE' ? r.cantidad_cge :
-      filtro === 'OCA' ? r.cantidad_oca :
-      r.cantidad;
-
     const sorted = [...resultadosFallidos]
-      .filter(r => getCantidad(r) > 0)
-      .sort((a, b) => getCantidad(b) - getCantidad(a));
+      .filter(r => cantidadFor(r, filtro) > 0)
+      .sort((a, b) => cantidadFor(b, filtro) - cantidadFor(a, filtro));
 
     const top10 = sorted.slice(0, 10);
     const otros = sorted.slice(10);
-    const totalRes = sorted.reduce((acc, r) => acc + getCantidad(r), 0);
+    const totalRes = sorted.reduce((acc, r) => acc + cantidadFor(r, filtro), 0);
     return { topResultados: top10, otrosResultados: otros, totalResultados: totalRes };
   }, [resultadosFallidos, filtro]);
+
+  const otrosTotal = useMemo(
+    () => otrosResultados.reduce((acc, r) => acc + cantidadFor(r, filtro), 0),
+    [otrosResultados, filtro]
+  );
 
   const barChartOption = useMemo(() => {
     const labels = topResultados.map(r =>
@@ -374,9 +377,7 @@ export default function VisitasFallidas({
               Top 10 Tipos de Resultados
             </h3>
             <span className="text-xs text-slate-400">
-              {topResultados.length} de {filtro === 'CGE' ? resultadosFallidos.filter(r => r.cantidad_cge > 0).length
-                                       : filtro === 'OCA' ? resultadosFallidos.filter(r => r.cantidad_oca > 0).length
-                                       : resultadosFallidos.length} tipos
+              {topResultados.length} de {tiposResultadoVisibles} tipos
             </span>
           </div>
           <ReactECharts
@@ -399,9 +400,7 @@ export default function VisitasFallidas({
           <div className="space-y-2 mb-4">
             <p className="text-xs uppercase tracking-wider text-slate-400">Top 5 Resultados</p>
             {topResultados.slice(0, 5).map((r, idx) => {
-              const cantidad = filtro === 'CGE' ? r.cantidad_cge
-                             : filtro === 'OCA' ? r.cantidad_oca
-                             : r.cantidad;
+              const cantidad = cantidadFor(r, filtro);
               const pct = totalResultados > 0 ? (cantidad / totalResultados * 100) : 0;
               return (
                 <div key={idx} className="flex items-center gap-2">
@@ -439,22 +438,12 @@ export default function VisitasFallidas({
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500">Otros ({otrosResultados.length} tipos)</span>
                 <span className="font-medium text-slate-700">
-                  {otrosResultados.reduce((acc, r) => {
-                    const c = filtro === 'CGE' ? r.cantidad_cge
-                            : filtro === 'OCA' ? r.cantidad_oca
-                            : r.cantidad;
-                    return acc + c;
-                  }, 0).toLocaleString('es-CL')}
+                  {otrosTotal.toLocaleString('es-CL')}
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
                 {totalResultados > 0
-                  ? (otrosResultados.reduce((acc, r) => {
-                      const c = filtro === 'CGE' ? r.cantidad_cge
-                              : filtro === 'OCA' ? r.cantidad_oca
-                              : r.cantidad;
-                      return acc + c;
-                    }, 0) / totalResultados * 100).toFixed(1)
+                  ? (otrosTotal / totalResultados * 100).toFixed(1)
                   : 0}% del total
               </p>
             </div>
