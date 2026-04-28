@@ -38,42 +38,66 @@ export default function VisitasFallidas({
 }: VisitasFallidasProps) {
   const [filtro, setFiltro] = useState<ResponsabilidadFiltro>(null);
 
-  // Promedio de efectivas/día — métrica operacional contra la que CGE evalúa.
-  // - ponderado: sum(efectivas) / sum(dias) — peso por brigada-día, es el oficial.
-  // - simple: promedio aritmético de promedios — referencia aclaratoria.
-  // - ajustadoSinCGE: hipotético si las fallidas-CGE se contaran como efectivas.
-  const { promedioPonderado, promedioSimple, promedioAjustadoSinCGE, totalDiasBrigada } = useMemo(() => {
-    const totalEfectivas = tecnicos.reduce((acc, t) => acc + t.efectivas, 0);
-    const totalDias = tecnicos.reduce((acc, t) => acc + t.dias_trabajados, 0);
+  // Promedio de efectivas/día — métrica oficial alineada con Control Metas.
+  // 1) Deduplicar por brigada (técnicos en múltiples zonas cuentan una vez).
+  // 2) Para multi-zona usar promedio_efectivas_global (ya ponderado por días dentro
+  //    de la brigada); para una sola zona usar promedio_efectivas.
+  // 3) Promedio aritmético sobre brigadas únicas → mismo número que ControlMetas.
+  // El "ponderado por brigada-día" se calcula también como métrica comparativa.
+  // El "ajustado sin CGE" escala la métrica oficial por el ratio de recuperación
+  //    si las fallidas-CGE se contaran como efectivas.
+  const {
+    promedioOficial,
+    promedioPonderadoBrigadaDia,
+    promedioAjustadoSinCGE,
+    totalDiasBrigada,
+    brigadasUnicas,
+  } = useMemo(() => {
+    const dedupe = Array.from(
+      new Map(tecnicos.map(t => [
+        t.nombre,
+        {
+          efectivasDia: t.cantidad_zonas > 1 ? t.promedio_efectivas_global : t.promedio_efectivas,
+          efectivas: t.cantidad_zonas > 1 ? t.efectivas_global : t.efectivas,
+          dias: t.cantidad_zonas > 1 ? t.dias_global : t.dias_trabajados,
+        },
+      ])).values()
+    );
+
+    const oficial = dedupe.length > 0
+      ? dedupe.reduce((acc, b) => acc + b.efectivasDia, 0) / dedupe.length
+      : 0;
+
+    const totalEfectivas = dedupe.reduce((acc, b) => acc + b.efectivas, 0);
+    const totalDias = dedupe.reduce((acc, b) => acc + b.dias, 0);
     const ponderado = totalDias > 0 ? totalEfectivas / totalDias : 0;
 
-    const conDias = tecnicos.filter(t => t.dias_trabajados > 0);
-    const simple = conDias.length > 0
-      ? conDias.reduce((acc, t) => acc + (t.efectivas / t.dias_trabajados), 0) / conDias.length
-      : 0;
-
-    const ajustado = totalDias > 0
-      ? (totalEfectivas + kpis.total_visita_fallida_cge) / totalDias
-      : 0;
+    // Aplicar a la métrica oficial el mismo ratio de recuperación que las fallidas-CGE
+    // contribuirían si fueran efectivas (escala proporcional sobre los días reales).
+    const ratio = totalEfectivas > 0
+      ? (totalEfectivas + kpis.total_visita_fallida_cge) / totalEfectivas
+      : 1;
+    const ajustado = oficial * ratio;
 
     return {
-      promedioPonderado: ponderado,
-      promedioSimple: simple,
+      promedioOficial: oficial,
+      promedioPonderadoBrigadaDia: ponderado,
       promedioAjustadoSinCGE: ajustado,
       totalDiasBrigada: totalDias,
+      brigadasUnicas: dedupe.length,
     };
   }, [tecnicos, kpis.total_visita_fallida_cge]);
 
-  // Estado vs meta (afecta colores de la barra de progreso y la brecha).
-  const pctMeta = META_EFECTIVAS_DIA > 0 ? (promedioPonderado / META_EFECTIVAS_DIA * 100) : 0;
-  const brechaMeta = promedioPonderado - META_EFECTIVAS_DIA;
+  // Estado vs meta — usa la métrica oficial (la misma que muestra ControlMetas).
+  const pctMeta = META_EFECTIVAS_DIA > 0 ? (promedioOficial / META_EFECTIVAS_DIA * 100) : 0;
+  const brechaMeta = promedioOficial - META_EFECTIVAS_DIA;
   const metaColor = brechaMeta >= 0 ? 'text-green-600'
                   : pctMeta >= 90    ? 'text-amber-600'
                                      : 'text-red-600';
   const metaBarColor = brechaMeta >= 0 ? 'bg-green-500'
                      : pctMeta >= 90    ? 'bg-amber-500'
                                         : 'bg-red-500';
-  const deltaAjustado = promedioAjustadoSinCGE - promedioPonderado;
+  const deltaAjustado = promedioAjustadoSinCGE - promedioOficial;
 
   // ============================================================
   // BLOQUE 1: KPIs globales (no responden al filtro)
@@ -342,7 +366,7 @@ export default function VisitasFallidas({
 
           <div className="flex items-baseline gap-3 mb-3">
             <p className="text-5xl font-bold text-slate-800 leading-none">
-              {promedioPonderado.toFixed(1)}
+              {promedioOficial.toFixed(1)}
             </p>
             <p className="text-sm text-slate-400">efectivas/día</p>
             <p className={`text-sm font-medium ml-auto ${metaColor}`}>
@@ -376,13 +400,13 @@ export default function VisitasFallidas({
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
-                Promedio simple
+                Ponderado brigada-día
               </p>
               <p className="text-lg font-semibold text-slate-800">
-                {promedioSimple.toFixed(1)}<span className="text-xs font-normal text-slate-400">/día</span>
+                {promedioPonderadoBrigadaDia.toFixed(1)}<span className="text-xs font-normal text-slate-400">/día</span>
               </p>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                No ponderado por días
+                Sum efectivas / sum días
               </p>
             </div>
             <div>
@@ -390,10 +414,10 @@ export default function VisitasFallidas({
                 Base del cálculo
               </p>
               <p className="text-lg font-semibold text-slate-800">
-                {totalDiasBrigada.toLocaleString('es-CL')}<span className="text-xs font-normal text-slate-400"> días-brigada</span>
+                {brigadasUnicas}<span className="text-xs font-normal text-slate-400"> brigadas</span>
               </p>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                {tecnicos.length} brigadas
+                {totalDiasBrigada.toLocaleString('es-CL')} días-brigada
               </p>
             </div>
           </div>
