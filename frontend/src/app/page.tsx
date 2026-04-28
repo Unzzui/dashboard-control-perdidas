@@ -131,6 +131,7 @@ function DashboardContent() {
             totalContratista={data.visitas_fallidas_responsabilidad.reduce((acc, r) => acc + r.responsabilidad_contratista, 0)}
             resultadosFallidos={data.resultados_fallidos || []}
             kpis={data.kpis}
+            tecnicos={data.tecnicos}
           />
         );
       case 'normalizaciones':

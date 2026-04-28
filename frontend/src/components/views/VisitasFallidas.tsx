@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { VisitaFallidaResponsabilidad, ResultadoFallido, KPIData } from '@/types';
+import { VisitaFallidaResponsabilidad, ResultadoFallido, KPIData, TecnicoRanking } from '@/types';
 import DataTable from '@/components/ui/DataTable';
 import DonutChart, { DonutClickEvent } from '@/components/charts/DonutChart';
 
@@ -14,6 +14,7 @@ interface VisitasFallidasProps {
   totalContratista: number;
   resultadosFallidos: ResultadoFallido[];
   kpis: KPIData;
+  tecnicos: TecnicoRanking[];
 }
 
 const COLOR_CGE = '#475569';      // slate-600
@@ -30,8 +31,25 @@ export default function VisitasFallidas({
   totalContratista,
   resultadosFallidos,
   kpis,
+  tecnicos,
 }: VisitasFallidasProps) {
   const [filtro, setFiltro] = useState<ResponsabilidadFiltro>(null);
+
+  // Promedio de efectivas/día — métrica operacional clave (meta 8/día).
+  // A: ponderado por brigada-día (sum efectivas / sum días). Es el oficial.
+  // B: promedio simple de promedios — se muestra como nota aclaratoria.
+  const { promedioPonderado, promedioSimple } = useMemo(() => {
+    const totalEfectivas = tecnicos.reduce((acc, t) => acc + t.efectivas, 0);
+    const totalDias = tecnicos.reduce((acc, t) => acc + t.dias_trabajados, 0);
+    const ponderado = totalDias > 0 ? totalEfectivas / totalDias : 0;
+
+    const conDias = tecnicos.filter(t => t.dias_trabajados > 0);
+    const simple = conDias.length > 0
+      ? conDias.reduce((acc, t) => acc + (t.efectivas / t.dias_trabajados), 0) / conDias.length
+      : 0;
+
+    return { promedioPonderado: ponderado, promedioSimple: simple };
+  }, [tecnicos]);
 
   // ============================================================
   // BLOQUE 1: KPIs globales (no responden al filtro)
@@ -286,7 +304,7 @@ export default function VisitasFallidas({
       {/* ============== BLOQUE 1: KPIs globales ============== */}
       <div>
         <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Operación global</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="bg-white rounded-lg border border-slate-200/60 p-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Visitas</p>
             <p className="text-2xl font-bold text-slate-800">{kpis.total_registros.toLocaleString('es-CL')}</p>
@@ -295,6 +313,11 @@ export default function VisitasFallidas({
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectividad</p>
             <p className="text-2xl font-bold text-slate-800">{kpis.pct_efectivas.toFixed(1)}%</p>
             <p className="text-[10px] text-slate-400 mt-1">Real</p>
+          </div>
+          <div className="bg-white rounded-lg border border-slate-200/60 p-4">
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Promedio Efectivas/Día</p>
+            <p className="text-2xl font-bold text-slate-800">{promedioPonderado.toFixed(1)}</p>
+            <p className="text-[10px] text-slate-400 mt-1">Ponderado · simple: {promedioSimple.toFixed(1)}</p>
           </div>
           <div className="bg-white rounded-lg border border-slate-200/60 p-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efec. sin CGE (excluida)</p>
