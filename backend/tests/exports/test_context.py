@@ -35,3 +35,33 @@ def test_informe_context_default_construction():
     assert ctx.actual.brigadas_unicas == 51
     assert ctx.anterior.brigadas_unicas == 45
     assert ctx.delta_brigadas == 6
+
+
+import pytest
+from app.services.exports.context import build_context
+
+
+def test_build_context_returns_data_for_existing_month():
+    """Smoke test: construye contexto para un mes que existe en el dataset."""
+    from app.dependencies import get_dataframe
+    df = get_dataframe()
+    años_disponibles = sorted(df['año'].dropna().unique().tolist())
+    if not años_disponibles:
+        pytest.skip("No hay datos en el dataset")
+    año = int(años_disponibles[-1])
+    meses_año = sorted(df[df['año'] == año]['mes'].dropna().unique().tolist())
+    mes = int(meses_año[-1])
+
+    ctx = build_context(año, mes)
+
+    assert ctx.actual.año == año
+    assert ctx.actual.mes == mes
+    assert ctx.actual.kpis is not None
+    assert isinstance(ctx.actual.brigadas_unicas, int)
+    assert ctx.actual.brigadas_unicas >= 0
+
+
+def test_build_context_raises_on_missing_month():
+    """Mes sin datos lanza ValueError."""
+    with pytest.raises(ValueError, match="No hay datos"):
+        build_context(1900, 1)
