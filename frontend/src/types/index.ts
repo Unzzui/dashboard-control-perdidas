@@ -172,6 +172,7 @@ export interface CalendarioMes {
   domingos: number[];
   feriados: number[];
   total_habiles: number;
+  meta_efectivas: number;
 }
 
 export interface PagoTecnico {
@@ -201,6 +202,7 @@ export interface PagoTecnico {
   monto_sabado: number;
   total_pago: number;
   cumple_meta: boolean;
+  meta_efectivas: number;
   dias_trabajados: number[];
   dias_trabajados_count: number;
   sabados_trabajados_count: number;

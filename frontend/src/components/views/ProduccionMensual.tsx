@@ -10,7 +10,10 @@ interface ProduccionMensualProps {
   calendarioMes?: CalendarioMes | null;
 }
 
-const META_EFECTIVAS_MES = 160;
+// Fallback solo si el backend no entrega meta dinámica.
+// La meta real viene del backend: 8 ef/día × días hábiles del mes visualizado.
+const META_EFECTIVAS_FALLBACK = 160;
+const metaDe = (t: PagoTecnico): number => t.meta_efectivas || META_EFECTIVAS_FALLBACK;
 type FiltroVista = 'todos' | 'cumple' | 'no_cumple';
 
 type VistaDetalle =
@@ -96,7 +99,7 @@ const computeBrecha = (t: PagoTecnico): number =>
   Math.max(0, t.precio_base + t.monto_sabado - t.total_pago);
 
 const computeFaltanteEfHabiles = (t: PagoTecnico): number =>
-  Math.max(0, META_EFECTIVAS_MES - t.efectivas_habiles);
+  Math.max(0, metaDe(t) - t.efectivas_habiles);
 
 
 export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, calendarioMes }: ProduccionMensualProps) {
@@ -206,7 +209,7 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, ca
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Producción y Pago Mensual</h2>
           <p className="text-sm text-slate-500">
-            Meta {META_EFECTIVAS_MES} efectivas · OCA Global · 1F · {periodo}
+            Meta {calendarioMes?.meta_efectivas ?? META_EFECTIVAS_FALLBACK} efectivas · OCA Global · 1F · {periodo}
           </p>
         </div>
         <button
@@ -548,6 +551,8 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
   // Datos para vistas agregadas
   const items = vista.tipo === 'tecnico' ? [vista.tecnico] : vista.items;
   const resumen = useMemo(() => agregar(items), [items]);
+  // Meta dinámica del mes (todos los técnicos comparten la misma meta).
+  const metaModal = items[0]?.meta_efectivas || calendarioMes?.meta_efectivas || META_EFECTIVAS_FALLBACK;
 
   return (
     <div
@@ -643,7 +648,7 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
               <div className="bg-slate-50 rounded-lg p-3">
                 <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Precio Base</p>
                 <p className="text-xl font-bold text-slate-700">{formatCompact((vista as { tipo: 'tecnico'; tecnico: PagoTecnico }).tecnico.precio_base)}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">por {META_EFECTIVAS_MES} efect.</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">por {metaDe((vista as { tipo: 'tecnico'; tecnico: PagoTecnico }).tecnico)} efect.</p>
               </div>
             ) : (
               <div className="bg-slate-50 rounded-lg p-3">
@@ -657,7 +662,7 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
             <div className="bg-slate-50 rounded-lg p-3">
               <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Efectivas Mes</p>
               <p className="text-xl font-bold text-slate-800">{resumen.efectivasMes.toLocaleString('es-CL')}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">meta {META_EFECTIVAS_MES}/téc</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">meta {metaModal}/téc</p>
             </div>
             <div className="bg-slate-50 rounded-lg p-3">
               <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Ef. Faltantes</p>
@@ -682,13 +687,13 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold uppercase text-slate-500 tracking-wide">Avance a Meta</span>
                 <span className="text-[11px] text-slate-500">
-                  {vista.tecnico.efectivas_mes} / {META_EFECTIVAS_MES} efectivas
+                  {vista.tecnico.efectivas_mes} / {metaDe(vista.tecnico)} efectivas
                 </span>
               </div>
               <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${vista.tecnico.cumple_meta ? 'bg-green-500' : 'bg-red-500'}`}
-                  style={{ width: `${Math.min(100, (vista.tecnico.efectivas_mes / META_EFECTIVAS_MES) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (vista.tecnico.efectivas_mes / metaDe(vista.tecnico)) * 100)}%` }}
                 />
               </div>
             </div>
@@ -740,7 +745,7 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
               <span className="font-semibold text-xs">Cálculo del Pago</span>
               {vista.tipo === 'tecnico' && (
                 <span className="text-[10px] text-slate-300">
-                  Valor por efectiva: {formatMoney(Math.round(vista.tecnico.precio_base / META_EFECTIVAS_MES))}
+                  Valor por efectiva: {formatMoney(Math.round(vista.tecnico.precio_base / metaDe(vista.tecnico)))}
                 </span>
               )}
             </div>
@@ -750,7 +755,7 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
                 <p className="text-xl font-bold text-slate-800 mt-1">{formatMoney(resumen.montoHabil)}</p>
                 <p className="text-[10px] text-slate-500 mt-1 leading-snug">
                   {vista.tipo === 'tecnico'
-                    ? <>Base × ({vista.tecnico.efectivas_habiles}/{META_EFECTIVAS_MES})</>
+                    ? <>Base × ({vista.tecnico.efectivas_habiles}/{metaDe(vista.tecnico)})</>
                     : <>Suma de {resumen.total} técnicos</>}
                 </p>
               </div>
@@ -759,7 +764,7 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
                 <p className="text-xl font-bold text-slate-800 mt-1">{formatMoney(resumen.montoSabado)}</p>
                 <p className="text-[10px] text-slate-500 mt-1 leading-snug">
                   {vista.tipo === 'tecnico'
-                    ? <>(Base/{META_EFECTIVAS_MES}) × {vista.tecnico.efectivas_sabado}</>
+                    ? <>(Base/{metaDe(vista.tecnico)}) × {vista.tecnico.efectivas_sabado}</>
                     : <>Suma de {resumen.total} técnicos</>}
                 </p>
               </div>

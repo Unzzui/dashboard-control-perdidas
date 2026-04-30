@@ -11,7 +11,9 @@ interface ControlMetasProps {
   kpis: KPIData;
 }
 
-const META_EFECTIVAS_MES = 160;
+// Fallback estático. La meta real es dinámica (8 ef/día × días hábiles del mes)
+// y viene del backend en `calendarioMes.meta_efectivas`.
+const META_EFECTIVAS_FALLBACK = 160;
 const META_EFECTIVAS_DIA = 8;
 
 type EstadoMeta = 'cumplida' | 'en_camino' | 'no_alcanzara';
@@ -38,6 +40,7 @@ interface BrigadaMeta {
 }
 
 export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }: ControlMetasProps) {
+  const metaEfectivasMes = calendarioMes?.meta_efectivas ?? META_EFECTIVAS_FALLBACK;
   const [vistaActiva, setVistaActiva] = useState<FiltroVista>('todos');
   const [zonaExpandida, setZonaExpandida] = useState<string | null>(null);
   const [brigadaSeleccionada, setBrigadaSeleccionada] = useState<BrigadaMeta | null>(null);
@@ -155,13 +158,13 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
       const diasTrabajados = trabajaEnMultiplesZonas ? t.dias_global : (t.dias_trabajados || 1);
 
       const proyeccion = Math.round(efectivasTotal + (efectivasDia * diasRestantes));
-      const faltanParaMeta = Math.max(0, META_EFECTIVAS_MES - efectivasTotal);
-      const pctAvance = Math.min(100, (efectivasTotal / META_EFECTIVAS_MES) * 100);
+      const faltanParaMeta = Math.max(0, metaEfectivasMes - efectivasTotal);
+      const pctAvance = Math.min(100, (efectivasTotal / metaEfectivasMes) * 100);
 
       let estado: EstadoMeta;
-      if (efectivasTotal >= META_EFECTIVAS_MES) {
+      if (efectivasTotal >= metaEfectivasMes) {
         estado = 'cumplida';
-      } else if (diasRestantes > 0 && proyeccion >= META_EFECTIVAS_MES) {
+      } else if (diasRestantes > 0 && proyeccion >= metaEfectivasMes) {
         estado = 'en_camino';
       } else {
         estado = 'no_alcanzara';
@@ -228,7 +231,7 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
       zonasStats,
       todasLasBrigadas: allBrigadas
     };
-  }, [tecnicos, diasRestantes, kpis.promedio_efectivas_oficial]);
+  }, [tecnicos, diasRestantes, kpis.promedio_efectivas_oficial, metaEfectivasMes]);
 
   // Funciones de navegación entre trabajadores
   const navegarTrabajador = (direccion: 'anterior' | 'siguiente') => {
@@ -284,7 +287,7 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Control de Metas</h2>
           <p className="text-sm text-slate-500">
-            Meta mensual: {META_EFECTIVAS_MES} efectivas · {diasRestantes} días hábiles restantes
+            Meta mensual: {metaEfectivasMes} efectivas · {diasRestantes} días hábiles restantes
           </p>
         </div>
       </div>
@@ -310,7 +313,7 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Ya Cumplieron</p>
           <p className="text-3xl font-bold text-green-600">{stats.cumplidas}</p>
-          <p className="text-xs text-slate-500 mt-1">brigadas con ≥{META_EFECTIVAS_MES}</p>
+          <p className="text-xs text-slate-500 mt-1">brigadas con ≥{metaEfectivasMes}</p>
         </div>
 
         <div className="bg-white rounded-lg border border-slate-200/60 p-4">
@@ -418,7 +421,7 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
                         <td className={`px-2 py-1.5 text-[11px] font-semibold text-right ${b.efectivasDia >= META_EFECTIVAS_DIA ? 'text-green-600' : 'text-red-600'}`}>
                           {b.efectivasDia.toFixed(1)}
                         </td>
-                        <td className={`px-2 py-1.5 text-[11px] font-semibold text-right ${b.proyeccion >= META_EFECTIVAS_MES ? 'text-green-600' : 'text-red-600'}`}>
+                        <td className={`px-2 py-1.5 text-[11px] font-semibold text-right ${b.proyeccion >= metaEfectivasMes ? 'text-green-600' : 'text-red-600'}`}>
                           {b.proyeccion}
                         </td>
                         <td className="px-3 py-1.5">
@@ -510,7 +513,7 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
                 </div>
                 <div className="bg-slate-50 rounded-lg p-3">
                   <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Proyección</p>
-                  <p className={`text-2xl font-bold ${brigadaSeleccionada.proyeccion >= META_EFECTIVAS_MES ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-2xl font-bold ${brigadaSeleccionada.proyeccion >= metaEfectivasMes ? 'text-green-600' : 'text-red-600'}`}>
                     {brigadaSeleccionada.proyeccion}
                   </p>
                 </div>
@@ -943,7 +946,7 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
                     <td className={`px-2 py-2 text-right font-semibold ${b.efectivasDia >= META_EFECTIVAS_DIA ? 'text-green-600' : 'text-red-600'}`}>
                       {b.efectivasDia.toFixed(1)}
                     </td>
-                    <td className={`px-2 py-2 text-right font-semibold ${b.proyeccion >= META_EFECTIVAS_MES ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className={`px-2 py-2 text-right font-semibold ${b.proyeccion >= metaEfectivasMes ? 'text-green-600' : 'text-red-600'}`}>
                       {b.proyeccion}
                     </td>
                     <td className="px-2 py-2 text-right text-slate-500">{b.faltanParaMeta > 0 ? b.faltanParaMeta : '-'}</td>

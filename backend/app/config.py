@@ -5,7 +5,11 @@ PRECIOS_PATH = Path(__file__).parent.parent / "data" / "precios_base.parquet"
 
 META_POR_BRIGADA = 6500000
 
-# Meta mensual de visitas efectivas por técnico (8 ef/día × 20 días hábiles)
+# Promedio diario objetivo de visitas efectivas por técnico.
+EFECTIVAS_POR_DIA = 8
+
+# Meta mensual base (legacy fallback). El cálculo real es dinámico:
+# meta_efectivas = EFECTIVAS_POR_DIA × días hábiles del mes visualizado.
 META_EFECTIVAS_MES = 160
 
 # Mapeo Zona dataset (con código y mayúsculas) → Zona del parquet de precios

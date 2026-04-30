@@ -10,15 +10,24 @@ app = FastAPI(
 )
 
 # CORS
+# allow_origin_regex cubre localhost y rangos LAN privados (RFC1918):
+#   10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.
+# allow_origins mantiene los dominios ngrok ya configurados.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
         "https://noncomprehendible-stickiest-coral.ngrok-free.dev",
         "https://*.ngrok-free.dev",
         "https://*.ngrok.io",
     ],
+    allow_origin_regex=(
+        r"http://("
+        r"localhost|127\.0\.0\.1|"
+        r"10(\.\d{1,3}){3}|"
+        r"192\.168(\.\d{1,3}){2}|"
+        r"172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}"
+        r")(:\d+)?"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

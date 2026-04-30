@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from app.config import PRECIOS_PATH, META_EFECTIVAS_MES, ZONA_DATASET_TO_PRECIOS
 from app.services.tecnicos import normalizar_nombre
+from app.services.calendario_mes import compute_estructura_mes, compute_meta_efectivas
 
 
 _precios_df: pd.DataFrame | None = None
@@ -53,8 +54,9 @@ def calculate_pago_tecnicos(filtered: pd.DataFrame) -> list:
       - Efectivas Mes = Normales + CNR Medida (Falla) + CNR Intervención (Hurto) + VF CGE.
       - Efectivas Sábados = mismo cálculo restringido a sábados (dayofweek=5).
       - Efectivas Hábiles = Efectivas Mes - Efectivas Sábados.
-      - Monto Hábil = Precio Base × (Efectivas Hábiles / 160), capped at Precio Base.
-      - Monto Sábado = (Precio Base / 160) × Efectivas Sábados.
+      - Meta dinámica: 8 ef/día × días hábiles del mes visualizado (cae a 160 si no hay calendario).
+      - Monto Hábil = Precio Base × (Efectivas Hábiles / Meta), capped at Precio Base.
+      - Monto Sábado = (Precio Base / Meta) × Efectivas Sábados.
       - Total a pago = Monto Hábil + Monto Sábado.
     """
     if filtered.empty:
@@ -102,6 +104,16 @@ def calculate_pago_tecnicos(filtered: pd.DataFrame) -> list:
     else:
         año_cal = None
         mes_cal = None
+
+    # Meta dinámica: 8 efectivas/día × días hábiles del mes visualizado.
+    # Fallback al legacy 160 cuando no se puede determinar el periodo.
+    if año_cal is not None and mes_cal is not None:
+        estructura = compute_estructura_mes(año_cal, mes_cal)
+        meta_efectivas = compute_meta_efectivas(estructura["total_habiles"])
+    else:
+        meta_efectivas = META_EFECTIVAS_MES
+    if meta_efectivas <= 0:
+        meta_efectivas = META_EFECTIVAS_MES
 
     df["_dia_mes"] = df["Fecha ejecución"].dt.day
     df["_año_mes_match"] = (
@@ -206,10 +218,10 @@ def calculate_pago_tecnicos(filtered: pd.DataFrame) -> list:
         (agg["efectivas_mes"] / agg["visitas_totales"] * 100).round(1),
         0.0,
     )
-    agg["cumple_meta"] = agg["efectivas_mes"] >= META_EFECTIVAS_MES
+    agg["cumple_meta"] = agg["efectivas_mes"] >= meta_efectivas
 
-    # Montos
-    valor_efectiva = agg["precio_base"] / META_EFECTIVAS_MES
+    # Montos (meta dinámica)
+    valor_efectiva = agg["precio_base"] / meta_efectivas
     monto_habil_raw = valor_efectiva * agg["efectivas_habiles"]
     agg["monto_habil"] = np.minimum(monto_habil_raw, agg["precio_base"]).round().astype(int)
     agg["monto_sabado"] = (valor_efectiva * agg["efectivas_sabado"]).round().astype(int)
@@ -250,6 +262,7 @@ def calculate_pago_tecnicos(filtered: pd.DataFrame) -> list:
             "monto_sabado": int(r["monto_sabado"]),
             "total_pago": int(r["total_pago"]),
             "cumple_meta": bool(r["cumple_meta"]),
+            "meta_efectivas": int(meta_efectivas),
             "dias_trabajados": list(r["dias_trabajados"]) if isinstance(r["dias_trabajados"], list) else [],
             "dias_trabajados_count": int(len(r["dias_trabajados"])) if isinstance(r["dias_trabajados"], list) else 0,
             "sabados_trabajados_count": int(r["sabados_trabajados_count"]),

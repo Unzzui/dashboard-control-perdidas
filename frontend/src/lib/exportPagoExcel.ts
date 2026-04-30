@@ -1,7 +1,9 @@
 import ExcelJS from 'exceljs';
 import { PagoTecnico, CalendarioMes } from '@/types';
 
-const META = 160;
+// Fallback estático. La meta real es dinámica: 8 ef/día × días hábiles del mes.
+const META_FALLBACK = 160;
+const EFECTIVAS_POR_DIA = 8;
 
 // Paleta alineada al CLAUDE.md
 const COLORS = {
@@ -55,6 +57,15 @@ export async function exportPagoExcel(
   wb.created = new Date();
   wb.title = scope === 'zona' ? `Pago ${zonaNombre}` : 'Pago Técnicos';
 
+  // Meta dinámica: viene del backend (8 ef/día × días hábiles del mes visualizado).
+  // Todos los técnicos comparten la misma meta dentro del mismo periodo.
+  const META =
+    pagoTecnicos[0]?.meta_efectivas ||
+    calendarioMes?.meta_efectivas ||
+    META_FALLBACK;
+  const diasHabiles = calendarioMes?.total_habiles ?? Math.round(META / EFECTIVAS_POR_DIA);
+  const periodoMes = calendarioMes ? `${calendarioMes.mes} ${calendarioMes.año}` : periodo;
+
   // -------------------------------------------------------------------------
   // Hoja 1: RESUMEN
   // -------------------------------------------------------------------------
@@ -79,7 +90,10 @@ export async function exportPagoExcel(
   const pagoPotencial = pagoTecnicos.reduce((a, t) => a + t.precio_base + t.monto_sabado, 0);
   const brechaTotal = Math.max(0, pagoPotencial - totalPago);
   const pctBrecha = pagoPotencial > 0 ? (brechaTotal / pagoPotencial) * 100 : 0;
-  const efFaltantes = pagoTecnicos.reduce((a, t) => a + Math.max(0, META - t.efectivas_habiles), 0);
+  const efFaltantes = pagoTecnicos.reduce(
+    (a, t) => a + Math.max(0, (t.meta_efectivas || META) - t.efectivas_habiles),
+    0,
+  );
 
   const wsResumen = wb.addWorksheet('Resumen', {
     pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1 },
@@ -98,7 +112,8 @@ export async function exportPagoExcel(
   wsResumen.getRow(1).height = 36;
 
   wsResumen.mergeCells('A2:G2');
-  wsResumen.getCell('A2').value = `Período: ${periodo}  ·  Meta ${META} efectivas/mes  ·  OCA Global · 1F`;
+  wsResumen.getCell('A2').value =
+    `Período: ${periodo}  ·  Meta dinámica ${META} ef. (${EFECTIVAS_POR_DIA} ef/día × ${diasHabiles} días hábiles${calendarioMes ? ` de ${periodoMes}` : ''})  ·  OCA Global · 1F`;
   wsResumen.getCell('A2').font = { name: 'Inter', size: 10, italic: true, color: { argb: COLORS.slate500 } };
   wsResumen.getCell('A2').fill = headerFill(COLORS.slate50);
   wsResumen.getCell('A2').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -438,7 +453,7 @@ export async function exportPagoExcel(
 
     items.forEach((t) => {
       const brecha = Math.max(0, t.precio_base + t.monto_sabado - t.total_pago);
-      const falt = Math.max(0, META - t.efectivas_habiles);
+      const falt = Math.max(0, (t.meta_efectivas || META) - t.efectivas_habiles);
       const vals: Array<{ v: string | number; fmt?: string; bold?: boolean; color?: string; bg?: string }> = [
         { v: t.nombre },
         { v: t.eecc },
@@ -869,15 +884,99 @@ export async function exportPagoExcel(
   }
 
   // -------------------------------------------------------------------------
-  // Hoja 4: METODOLOGÍA
+  // Hoja: RAW (todos los campos del cálculo, sin formato)
+  // -------------------------------------------------------------------------
+  const wsRaw = wb.addWorksheet('Raw', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+    views: [{ state: 'frozen', ySplit: 1 }],
+  });
+
+  type RawCol = {
+    key: string;
+    header: string;
+    fmt?: string;
+    width: number;
+    get: (t: PagoTecnico) => string | number | boolean;
+  };
+
+  const rawCols: RawCol[] = [
+    { key: 'nombre',                  header: 'Técnico',                width: 30, get: (t) => t.nombre },
+    { key: 'eecc',                    header: 'EECC',                   width: 12, get: (t) => t.eecc },
+    { key: 'ctta_tusan',              header: 'Ctta/Tusan',             width: 10, get: (t) => t.ctta_tusan },
+    { key: 'tipo_brigada',            header: 'Tipo Brigada',           width: 10, get: (t) => t.tipo_brigada },
+    { key: 'regional',                header: 'Regional',               width: 14, get: (t) => t.regional },
+    { key: 'zona',                    header: 'Zona',                   width: 26, get: (t) => t.zona },
+    { key: 'zona_precios',            header: 'Zona Precios',           width: 22, get: (t) => t.zona_precios },
+    { key: 'comuna',                  header: 'Comuna',                 width: 22, get: (t) => t.comuna },
+    { key: 'normales_mes',            header: 'Normales',               fmt: numFmt,   width: 10, get: (t) => t.normales_mes },
+    { key: 'cnr_medida_mes',          header: 'CNR Medida',             fmt: numFmt,   width: 10, get: (t) => t.cnr_medida_mes },
+    { key: 'cnr_intervencion_mes',    header: 'CNR Intervención',       fmt: numFmt,   width: 12, get: (t) => t.cnr_intervencion_mes },
+    { key: 'vf_cge_mes',              header: 'VF CGE',                 fmt: numFmt,   width: 10, get: (t) => t.vf_cge_mes },
+    { key: 'efectivas_mes',           header: 'Efectivas Mes',          fmt: numFmt,   width: 12, get: (t) => t.efectivas_mes },
+    { key: 'efectivas_habiles',       header: 'Efectivas Hábiles',      fmt: numFmt,   width: 14, get: (t) => t.efectivas_habiles },
+    { key: 'efectivas_sabado',        header: 'Efectivas Sábado',       fmt: numFmt,   width: 12, get: (t) => t.efectivas_sabado },
+    { key: 'pct_efectividad',         header: '% Efectividad',          fmt: '0.0"%"', width: 10, get: (t) => t.pct_efectividad },
+    { key: 'normales_sabado',         header: 'Norm Sábado',            fmt: numFmt,   width: 10, get: (t) => t.normales_sabado },
+    { key: 'cnr_medida_sabado',       header: 'CNR Med Sáb',            fmt: numFmt,   width: 10, get: (t) => t.cnr_medida_sabado },
+    { key: 'cnr_intervencion_sabado', header: 'CNR Int Sáb',            fmt: numFmt,   width: 10, get: (t) => t.cnr_intervencion_sabado },
+    { key: 'vf_cge_sabado',           header: 'VF CGE Sáb',             fmt: numFmt,   width: 10, get: (t) => t.vf_cge_sabado },
+    { key: 'meta_efectivas',          header: 'Meta Efectivas Mes',     fmt: numFmt,   width: 14, get: (t) => t.meta_efectivas || META },
+    { key: 'precio_base',             header: 'Precio Base',            fmt: moneyFmt, width: 14, get: (t) => t.precio_base },
+    { key: 'valor_efectiva',          header: 'Valor por Efectiva',     fmt: moneyFmt, width: 14, get: (t) => Math.round(t.precio_base / (t.meta_efectivas || META)) },
+    { key: 'monto_habil',             header: 'Monto Hábil',            fmt: moneyFmt, width: 14, get: (t) => t.monto_habil },
+    { key: 'monto_sabado',            header: 'Monto Sábado',           fmt: moneyFmt, width: 14, get: (t) => t.monto_sabado },
+    { key: 'total_pago',              header: 'Total a Pago',           fmt: moneyFmt, width: 16, get: (t) => t.total_pago },
+    { key: 'cumple_meta',             header: 'Cumple Meta',            width: 12, get: (t) => (t.cumple_meta ? 'Sí' : 'No') },
+    { key: 'brecha',                  header: 'Brecha No Pagada',       fmt: moneyFmt, width: 16, get: (t) => Math.max(0, t.precio_base + t.monto_sabado - t.total_pago) },
+    { key: 'ef_faltantes',            header: 'Ef. Faltantes',          fmt: numFmt,   width: 12, get: (t) => Math.max(0, (t.meta_efectivas || META) - t.efectivas_habiles) },
+    { key: 'dias_trabajados_count',   header: 'Días Trabajados',        fmt: numFmt,   width: 12, get: (t) => t.dias_trabajados_count ?? 0 },
+    { key: 'sabados_trabajados_count',header: 'Sábados Trabajados',     fmt: numFmt,   width: 14, get: (t) => t.sabados_trabajados_count ?? 0 },
+    { key: 'dias_trabajados',         header: 'Días Trab. (lista)',     width: 30, get: (t) => (t.dias_trabajados ?? []).join(', ') },
+    { key: 'concatenar',              header: 'Concatenar',             width: 36, get: (t) => t.concatenar },
+  ];
+
+  // Header
+  rawCols.forEach((col, i) => {
+    const cell = wsRaw.getCell(1, i + 1);
+    cell.value = col.header;
+    cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
+    cell.fill = headerFill(COLORS.slate800);
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    cell.border = border('thin', COLORS.slate200);
+    wsRaw.getColumn(i + 1).width = col.width;
+  });
+  wsRaw.getRow(1).height = 22;
+
+  // Filas
+  pagoTecnicos.forEach((t, idx) => {
+    const rr = idx + 2;
+    rawCols.forEach((col, i) => {
+      const cell = wsRaw.getCell(rr, i + 1);
+      cell.value = col.get(t);
+      if (col.fmt) cell.numFmt = col.fmt;
+      cell.font = { name: 'Inter', size: 9, color: { argb: COLORS.slate800 } };
+      cell.alignment = { vertical: 'middle', horizontal: typeof col.get(t) === 'number' ? 'right' : 'left' };
+      cell.border = border('thin', COLORS.slate100);
+    });
+  });
+
+  wsRaw.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: rawCols.length } };
+
+  // -------------------------------------------------------------------------
+  // Hoja: METODOLOGÍA
   // -------------------------------------------------------------------------
   const wsMeta = wb.addWorksheet('Metodología', {
     pageSetup: { paperSize: 9, orientation: 'portrait' },
   });
   wsMeta.getColumn(1).width = 100;
 
+  const sabadosCount = calendarioMes?.sabados.length ?? 0;
+  const feriadosCount = calendarioMes?.feriados.length ?? 0;
+  const diasMes = calendarioMes?.dias_en_mes ?? 0;
+
   const explicaciones: Array<{ title?: string; text?: string }> = [
     { title: 'Cálculo de Pago Mensual — Metodología' },
+    { text: `Periodo visualizado: ${periodoMes}` },
     { text: '' },
     { title: '1. Categorías clasificadas como efectivas' },
     { text: '   • Normales: Resultado de visita = "Normal".' },
@@ -885,27 +984,36 @@ export async function exportPagoExcel(
     { text: '   • CNR Intervención: Resultado = CNR, Tipo CNR = "CNR Hurto".' },
     { text: '   • VF CGE: Visita Fallida cuyo Resultado Final esté en {Sitio eriazo, Sin empalme, Desconectado en BT/MT, Sin acceso medidor*}.' },
     { text: '' },
-    { title: '2. Fórmulas' },
+    { title: '2. Meta dinámica del mes' },
+    { text: `   • Fórmula: Meta = ${EFECTIVAS_POR_DIA} efectivas/día × días hábiles del mes.` },
+    {
+      text: calendarioMes
+        ? `   • ${periodoMes}: ${diasMes} días − ${sabadosCount} sáb − ${calendarioMes.domingos.length} dom − ${feriadosCount} feriado(s) = ${diasHabiles} días hábiles.`
+        : `   • Días hábiles del periodo cargado: ${diasHabiles}.`,
+    },
+    { text: `   • Meta efectivas/mes = ${EFECTIVAS_POR_DIA} × ${diasHabiles} = ${META}.` },
+    { text: `   • Cumple Meta cuando Efectivas Mes ≥ ${META}.` },
+    { text: '   • La meta se recalcula automáticamente cada mes según su calendario real (sábados, domingos y feriados chilenos oficiales).' },
+    { text: '' },
+    { title: '3. Fórmulas de cálculo' },
     { text: `   • Efectivas Mes = Normales + CNR Medida + CNR Intervención + VF CGE.` },
     { text: `   • Efectivas Sábado = mismo cálculo restringido a sábados (dayofweek = 5).` },
     { text: `   • Efectivas Hábiles = Efectivas Mes − Efectivas Sábado.` },
-    { text: `   • Monto Hábil = Precio Base × (Efectivas Hábiles / ${META}), con tope en Precio Base.` },
-    { text: `   • Monto Sábado = (Precio Base / ${META}) × Efectivas Sábado.` },
+    { text: `   • Valor por efectiva = Precio Base / Meta = Precio Base / ${META}.` },
+    { text: `   • Monto Hábil = Valor por efectiva × Efectivas Hábiles, con tope en Precio Base.` },
+    { text: `   • Monto Sábado = Valor por efectiva × Efectivas Sábado (sin tope: pago extra por trabajo en sábado).` },
     { text: `   • Total a Pago = Monto Hábil + Monto Sábado.` },
     { text: '' },
-    { title: '3. Mapeo de zonas y precio' },
+    { title: '4. Mapeo de zonas y precio' },
     { text: '   • EECC = OCA Global, Tipo de Brigada = 1F, Ctta para todos los técnicos (provisional).' },
-    { text: '   • Precio Base se obtiene de precios_base.parquet usando (Zona origen del técnico, Comuna predominante).' },
-    { text: '' },
-    { title: '4. Meta' },
-    { text: `   • Meta mensual = ${META} efectivas (8 ef/día × 20 días hábiles).` },
-    { text: '   • Cumple Meta cuando Efectivas Mes ≥ 160.' },
+    { text: '   • Precio Base se obtiene de precios_base.parquet usando (Zona origen del técnico, Comuna predominante en su zona).' },
+    { text: '   • Si la comuna no se encuentra en la tabla de precios, se usa la mediana de la zona como fallback.' },
     { text: '' },
     { title: '5. Brecha por Incumplimiento' },
     { text: '   • Pago Potencial = Precio Base + Monto Sábado (asume que el técnico topea su monto hábil).' },
     { text: '   • Brecha NO Pagada = max(0, Pago Potencial − Total a Pago real).' },
-    { text: '   • Equivale a: Precio Base − Monto Hábil actual (cuando Efectivas Hábiles < 160).' },
-    { text: `   • Ef. Faltantes = max(0, ${META} − Efectivas Hábiles): número de efectivas adicionales necesarias para topear.` },
+    { text: `   • Equivale a: Precio Base − Monto Hábil actual (cuando Efectivas Hábiles < ${META}).` },
+    { text: `   • Ef. Faltantes = max(0, ${META} − Efectivas Hábiles): efectivas adicionales necesarias para topear.` },
     { text: '   • Este indicador muestra cuánto NO se paga al contratista por no llegar al máximo mensual.' },
     { text: '' },
     { title: '6. Calendario Operativo de Brigadas' },
@@ -914,6 +1022,10 @@ export async function exportPagoExcel(
     { text: '   • Totales por brigada: Días Trab (hábiles trabajados — L–V), Sáb Trab (sábados, métrica aparte) y Faltas (hábiles no trabajados). Trab + Faltas = hábiles transcurridos. Sábados NO cuentan como falta.' },
     { text: '   • Pie: número de brigadas operativas por cada día del mes visualizado.' },
     { text: '   • Mes visualizado: el último mes del período filtrado con al menos un registro.' },
+    { text: '' },
+    { title: '7. Hoja Raw' },
+    { text: '   • Volcado plano de todos los técnicos seleccionados con cada campo del cálculo.' },
+    { text: '   • Sin formato ni agrupaciones: pensada para análisis adicional (filtros, pivotes, fórmulas).' },
   ];
 
   let mr = 1;

@@ -20,5 +20,5 @@ def calculate_visitas_fallidas(filtered: pd.DataFrame) -> list:
             "pct_contratista": (r_contratista / total_resp * 100) if total_resp > 0 else 0,
             "total": total_resp,
         })
-    vf_resp_data = sorted(vf_resp_data, key=lambda x: x['total'], reverse=True)[:20]
+    vf_resp_data = sorted(vf_resp_data, key=lambda x: x['total'], reverse=True)
     return vf_resp_data

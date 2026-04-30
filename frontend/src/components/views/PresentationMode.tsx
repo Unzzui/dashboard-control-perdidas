@@ -12,24 +12,51 @@ interface PresentationModeProps {
   filters: Filters;
 }
 
-// Metas
-const META_EFECTIVAS_MES = 160;
+// Metas. La meta mensual real es dinámica (8 ef/día × días hábiles del mes)
+// y viene del backend en `data.calendario_mes.meta_efectivas`.
+const META_EFECTIVAS_FALLBACK = 160;
 const META_EFECTIVAS_DIA = 8;
-const DIAS_HABILES_MES = 20;
 
 export default function PresentationMode({ data, filters }: PresentationModeProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const { setNormal } = useSidebar();
 
-  // Calcular días hábiles
+  // Días hábiles del mes visualizado, contados sobre el calendario real (sáb/dom/feriados CL).
   const diasInfo = useMemo(() => {
+    const cal = data.calendario_mes;
+    if (!cal) {
+      return {
+        diaActual: new Date().getDate(),
+        diasHabilesTranscurridos: 0,
+        diasHabilesRestantes: 0,
+        totalHabiles: 0,
+        metaEfectivas: META_EFECTIVAS_FALLBACK,
+      };
+    }
     const hoy = new Date();
-    const diaActual = hoy.getDate();
-    const diasHabilesTranscurridos = Math.round(diaActual * 0.7);
-    const diasHabilesRestantes = Math.max(0, DIAS_HABILES_MES - diasHabilesTranscurridos);
-    return { diaActual, diasHabilesTranscurridos, diasHabilesRestantes };
-  }, []);
+    const esMesActualCal = cal.año === hoy.getFullYear() && cal.numero_mes === hoy.getMonth() + 1;
+    const esMesPasado =
+      cal.año < hoy.getFullYear() ||
+      (cal.año === hoy.getFullYear() && cal.numero_mes < hoy.getMonth() + 1);
+    const ultimoDiaTranscurrido = esMesActualCal ? hoy.getDate() : esMesPasado ? cal.dias_en_mes : 0;
+
+    const sabados = new Set(cal.sabados);
+    const domingos = new Set(cal.domingos);
+    const feriados = new Set(cal.feriados);
+
+    let transcurridos = 0;
+    for (let d = 1; d <= ultimoDiaTranscurrido; d++) {
+      if (!sabados.has(d) && !domingos.has(d) && !feriados.has(d)) transcurridos += 1;
+    }
+    return {
+      diaActual: hoy.getDate(),
+      diasHabilesTranscurridos: transcurridos,
+      diasHabilesRestantes: Math.max(0, cal.total_habiles - transcurridos),
+      totalHabiles: cal.total_habiles,
+      metaEfectivas: cal.meta_efectivas ?? META_EFECTIVAS_FALLBACK,
+    };
+  }, [data.calendario_mes]);
 
   // Procesar datos de brigadas con proyección y VF calculado
   const brigadasData = useMemo(() => {
@@ -38,16 +65,16 @@ export default function PresentationMode({ data, filters }: PresentationModeProp
       // Calcular VF desde visitas_totales y pct_visitas_fallidas
       const visita_fallida = Math.round(t.visitas_totales * t.pct_visitas_fallidas / 100);
       let estado: 'cumplida' | 'en_camino' | 'no_alcanzara';
-      if (t.efectivas >= META_EFECTIVAS_MES) {
+      if (t.efectivas >= diasInfo.metaEfectivas) {
         estado = 'cumplida';
-      } else if (diasInfo.diasHabilesRestantes > 0 && proyeccion >= META_EFECTIVAS_MES) {
+      } else if (diasInfo.diasHabilesRestantes > 0 && proyeccion >= diasInfo.metaEfectivas) {
         estado = 'en_camino';
       } else {
         estado = 'no_alcanzara';
       }
       return { ...t, proyeccion, estado, visita_fallida };
     });
-  }, [data.tecnicos, diasInfo.diasHabilesRestantes]);
+  }, [data.tecnicos, diasInfo.diasHabilesRestantes, diasInfo.metaEfectivas]);
 
   // Agrupar por zona
   const zonas = useMemo(() => {
@@ -230,6 +257,8 @@ interface DiasInfo {
   diaActual: number;
   diasHabilesTranscurridos: number;
   diasHabilesRestantes: number;
+  totalHabiles: number;
+  metaEfectivas: number;
 }
 
 function SlideCover({ periodoTexto, diasInfo, totalZonas, totalBrigadas }: {
@@ -288,7 +317,7 @@ function SlideCover({ periodoTexto, diasInfo, totalZonas, totalBrigadas }: {
 
         <div className="inline-flex items-center gap-4 bg-slate-100 px-6 py-3 rounded-full">
           <span className="text-slate-600 text-sm">Meta mensual:</span>
-          <span className="text-lg font-bold text-oca-blue">{META_EFECTIVAS_MES} efectivas</span>
+          <span className="text-lg font-bold text-oca-blue">{diasInfo.metaEfectivas} efectivas</span>
           <span className="text-slate-400">|</span>
           <span className="text-slate-600 text-sm">Meta diaria:</span>
           <span className="text-lg font-bold text-oca-blue">{META_EFECTIVAS_DIA} efectivas</span>
@@ -403,12 +432,12 @@ function SlideResumen({ data, zonas, diasInfo }: {
           <div className="bg-white rounded-lg p-4 border border-slate-200">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] uppercase tracking-wider text-slate-400">Avance del Mes</p>
-              <p className="text-sm font-bold text-oca-blue">{diasInfo.diasHabilesTranscurridos}/{DIAS_HABILES_MES}</p>
+              <p className="text-sm font-bold text-oca-blue">{diasInfo.diasHabilesTranscurridos}/{diasInfo.totalHabiles}</p>
             </div>
             <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-oca-blue rounded-full"
-                style={{ width: `${(diasInfo.diasHabilesTranscurridos / DIAS_HABILES_MES) * 100}%` }}
+                style={{ width: `${diasInfo.totalHabiles > 0 ? (diasInfo.diasHabilesTranscurridos / diasInfo.totalHabiles) * 100 : 0}%` }}
               />
             </div>
             <p className="text-xs text-green-600 mt-2 font-medium">{diasInfo.diasHabilesRestantes} días hábiles restantes</p>
@@ -417,7 +446,7 @@ function SlideResumen({ data, zonas, diasInfo }: {
           {/* Meta */}
           <div className="bg-oca-blue/5 rounded-lg p-4 border border-oca-blue/20">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Meta por Brigada</p>
-            <p className="text-3xl font-bold text-oca-blue">{META_EFECTIVAS_MES}</p>
+            <p className="text-3xl font-bold text-oca-blue">{diasInfo.metaEfectivas}</p>
             <p className="text-xs text-slate-500 mt-1">{META_EFECTIVAS_DIA} efectivas/día</p>
           </div>
         </div>
@@ -641,7 +670,7 @@ function SlideZona({ zonaData, diasInfo, dailyZona, resultadosFallidosZona }: { 
     grid: { left: '3%', right: '4%', bottom: '3%', top: '3%', containLabel: true },
     xAxis: {
       type: 'value',
-      max: META_EFECTIVAS_MES,
+      max: diasInfo.metaEfectivas,
       axisLabel: { color: '#64748b', fontSize: 10 },
       splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } }
     },
@@ -773,9 +802,9 @@ function SlideZona({ zonaData, diasInfo, dailyZona, resultadosFallidosZona }: { 
                 <p className="text-[10px] uppercase tracking-wider text-slate-400">Q Acumulado</p>
                 <p className="text-2xl font-bold mt-1 text-slate-800">{totalEfectivas}</p>
                 <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-oca-blue rounded-full" style={{ width: `${Math.min(100, (totalEfectivas / (total * META_EFECTIVAS_MES)) * 100)}%` }} />
+                  <div className="h-full bg-oca-blue rounded-full" style={{ width: `${Math.min(100, (totalEfectivas / (total * diasInfo.metaEfectivas)) * 100)}%` }} />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">{((totalEfectivas / (total * META_EFECTIVAS_MES)) * 100).toFixed(0)}% de meta ({total * META_EFECTIVAS_MES})</p>
+                <p className="text-[10px] text-slate-400 mt-1">{((totalEfectivas / (total * diasInfo.metaEfectivas)) * 100).toFixed(0)}% de meta ({total * diasInfo.metaEfectivas})</p>
               </div>
 
               {/* Avance del mes */}
@@ -785,13 +814,13 @@ function SlideZona({ zonaData, diasInfo, dailyZona, resultadosFallidosZona }: { 
                     {mesCompleto ? 'Mes Completado' : 'Avance del Mes'}
                   </p>
                   <p className={`text-sm font-bold ${mesCompleto ? 'text-green-600' : 'text-oca-blue'}`}>
-                    {diasInfo.diasHabilesTranscurridos}/{DIAS_HABILES_MES}
+                    {diasInfo.diasHabilesTranscurridos}/{diasInfo.totalHabiles}
                   </p>
                 </div>
                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full ${mesCompleto ? 'bg-green-500' : 'bg-oca-blue'}`}
-                    style={{ width: `${(diasInfo.diasHabilesTranscurridos / DIAS_HABILES_MES) * 100}%` }}
+                    style={{ width: `${diasInfo.totalHabiles > 0 ? (diasInfo.diasHabilesTranscurridos / diasInfo.totalHabiles) * 100 : 0}%` }}
                   />
                 </div>
                 {!mesCompleto && <p className="text-[10px] text-green-600 mt-1">{diasInfo.diasHabilesRestantes} días restantes</p>}
@@ -813,7 +842,7 @@ function SlideZona({ zonaData, diasInfo, dailyZona, resultadosFallidosZona }: { 
                   <p className="text-slate-400 text-sm">Sin brigadas críticas</p>
                 </div>
               )}
-              <p className="text-[10px] text-slate-400 mt-2 text-center">Acumulado vs Meta ({META_EFECTIVAS_MES})</p>
+              <p className="text-[10px] text-slate-400 mt-2 text-center">Acumulado vs Meta ({diasInfo.metaEfectivas})</p>
             </div>
 
             {/* Tabla resumen brigadas */}
@@ -851,7 +880,7 @@ function SlideZona({ zonaData, diasInfo, dailyZona, resultadosFallidosZona }: { 
                           ${((b.efectivas * 25000) / 1000000).toFixed(1)}M
                         </td>
                         <td className="px-2 py-2 text-center">
-                          <span className={(mesCompleto ? b.efectivas : b.proyeccion) >= META_EFECTIVAS_MES ? 'text-green-600' : 'text-red-500'}>
+                          <span className={(mesCompleto ? b.efectivas : b.proyeccion) >= diasInfo.metaEfectivas ? 'text-green-600' : 'text-red-500'}>
                             {mesCompleto ? b.efectivas : b.proyeccion}
                           </span>
                         </td>
@@ -883,10 +912,10 @@ function SlideZona({ zonaData, diasInfo, dailyZona, resultadosFallidosZona }: { 
                 <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-green-500 rounded-full"
-                    style={{ width: `${Math.min(100, (totalEfectivas / (total * META_EFECTIVAS_MES)) * 100)}%` }}
+                    style={{ width: `${Math.min(100, (totalEfectivas / (total * diasInfo.metaEfectivas)) * 100)}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">{((totalEfectivas / (total * META_EFECTIVAS_MES)) * 100).toFixed(1)}% de meta zona</p>
+                <p className="text-[10px] text-slate-400 mt-1">{((totalEfectivas / (total * diasInfo.metaEfectivas)) * 100).toFixed(1)}% de meta zona</p>
               </div>
 
               <div className="bg-white rounded-lg p-4 border border-slate-200">
@@ -1126,7 +1155,7 @@ function SlideZona({ zonaData, diasInfo, dailyZona, resultadosFallidosZona }: { 
                       <td className="px-2 py-2.5 text-center text-cyan-600">{(b.kwh_estimado / 1000).toFixed(0)}k</td>
                       <td className="px-2 py-2.5 text-center text-amber-600">{b.visita_fallida || 0}</td>
                       <td className="px-2 py-2.5 text-center">
-                        <span className={`font-semibold ${b.proyeccion >= META_EFECTIVAS_MES ? 'text-green-600' : 'text-red-500'}`}>
+                        <span className={`font-semibold ${b.proyeccion >= diasInfo.metaEfectivas ? 'text-green-600' : 'text-red-500'}`}>
                           {b.proyeccion}
                         </span>
                       </td>

@@ -9,6 +9,18 @@ echo ""
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# --- Detectar IPs para acceso LAN (WSL2) ---
+# IP de la VM WSL2 (necesaria para el comando netsh portproxy en Windows).
+WSL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+
+# IP LAN del host Windows (la que verán los dispositivos en la WiFi).
+# Permite override manual: LAN_IP=192.168.1.50 ./start.sh
+if [ -z "$LAN_IP" ]; then
+    LAN_IP=$(powershell.exe -NoProfile -Command \
+        "(Get-NetIPConfiguration | Where-Object { \$_.IPv4DefaultGateway -ne \$null -and \$_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1).IPv4Address.IPAddress" \
+        2>/dev/null | tr -d '\r\n ')
+fi
+
 # Verificar que existen las carpetas
 if [ ! -d "backend" ]; then
     echo "ERROR: No se encontro la carpeta backend"
@@ -101,10 +113,11 @@ if [ ! -f "$SCRIPT_DIR/frontend/.env.local" ]; then
 fi
 
 # --- Iniciar Frontend ---
+# -H 0.0.0.0 hace que Next.js escuche en todas las interfaces (necesario para LAN).
 echo ""
-echo "[3/3] Iniciando Frontend (Next.js) en puerto 3000..."
+echo "[3/3] Iniciando Frontend (Next.js) en puerto 3000 (host 0.0.0.0)..."
 cd "$SCRIPT_DIR/frontend"
-npx next dev --port 3000 &
+npx next dev --port 3000 -H 0.0.0.0 &
 FRONTEND_PID=$!
 cd "$SCRIPT_DIR"
 
@@ -124,9 +137,29 @@ echo "========================================"
 echo "  Servicios iniciados correctamente"
 echo "========================================"
 echo ""
-echo "  Backend:  http://localhost:8000  (PID $BACKEND_PID)"
-echo "  API Docs: http://localhost:8000/docs"
-echo "  Frontend: http://localhost:3000  (PID $FRONTEND_PID)"
+echo "  Local (este equipo):"
+echo "    Backend:  http://localhost:8000  (PID $BACKEND_PID)"
+echo "    API Docs: http://localhost:8000/docs"
+echo "    Frontend: http://localhost:3000  (PID $FRONTEND_PID)"
+echo ""
+
+if [ -n "$LAN_IP" ]; then
+    echo "  Acceso LAN (compartir en la misma WiFi):"
+    echo "    http://${LAN_IP}:3000"
+    echo ""
+    echo "  >>> Si es la primera vez (o cambió la IP de WSL), ejecuta UNA VEZ"
+    echo "      en PowerShell de Windows COMO ADMINISTRADOR:"
+    echo ""
+    echo "      netsh interface portproxy reset"
+    echo "      netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=${WSL_IP}"
+    echo "      New-NetFirewallRule -DisplayName 'WSL Dashboard 3000' -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow"
+    echo ""
+    echo "      (IP WSL detectada: ${WSL_IP})"
+else
+    echo "  Acceso LAN: no se pudo detectar la IP del host Windows."
+    echo "    Re-ejecuta con override:  LAN_IP=192.168.x.y ./start.sh"
+fi
+
 echo ""
 echo "  Presiona Ctrl+C para detener ambos"
 echo "========================================"
