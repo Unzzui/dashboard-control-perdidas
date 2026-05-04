@@ -7,6 +7,8 @@ import {
   createAnalista,
   updateAnalista,
   setAnalistaActivo,
+  deleteAnalista,
+  getUsoAnalista,
 } from '@/lib/api/analistas';
 
 const CARGO_PLACEHOLDER = '— Selecciona —';
@@ -283,6 +285,9 @@ function FormularioEditar({
   const [correo, setCorreo] = useState(analista.correo ?? '');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mostrarEliminar, setMostrarEliminar] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+  const [usoCount, setUsoCount] = useState<number | null>(null);
 
   const correoValido = correo === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
   const valido = correoValido;
@@ -302,6 +307,29 @@ function FormularioEditar({
       setError('No se pudo guardar los cambios.');
     } finally {
       setEnviando(false);
+    }
+  };
+
+  const handleAbrirEliminar = async () => {
+    setMostrarEliminar(true);
+    setError(null);
+    try {
+      const u = await getUsoAnalista(analista.id);
+      setUsoCount(u.justificaciones_registradas);
+    } catch {
+      setUsoCount(0);
+    }
+  };
+
+  const handleConfirmarEliminar = async () => {
+    setEliminando(true);
+    setError(null);
+    try {
+      await deleteAnalista(analista.id);
+      await onSaved();
+    } catch {
+      setError('No se pudo eliminar el analista.');
+      setEliminando(false);
     }
   };
 
@@ -373,23 +401,69 @@ function FormularioEditar({
             </p>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!valido || enviando}
-              className="px-3 py-1.5 text-sm bg-oca-blue text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {enviando ? 'Guardando…' : 'Guardar cambios'}
-            </button>
-          </div>
+          {!mostrarEliminar ? (
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={handleAbrirEliminar}
+                className="text-[11px] text-red-600 hover:text-red-700 hover:underline"
+              >
+                Eliminar analista
+              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!valido || enviando}
+                  className="px-3 py-1.5 text-sm bg-oca-blue text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {enviando ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded p-3 space-y-2">
+              <p className="text-xs text-red-800 font-semibold">¿Eliminar este analista?</p>
+              <p className="text-[11px] text-red-700">
+                {usoCount === null && 'Verificando uso…'}
+                {usoCount !== null && usoCount === 0 && (
+                  <>No tiene justificaciones registradas. Esta acción es permanente.</>
+                )}
+                {usoCount !== null && usoCount > 0 && (
+                  <>
+                    Tiene <strong>{usoCount}</strong> justificación{usoCount === 1 ? '' : 'es'}{' '}
+                    registrada{usoCount === 1 ? '' : 's'} a su nombre. Se conservarán como
+                    referencia histórica con el handle &ldquo;{analista.nombre}&rdquo;.
+                  </>
+                )}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmarEliminar}
+                  disabled={eliminando || usoCount === null}
+                  className="flex-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                >
+                  {eliminando ? 'Eliminando…' : 'Sí, eliminar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMostrarEliminar(false); setUsoCount(null); }}
+                  disabled={eliminando}
+                  className="flex-1 px-2 py-1 text-xs border border-slate-300 rounded"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -48,3 +48,13 @@ export function updateAnalista(id: number, payload: AnalistaUpdatePayload): Prom
 export function setAnalistaActivo(id: number, activo: boolean): Promise<Analista> {
   return updateAnalista(id, { activo: activo ? 1 : 0 });
 }
+
+export function deleteAnalista(id: number): Promise<void> {
+  return request(`/api/v1/analistas/${id}`, { method: 'DELETE' });
+}
+
+export function getUsoAnalista(
+  id: number
+): Promise<{ justificaciones_registradas: number }> {
+  return request(`/api/v1/analistas/${id}/uso`);
+}

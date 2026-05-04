@@ -110,6 +110,29 @@ def update_analista_perfil(
     return _get_analista_by_id(conn, analista_id)
 
 
+def delete_analista(conn: sqlite3.Connection, analista_id: int) -> None:
+    """
+    Borra un analista. Las justificaciones existentes conservan el handle
+    en `usuario_registro` como string histórico (no hay FK).
+    """
+    actual = _get_analista_by_id(conn, analista_id)
+    if actual is None:
+        raise AnalistaNoExisteError(analista_id)
+    conn.execute("DELETE FROM analistas WHERE id = ?", (analista_id,))
+    conn.commit()
+
+
+def count_justificaciones_por_analista(
+    conn: sqlite3.Connection, nombre: str
+) -> int:
+    """Cuenta justificaciones registradas por un analista (por handle)."""
+    row = conn.execute(
+        "SELECT COUNT(*) AS n FROM justificaciones WHERE usuario_registro = ?",
+        (nombre,),
+    ).fetchone()
+    return int(row["n"])
+
+
 def _get_analista_by_id(conn: sqlite3.Connection, analista_id: int) -> sqlite3.Row:
     return conn.execute(
         "SELECT * FROM analistas WHERE id = ?", (analista_id,)

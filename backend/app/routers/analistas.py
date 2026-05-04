@@ -64,6 +64,29 @@ def create_analista(
     return _row_to_dict(row)
 
 
+@router.get("/api/v1/analistas/{analista_id}/uso")
+def get_uso_analista(
+    analista_id: int, conn: sqlite3.Connection = Depends(get_conn_dep)
+):
+    """Devuelve métricas de uso para informar antes de eliminar."""
+    rows = repo.list_analistas(conn, solo_activos=False)
+    a = next((r for r in rows if r["id"] == analista_id), None)
+    if a is None:
+        raise HTTPException(status_code=404, detail="Analista no existe")
+    n = repo.count_justificaciones_por_analista(conn, a["nombre"])
+    return {"justificaciones_registradas": n}
+
+
+@router.delete("/api/v1/analistas/{analista_id}", status_code=204)
+def delete_analista(
+    analista_id: int, conn: sqlite3.Connection = Depends(get_conn_dep)
+):
+    try:
+        repo.delete_analista(conn, analista_id=analista_id)
+    except repo.AnalistaNoExisteError:
+        raise HTTPException(status_code=404, detail="Analista no existe")
+
+
 @router.patch("/api/v1/analistas/{analista_id}")
 def update_analista(
     analista_id: int,
