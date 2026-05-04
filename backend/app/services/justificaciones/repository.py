@@ -24,11 +24,19 @@ class AnalistaNoExisteError(Exception):
 # Analistas
 # ============================================================================
 
-def create_analista(conn: sqlite3.Connection, nombre: str) -> sqlite3.Row:
+def create_analista(
+    conn: sqlite3.Connection,
+    *,
+    nombre: str,
+    apellido: Optional[str] = None,
+    cargo: Optional[str] = None,
+    correo: Optional[str] = None,
+) -> sqlite3.Row:
     try:
         cur = conn.execute(
-            "INSERT INTO analistas (nombre) VALUES (?)",
-            (nombre,),
+            "INSERT INTO analistas (nombre, apellido, cargo, correo) "
+            "VALUES (?, ?, ?, ?)",
+            (nombre, apellido, cargo, correo),
         )
         conn.commit()
         return _get_analista_by_id(conn, cur.lastrowid)
@@ -58,11 +66,46 @@ def update_analista_activo(
     conn: sqlite3.Connection, analista_id: int, activo: bool
 ) -> sqlite3.Row:
     cur = conn.execute(
-        "UPDATE analistas SET activo = ? WHERE id = ?",
-        (1 if activo else 0, analista_id),
+        "UPDATE analistas SET activo = ?, updated_at = ? WHERE id = ?",
+        (1 if activo else 0, datetime.utcnow().isoformat(timespec="seconds"), analista_id),
     )
     if cur.rowcount == 0:
         raise AnalistaNoExisteError(analista_id)
+    conn.commit()
+    return _get_analista_by_id(conn, analista_id)
+
+
+def update_analista_perfil(
+    conn: sqlite3.Connection,
+    *,
+    analista_id: int,
+    apellido: Optional[str] = None,
+    cargo: Optional[str] = None,
+    correo: Optional[str] = None,
+) -> sqlite3.Row:
+    """
+    Actualiza campos de perfil (no nombre, no activo).
+    Pasa None para dejar un campo intacto. Para borrar, pasar string vacío.
+    """
+    actual = _get_analista_by_id(conn, analista_id)
+    if actual is None:
+        raise AnalistaNoExisteError(analista_id)
+
+    sets = []
+    params: list = []
+    for campo, valor in (("apellido", apellido), ("cargo", cargo), ("correo", correo)):
+        if valor is not None:
+            sets.append(f"{campo} = ?")
+            params.append(valor if valor != "" else None)
+    if not sets:
+        return actual
+
+    sets.append("updated_at = ?")
+    params.append(datetime.utcnow().isoformat(timespec="seconds"))
+    params.append(analista_id)
+    conn.execute(
+        f"UPDATE analistas SET {', '.join(sets)} WHERE id = ?", params,
+    )
     conn.commit()
     return _get_analista_by_id(conn, analista_id)
 

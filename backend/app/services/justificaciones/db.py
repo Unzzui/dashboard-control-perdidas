@@ -6,10 +6,14 @@ DB_PATH = Path(__file__).parent.parent.parent / "data" / "justificaciones.db"
 
 DDL = """
 CREATE TABLE IF NOT EXISTS analistas (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre      TEXT      NOT NULL UNIQUE,
+  id          INTEGER   PRIMARY KEY AUTOINCREMENT,
+  nombre      TEXT      NOT NULL UNIQUE,    -- handle inmutable (identidad para audit)
+  apellido    TEXT,
+  cargo       TEXT,
+  correo      TEXT,
   activo      INTEGER   NOT NULL DEFAULT 1,
-  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS justificaciones (
@@ -82,7 +86,27 @@ def init_db(conn: Optional[sqlite3.Connection] = None) -> None:
         conn = get_conn()
     try:
         conn.executescript(DDL)
+        _migrate_analistas_v2(conn)
         conn.commit()
     finally:
         if own_conn:
             conn.close()
+
+
+def _migrate_analistas_v2(conn: sqlite3.Connection) -> None:
+    """
+    Migración: agrega columnas apellido/cargo/correo/updated_at a tabla analistas
+    si fueron creadas con el schema v1 (solo nombre + activo). Idempotente.
+    """
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(analistas)")}
+    add = []
+    if "apellido" not in existing:
+        add.append("ALTER TABLE analistas ADD COLUMN apellido TEXT")
+    if "cargo" not in existing:
+        add.append("ALTER TABLE analistas ADD COLUMN cargo TEXT")
+    if "correo" not in existing:
+        add.append("ALTER TABLE analistas ADD COLUMN correo TEXT")
+    if "updated_at" not in existing:
+        add.append("ALTER TABLE analistas ADD COLUMN updated_at TIMESTAMP")
+    for stmt in add:
+        conn.execute(stmt)

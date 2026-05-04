@@ -1,8 +1,9 @@
 # backend/app/routers/analistas.py
 import sqlite3
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from app.services.justificaciones import repository as repo
 from app.services.justificaciones.db import get_conn
@@ -21,10 +22,17 @@ def get_conn_dep() -> sqlite3.Connection:
 
 class AnalistaCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
+    apellido: Optional[str] = Field(None, max_length=100)
+    cargo: Optional[str] = Field(None, max_length=80)
+    correo: Optional[str] = Field(None, max_length=200)
 
 
-class AnalistaUpdate(BaseModel):
-    activo: int = Field(..., ge=0, le=1)
+class AnalistaUpdatePerfil(BaseModel):
+    """PATCH parcial: campos no enviados quedan intactos. String vacío = limpiar."""
+    apellido: Optional[str] = Field(None, max_length=100)
+    cargo: Optional[str] = Field(None, max_length=80)
+    correo: Optional[str] = Field(None, max_length=200)
+    activo: Optional[int] = Field(None, ge=0, le=1)
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict:
@@ -44,7 +52,13 @@ def create_analista(
     payload: AnalistaCreate, conn: sqlite3.Connection = Depends(get_conn_dep)
 ):
     try:
-        row = repo.create_analista(conn, nombre=payload.nombre)
+        row = repo.create_analista(
+            conn,
+            nombre=payload.nombre,
+            apellido=payload.apellido,
+            cargo=payload.cargo,
+            correo=payload.correo,
+        )
     except repo.AnalistaDuplicadoError:
         raise HTTPException(status_code=409, detail="Analista ya existe")
     return _row_to_dict(row)
@@ -53,13 +67,29 @@ def create_analista(
 @router.patch("/api/v1/analistas/{analista_id}")
 def update_analista(
     analista_id: int,
-    payload: AnalistaUpdate,
+    payload: AnalistaUpdatePerfil,
     conn: sqlite3.Connection = Depends(get_conn_dep),
 ):
     try:
-        row = repo.update_analista_activo(
-            conn, analista_id=analista_id, activo=bool(payload.activo)
-        )
+        # 1) toggle activo si vino
+        if payload.activo is not None:
+            repo.update_analista_activo(
+                conn, analista_id=analista_id, activo=bool(payload.activo)
+            )
+        # 2) actualizar perfil si algún campo vino
+        if any(v is not None for v in (payload.apellido, payload.cargo, payload.correo)):
+            row = repo.update_analista_perfil(
+                conn,
+                analista_id=analista_id,
+                apellido=payload.apellido,
+                cargo=payload.cargo,
+                correo=payload.correo,
+            )
+        else:
+            row = repo.list_analistas(conn, solo_activos=False)
+            row = next((r for r in row if r["id"] == analista_id), None)
+            if row is None:
+                raise repo.AnalistaNoExisteError(analista_id)
     except repo.AnalistaNoExisteError:
         raise HTTPException(status_code=404, detail="Analista no existe")
     return _row_to_dict(row)

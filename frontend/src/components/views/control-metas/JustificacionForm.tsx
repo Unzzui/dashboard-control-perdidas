@@ -112,9 +112,13 @@ export default function JustificacionForm({
           onChange={(e) => setUsuario(e.target.value)}
         >
           <option value="">Selecciona analista</option>
-          {analistas.map(a => (
-            <option key={a.id} value={a.nombre}>{a.nombre}</option>
-          ))}
+          {analistas.map(a => {
+            const fullname = a.apellido ? `${a.nombre} ${a.apellido}` : a.nombre;
+            const label = a.cargo ? `${fullname} — ${a.cargo}` : fullname;
+            return (
+              <option key={a.id} value={a.nombre}>{label}</option>
+            );
+          })}
         </select>
       </div>
 

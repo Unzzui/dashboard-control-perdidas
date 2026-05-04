@@ -654,10 +654,25 @@ export interface Justificacion {
 
 export interface Analista {
   id: number;
-  nombre: string;
+  nombre: string;                  // handle inmutable (identidad para audit)
+  apellido: string | null;
+  cargo: string | null;
+  correo: string | null;
   activo: 0 | 1;
   created_at: string;
+  updated_at: string | null;
 }
+
+export const CARGOS_ANALISTA = [
+  'Analista',
+  'Jefe de Proyecto',
+  'Supervisor',
+  'Coordinador',
+  'Gerente',
+  'Administrador',
+  'Otro',
+] as const;
+export type CargoAnalista = typeof CARGOS_ANALISTA[number];
 
 export interface CatalogoMotivo {
   value: string;
