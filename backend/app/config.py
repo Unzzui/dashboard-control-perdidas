@@ -86,3 +86,60 @@ FERIADOS_CL: dict[int, set[tuple[int, int]]] = {
         (12, 25), # Navidad
     },
 }
+
+# ========================================================================
+# JUSTIFICACIONES (Fase 1)
+# ========================================================================
+
+UMBRAL_BAJA_PRODUCCION = 0.5  # 50% de meta diaria → < 4 efectivas con meta 8
+
+MOTIVOS_NO_TRABAJADO = [
+    "licencia_medica",
+    "permiso_administrativo",
+    "feriado_interno",
+    "falta_asignacion",
+    "problema_operativo",
+    "clima",
+    "vehiculo_no_disponible",
+    "falta_materiales",
+    "capacitacion",
+    "error_carga_datos",
+    "otro",
+]
+
+MOTIVOS_BAJA_PRODUCCION = [
+    "baja_asignacion",
+    "alta_dispersion_geografica",
+    "problemas_acceso",
+    "cliente_ausente",
+    "rechazo_terreno",
+    "clima",
+    "problemas_conectividad",
+    "problemas_app",
+    "traslados_excesivos",
+    "jornada_parcial",
+    "otro",
+]
+
+MOTIVOS_LABEL = {
+    "licencia_medica": "Licencia médica",
+    "permiso_administrativo": "Permiso administrativo",
+    "feriado_interno": "Feriado interno",
+    "falta_asignacion": "Falta de asignación",
+    "problema_operativo": "Problema operativo",
+    "clima": "Clima",
+    "vehiculo_no_disponible": "Vehículo no disponible",
+    "falta_materiales": "Falta de materiales",
+    "capacitacion": "Capacitación",
+    "error_carga_datos": "Error de carga de datos",
+    "otro": "Otro motivo",
+    "baja_asignacion": "Baja asignación de trabajo",
+    "alta_dispersion_geografica": "Alta dispersión geográfica",
+    "problemas_acceso": "Problemas de acceso",
+    "cliente_ausente": "Cliente ausente",
+    "rechazo_terreno": "Rechazo en terreno",
+    "problemas_conectividad": "Problemas de conectividad",
+    "problemas_app": "Problemas con la app",
+    "traslados_excesivos": "Traslados excesivos",
+    "jornada_parcial": "Jornada parcial",
+}
