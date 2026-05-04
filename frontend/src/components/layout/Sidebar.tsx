@@ -20,6 +20,7 @@ import {
   Clock,
   Target,
   Presentation,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -80,6 +81,12 @@ const menuSections: MenuSection[] = [
     items: [
       { id: 'detalle-aviso', label: 'Detalle Aviso', icon: Search },
       { id: 'mapa', label: 'Mapa Operaciones', icon: Map },
+    ],
+  },
+  {
+    title: 'Configuracion',
+    items: [
+      { id: 'analistas', label: 'Analistas', icon: Settings },
     ],
   },
 ];
