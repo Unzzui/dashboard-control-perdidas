@@ -626,3 +626,67 @@ export interface AlertasOperativasData {
   problemas_jornada: ProblemaJornada[];
   alta_visita_fallida: AltaVisitaFallida[];
 }
+
+// ============================================================================
+// Justificaciones (Fase 1)
+// ============================================================================
+
+export type TipoEventoJustificacion = 'dia_no_trabajado' | 'baja_produccion';
+export type EstadoAntesJustificacion = 'sin_trabajo' | 'baja_produccion';
+
+export interface Justificacion {
+  id: number;
+  fecha: string;                       // YYYY-MM-DD
+  tecnico_nombre: string;
+  zona_origen: string | null;
+  tipo_evento: TipoEventoJustificacion;
+  motivo: string;
+  comentario: string | null;
+  produccion_real: number;
+  meta_diaria: number;
+  estado_antes: EstadoAntesJustificacion;
+  estado_despues: 'justificado';
+  es_futuro: 0 | 1;
+  usuario_registro: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface Analista {
+  id: number;
+  nombre: string;
+  activo: 0 | 1;
+  created_at: string;
+}
+
+export interface CatalogoMotivo {
+  value: string;
+  label: string;
+}
+
+export interface CatalogosJustificacion {
+  motivos_no_trabajado: CatalogoMotivo[];
+  motivos_baja_produccion: CatalogoMotivo[];
+  umbral_baja_produccion: number;     // 0.5
+  meta_diaria: number;                // 8
+}
+
+export interface ResumenMesPersona {
+  dias_no_trabajados_total: number;
+  dias_no_trabajados_justificados: number;
+  dias_baja_produccion_total: number;
+  dias_baja_produccion_justificados: number;
+  dias_pendientes_justificar: number;
+  efectivas_totales: number;
+  efectivas_ajustadas: number;
+  cumplimiento_real: number;          // 0..1
+  cumplimiento_ajustado: number;      // 0..1
+}
+
+export interface AuditEntry {
+  accion: 'create' | 'update' | 'delete';
+  snapshot_json: Record<string, unknown>;
+  diff_json: Record<string, { antes: unknown; despues: unknown }> | null;
+  usuario: string;
+  created_at: string;
+}
