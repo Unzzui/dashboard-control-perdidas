@@ -39,6 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_just_motivo      ON justificaciones(motivo);
 
 CREATE TABLE IF NOT EXISTS justificaciones_audit (
   id                INTEGER  PRIMARY KEY AUTOINCREMENT,
+  -- Sin FOREIGN KEY a propósito: el audit debe sobrevivir al DELETE de la justificación.
   justificacion_id  INTEGER  NOT NULL,
   accion            TEXT     NOT NULL CHECK (accion IN ('create','update','delete')),
   snapshot_json     TEXT     NOT NULL,
@@ -68,6 +69,12 @@ def init_db(conn: Optional[sqlite3.Connection] = None) -> None:
     """
     Crea las tablas si no existen. Idempotente.
     Si conn es None, abre y cierra una conexión nueva.
+
+    Nota: executescript() emite un COMMIT implícito sobre la conexión antes de
+    correr el DDL. Llamar init_db con una conexión que tiene cambios pendientes
+    los confirmará como efecto colateral. En la práctica solo se invoca al
+    startup (con conexión propia) o desde fixtures de test (conexión recién
+    creada), por lo que es seguro.
     """
     own_conn = conn is None
     if own_conn:

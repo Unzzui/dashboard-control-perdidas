@@ -1,3 +1,10 @@
+import sqlite3
+
+import pytest
+
+from app.services.justificaciones.db import init_db
+
+
 def test_init_db_creates_all_tables(conn):
     rows = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
@@ -9,7 +16,6 @@ def test_init_db_creates_all_tables(conn):
 
 
 def test_init_db_is_idempotent(conn):
-    from app.services.justificaciones.db import init_db
     # Ejecutar una segunda vez no debe fallar
     init_db(conn=conn)
     init_db(conn=conn)
@@ -29,8 +35,6 @@ def test_unique_tecnico_fecha_constraint(conn):
          0, 8, "sin_trabajo", "diego.bravo")
     )
     conn.commit()
-    import sqlite3
-    import pytest
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
             "INSERT INTO justificaciones (fecha, tecnico_nombre, tipo_evento, motivo, "
@@ -39,4 +43,3 @@ def test_unique_tecnico_fecha_constraint(conn):
             ("2026-05-07", "JAIRO PEREZ", "dia_no_trabajado", "clima",
              0, 8, "sin_trabajo", "diego.bravo")
         )
-        conn.commit()
