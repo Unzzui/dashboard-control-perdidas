@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Filters, AnalisisJornadaMensual as AnalisisJornadaMensualData, JornadaZonaMensual } from '@/types';
+import { Filters, AnalisisJornadaMensual as AnalisisJornadaMensualData, JornadaZonaMensual, SeveridadJornada } from '@/types';
 import { getAnalisisJornadaMensual } from '@/lib/api/jornada';
 import JornadaTecnicoModal from './jornada/JornadaTecnicoModal';
 
@@ -21,6 +21,7 @@ export default function AnalisisJornadaMensual({ filters }: Props) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const [soloOutliers, setSoloOutliers] = useState(false);
   const [tecnicoSeleccionado, setTecnicoSeleccionado] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,14 +39,29 @@ export default function AnalisisJornadaMensual({ filters }: Props) {
   const zonasFiltradas = useMemo(() => {
     if (!data) return [];
     const term = busqueda.trim().toLowerCase();
-    if (!term) return data.por_zona;
     return data.por_zona
       .map((z) => ({
         ...z,
-        tecnicos_detalle: z.tecnicos_detalle.filter((t) => t.nombre.toLowerCase().includes(term)),
+        tecnicos_detalle: z.tecnicos_detalle.filter((t) => {
+          if (term && !t.nombre.toLowerCase().includes(term)) return false;
+          if (soloOutliers && t.severidad !== 'critico' && t.severidad !== 'alerta') return false;
+          return true;
+        }),
       }))
       .filter((z) => z.tecnicos_detalle.length > 0);
-  }, [data, busqueda]);
+  }, [data, busqueda, soloOutliers]);
+
+  const totalesOutliers = useMemo(() => {
+    if (!data) return { criticos: 0, alertas: 0, destacados: 0 };
+    return data.por_zona.reduce(
+      (acc, z) => ({
+        criticos: acc.criticos + z.criticos,
+        alertas: acc.alertas + z.alertas,
+        destacados: acc.destacados + z.tecnicos_detalle.filter((t) => t.severidad === 'destacado').length,
+      }),
+      { criticos: 0, alertas: 0, destacados: 0 },
+    );
+  }, [data]);
 
   if (cargando) {
     return (
@@ -87,14 +103,62 @@ export default function AnalisisJornadaMensual({ filters }: Props) {
           <span className="font-medium text-slate-700">{data.periodo}</span> ·{' '}
           {data.total_jornadas.toLocaleString('es-CL')} jornadas · {data.total_tecnicos} técnicos · {data.por_zona.length} zonas
         </p>
-        <input
-          type="text"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar técnico…"
-          className="text-[11px] px-3 py-1 border border-slate-200 rounded focus:outline-none focus:border-oca-blue w-56"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar técnico…"
+            className="text-[11px] px-3 py-1 border border-slate-200 rounded focus:outline-none focus:border-oca-blue w-56"
+          />
+          <button
+            type="button"
+            onClick={() => setSoloOutliers(!soloOutliers)}
+            disabled={totalesOutliers.criticos + totalesOutliers.alertas === 0}
+            className={`text-[11px] px-3 py-1 rounded border transition-colors ${
+              soloOutliers
+                ? 'bg-red-100 border-red-300 text-red-800 hover:bg-red-200'
+                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+            } ${totalesOutliers.criticos + totalesOutliers.alertas === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Filtra técnicos con desempeño crítico o en alerta vs su zona"
+          >
+            {soloOutliers ? 'Mostrando solo casos a revisar' : `Solo casos a revisar (${totalesOutliers.criticos + totalesOutliers.alertas})`}
+          </button>
+        </div>
       </div>
+
+      {/* Banner de outliers */}
+      {(totalesOutliers.criticos > 0 || totalesOutliers.alertas > 0) && (
+        <div className="bg-white border border-slate-200/60 rounded-lg p-3 flex items-center gap-4 flex-wrap">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+            Detección de outliers (vs su zona):
+          </div>
+          {totalesOutliers.criticos > 0 && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
+              <span className="font-bold text-red-700">{totalesOutliers.criticos}</span>
+              <span className="text-slate-600">críticos</span>
+            </div>
+          )}
+          {totalesOutliers.alertas > 0 && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+              <span className="font-bold text-amber-700">{totalesOutliers.alertas}</span>
+              <span className="text-slate-600">en alerta</span>
+            </div>
+          )}
+          {totalesOutliers.destacados > 0 && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="font-bold text-emerald-700">{totalesOutliers.destacados}</span>
+              <span className="text-slate-600">destacados (sobre el promedio)</span>
+            </div>
+          )}
+          <p className="text-[10px] text-slate-400 ml-auto italic">
+            Z-score por zona: |z|&gt;1 crítico · |z|&gt;0.5 alerta. Compara productividad y % jornadas cortas.
+          </p>
+        </div>
+      )}
 
       {/* KPIs globales */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -212,6 +276,16 @@ function ZonaCard({
           <span className="text-[10px] text-slate-300">
             {zona.tecnicos} {zona.tecnicos === 1 ? 'técnico' : 'técnicos'} · {zona.dias_trabajados} días · {zona.actividades_total.toLocaleString('es-CL')} act.
           </span>
+          {zona.criticos > 0 && (
+            <span className="text-[10px] bg-red-500/20 text-red-200 px-1.5 py-0.5 rounded font-semibold">
+              {zona.criticos} crítico{zona.criticos > 1 ? 's' : ''}
+            </span>
+          )}
+          {zona.alertas > 0 && (
+            <span className="text-[10px] bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded font-semibold">
+              {zona.alertas} alerta{zona.alertas > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3 text-[10px]">
           <Pill label="Jornada" value={formatDuracion(zona.duracion_promedio_min)} />
@@ -227,29 +301,45 @@ function ZonaCard({
           <table className="w-full text-[11px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500 w-8">●</th>
                 <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-slate-500">Técnico</th>
                 <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Días</th>
-                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500">Inicio prom.</th>
-                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500">Fin prom.</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Jornada prom.</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Act. total</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Act/día</th>
+                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500">Inicio</th>
+                <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase text-slate-500">Fin</th>
+                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Jornada</th>
+                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Act. tot</th>
                 <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Prod/h</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Cortas</th>
+                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-400">Δ vs zona</th>
                 <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">% Cortas</th>
+                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-400">Δ vs zona</th>
               </tr>
             </thead>
             <tbody>
               {zona.tecnicos_detalle.map((t) => {
-                const pctTone = t.pct_jornadas_cortas > 30 ? 'text-red-600' : t.pct_jornadas_cortas > 15 ? 'text-amber-600' : 'text-emerald-600';
-                const prodTone = t.productividad_promedio >= 5 ? 'text-emerald-600' : t.productividad_promedio >= 3 ? 'text-slate-700' : 'text-red-600';
+                const rowBg =
+                  t.severidad === 'critico' ? 'bg-red-50/60' :
+                  t.severidad === 'alerta' ? 'bg-amber-50/40' : '';
+                const dotColor =
+                  t.severidad === 'critico' ? 'bg-red-500' :
+                  t.severidad === 'alerta' ? 'bg-amber-500' :
+                  t.severidad === 'destacado' ? 'bg-emerald-500' : 'bg-slate-200';
                 return (
                   <tr
                     key={t.nombre}
                     onClick={() => onSeleccionarTecnico(t.nombre)}
-                    className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
+                    className={`border-b border-slate-100 hover:bg-slate-100/60 cursor-pointer ${rowBg}`}
                     title="Click para ver detalle día a día"
                   >
+                    <td className="px-2 py-1.5 text-center">
+                      <span
+                        className={`inline-block w-2 h-2 rounded-full ${dotColor}`}
+                        title={
+                          t.severidad === 'critico' ? `Crítico vs zona (prod ${t.productividad_status}, cortas ${t.jornadas_cortas_status})` :
+                          t.severidad === 'alerta' ? `En alerta vs zona (prod ${t.productividad_status}, cortas ${t.jornadas_cortas_status})` :
+                          t.severidad === 'destacado' ? 'Destacado sobre el promedio de su zona' : 'En rango normal'
+                        }
+                      />
+                    </td>
                     <td className="px-3 py-1.5 font-medium text-slate-800 truncate max-w-[200px]" title={t.nombre}>{t.nombre}</td>
                     <td className="px-2 py-1.5 text-right text-slate-700 tabular-nums">{t.dias_trabajados}</td>
                     <td className="px-2 py-1.5 text-center">
@@ -264,10 +354,18 @@ function ZonaCard({
                     </td>
                     <td className="px-2 py-1.5 text-right text-slate-700 tabular-nums">{formatDuracion(t.duracion_promedio_min)}</td>
                     <td className="px-2 py-1.5 text-right text-slate-600 tabular-nums">{t.actividades_total.toLocaleString('es-CL')}</td>
-                    <td className="px-2 py-1.5 text-right text-slate-600 tabular-nums">{t.actividades_promedio.toFixed(1)}</td>
-                    <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${prodTone}`}>{t.productividad_promedio.toFixed(1)}</td>
-                    <td className="px-2 py-1.5 text-right text-slate-700 tabular-nums">{t.jornadas_cortas}</td>
-                    <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${pctTone}`}>{t.pct_jornadas_cortas}%</td>
+                    <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${toneByStatus(t.productividad_status)}`}>
+                      {t.productividad_promedio.toFixed(1)}
+                    </td>
+                    <td className={`px-2 py-1.5 text-right text-[10px] tabular-nums ${deltaTone(t.delta_productividad_pct, false)}`}>
+                      {formatDelta(t.delta_productividad_pct, '%')}
+                    </td>
+                    <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${toneByStatus(t.jornadas_cortas_status)}`}>
+                      {t.pct_jornadas_cortas}%
+                    </td>
+                    <td className={`px-2 py-1.5 text-right text-[10px] tabular-nums ${deltaTone(t.delta_jornadas_cortas_pp, true)}`}>
+                      {formatDelta(t.delta_jornadas_cortas_pp, 'pp')}
+                    </td>
                   </tr>
                 );
               })}
@@ -277,6 +375,30 @@ function ZonaCard({
       )}
     </div>
   );
+}
+
+function toneByStatus(status: SeveridadJornada): string {
+  switch (status) {
+    case 'critico': return 'text-red-700';
+    case 'alerta': return 'text-amber-700';
+    case 'destacado': return 'text-emerald-700';
+    default: return 'text-slate-700';
+  }
+}
+
+function deltaTone(delta: number, invertido: boolean): string {
+  // invertido=true: valor positivo es malo (ej: + jornadas cortas).
+  const negativo = delta < 0;
+  const positivo = delta > 0;
+  if (Math.abs(delta) < 5) return 'text-slate-400';
+  const malo = invertido ? positivo : negativo;
+  return malo ? 'text-red-600' : 'text-emerald-600';
+}
+
+function formatDelta(valor: number, sufijo: string): string {
+  if (Math.abs(valor) < 0.1) return '—';
+  const signo = valor > 0 ? '+' : '';
+  return `${signo}${valor.toFixed(0)}${sufijo}`;
 }
 
 function Pill({ label, value, valueClass = 'text-white' }: { label: string; value: string; valueClass?: string }) {

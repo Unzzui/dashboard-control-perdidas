@@ -420,6 +420,8 @@ export interface CierreActividades {
 
 // ----- Análisis de Jornada Mensual (agregado del periodo filtrado) -----
 
+export type SeveridadJornada = 'critico' | 'alerta' | 'normal' | 'destacado';
+
 export interface JornadaTecnicoMensual {
   nombre: string;
   dias_trabajados: number;
@@ -431,6 +433,12 @@ export interface JornadaTecnicoMensual {
   actividades_promedio: number;
   jornadas_cortas: number;
   pct_jornadas_cortas: number;
+  // Outlier detection vs zona
+  productividad_status: SeveridadJornada;
+  jornadas_cortas_status: SeveridadJornada;
+  severidad: SeveridadJornada;
+  delta_productividad_pct: number;       // % vs promedio de la zona
+  delta_jornadas_cortas_pp: number;      // puntos porcentuales vs promedio
 }
 
 export interface JornadaZonaMensual {
@@ -444,6 +452,8 @@ export interface JornadaZonaMensual {
   actividades_total: number;
   jornadas_cortas: number;
   pct_jornadas_cortas: number;
+  criticos: number;
+  alertas: number;
   tecnicos_detalle: JornadaTecnicoMensual[];
 }
 

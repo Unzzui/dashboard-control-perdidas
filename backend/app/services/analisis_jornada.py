@@ -138,7 +138,7 @@ def calculate_analisis_jornada_mensual(filtered: pd.DataFrame) -> dict:
         por_tecnico["jornadas_cortas"] / por_tecnico["dias_trabajados"] * 100
     ).round(1)
 
-    # Por zona
+    # Por zona — con detección de outliers (z-score vs su zona)
     por_zona_lista = []
     for zona in sorted(jornadas["zona"].unique()):
         zona_jorn = jornadas[jornadas["zona"] == zona]
@@ -149,19 +149,45 @@ def calculate_analisis_jornada_mensual(filtered: pd.DataFrame) -> dict:
         if n_tec == 0:
             continue
 
+        # Estadística de la zona para z-score
+        prod_media = float(zona_tec["productividad_promedio"].mean())
+        prod_std = float(zona_tec["productividad_promedio"].std()) if n_tec > 1 else 0.0
+        cortas_media = float(zona_tec["pct_jornadas_cortas"].mean())
+        cortas_std = float(zona_tec["pct_jornadas_cortas"].std()) if n_tec > 1 else 0.0
+
         tecnicos_detalle = []
+        n_criticos = 0
+        n_alertas = 0
         for _, t in zona_tec.iterrows():
+            prod_val = float(t["productividad_promedio"])
+            cortas_val = float(t["pct_jornadas_cortas"]) if pd.notna(t["pct_jornadas_cortas"]) else 0.0
+
+            prod_status = _clasificar_outlier(prod_val, prod_media, prod_std, invertido=False)
+            cortas_status = _clasificar_outlier(cortas_val, cortas_media, cortas_std, invertido=True)
+
+            severidad = _severidad_max(prod_status, cortas_status)
+            if severidad == "critico":
+                n_criticos += 1
+            elif severidad == "alerta":
+                n_alertas += 1
+
             tecnicos_detalle.append({
                 "nombre": t["Nombre asignado"],
                 "dias_trabajados": int(t["dias_trabajados"]),
                 "duracion_promedio_min": float(round(t["duracion_promedio_min"], 1)),
-                "productividad_promedio": float(round(t["productividad_promedio"], 2)),
+                "productividad_promedio": float(round(prod_val, 2)),
                 "hora_inicio_promedio": _min_a_hora(t["primera_promedio"]),
                 "hora_fin_promedio": _min_a_hora(t["ultima_promedio"]),
                 "actividades_total": int(t["actividades_total"]),
                 "actividades_promedio": float(round(t["actividades_promedio"], 1)),
                 "jornadas_cortas": int(t["jornadas_cortas"]),
-                "pct_jornadas_cortas": float(t["pct_jornadas_cortas"]) if pd.notna(t["pct_jornadas_cortas"]) else 0.0,
+                "pct_jornadas_cortas": float(round(cortas_val, 1)),
+                # Outliers vs zona
+                "productividad_status": prod_status,
+                "jornadas_cortas_status": cortas_status,
+                "severidad": severidad,
+                "delta_productividad_pct": float(round((prod_val - prod_media) / prod_media * 100, 1)) if prod_media > 0 else 0.0,
+                "delta_jornadas_cortas_pp": float(round(cortas_val - cortas_media, 1)),
             })
 
         por_zona_lista.append({
@@ -175,6 +201,8 @@ def calculate_analisis_jornada_mensual(filtered: pd.DataFrame) -> dict:
             "actividades_total": int(zona_jorn["actividades"].sum()),
             "jornadas_cortas": int(zona_jorn["es_corta"].sum()),
             "pct_jornadas_cortas": float(round(zona_jorn["es_corta"].sum() / len(zona_jorn) * 100, 1)),
+            "criticos": n_criticos,
+            "alertas": n_alertas,
             "tecnicos_detalle": tecnicos_detalle,
         })
 
@@ -194,6 +222,32 @@ def calculate_analisis_jornada_mensual(filtered: pd.DataFrame) -> dict:
         "stats_globales": stats_globales,
         "por_zona": por_zona_lista,
     }
+
+
+def _clasificar_outlier(valor: float, media: float, std: float, invertido: bool = False) -> str:
+    """
+    Clasifica un valor según su z-score respecto a la media/std del grupo.
+    invertido=True para métricas donde valor alto es malo (ej: % jornadas cortas).
+    """
+    if std == 0 or pd.isna(std):
+        return "normal"
+    z = (valor - media) / std
+    if invertido:
+        z = -z
+    if z < -1.0:
+        return "critico"
+    if z < -0.5:
+        return "alerta"
+    if z > 1.0:
+        return "destacado"
+    return "normal"
+
+
+def _severidad_max(*statuses: str) -> str:
+    """Devuelve la peor severidad (critico > alerta > normal > destacado)."""
+    orden = {"critico": 3, "alerta": 2, "normal": 1, "destacado": 0}
+    peor = max(statuses, key=lambda s: orden.get(s, 0))
+    return peor
 
 
 def _empty_stats() -> dict:
