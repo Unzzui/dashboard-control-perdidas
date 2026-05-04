@@ -47,6 +47,18 @@ def get_dataframe() -> pd.DataFrame:
         }
         df_global['resultado_clasificado'] = df_global['Resultado visita'].map(resultado_map).fillna('Otro')
 
+        # Compat: si el parquet no trae las columnas técnico/inspección,
+        # las aliasamos desde las legacy (zona / Regional) para que los
+        # servicios downstream sigan funcionando.
+        if 'zona_tecnico' not in df_global.columns:
+            df_global['zona_tecnico'] = df_global['zona']
+        if 'regional_tecnico' not in df_global.columns:
+            df_global['regional_tecnico'] = df_global['Regional']
+        if 'zona_inspeccion' not in df_global.columns:
+            df_global['zona_inspeccion'] = df_global['zona']
+        if 'regional_inspeccion' not in df_global.columns:
+            df_global['regional_inspeccion'] = df_global['Regional']
+
         # Convertir columnas de texto a categorías para menor uso de memoria
         # Incluye las nuevas columnas de zona y regional (técnico e inspección)
         cat_columns = [
