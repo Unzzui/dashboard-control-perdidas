@@ -1,12 +1,22 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import dashboard, filters, geo, retiro_medidores, detalle_aviso, control_diario, detalle_tecnico, analistas, justificaciones
 from app.dependencies import clear_filter_cache, reload_dataframe
+from app.services.justificaciones.db import init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
 
 app = FastAPI(
     title="Control de Pérdidas API",
     description="API para el dashboard de Control de Pérdidas OCA Global - TUSAN",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS
