@@ -1,5 +1,5 @@
 // frontend/src/lib/api/jornada.ts
-import { Filters, AnalisisJornadaMensual } from '@/types';
+import { Filters, AnalisisJornadaMensual, JornadaTecnicoDetalle } from '@/types';
 
 const API_BASE = '';
 
@@ -27,4 +27,13 @@ async function request<T>(endpoint: string): Promise<T> {
 export function getAnalisisJornadaMensual(filters: Partial<Filters>): Promise<AnalisisJornadaMensual> {
   const qs = buildQS(filters);
   return request(`/api/v1/analisis-jornada/mensual${qs ? `?${qs}` : ''}`);
+}
+
+export function getJornadaTecnicoDetalle(
+  nombre: string,
+  filters: Partial<Filters>,
+): Promise<JornadaTecnicoDetalle> {
+  const qs = buildQS(filters);
+  const enc = encodeURIComponent(nombre);
+  return request(`/api/v1/analisis-jornada/tecnico/${enc}${qs ? `?${qs}` : ''}`);
 }

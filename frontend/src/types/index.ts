@@ -465,6 +465,56 @@ export interface AnalisisJornadaMensual {
   por_zona: JornadaZonaMensual[];
 }
 
+export interface JornadaDiaDetalle {
+  fecha: string;
+  dia_semana: string;
+  primera_actividad: string;
+  ultima_actividad: string;
+  duracion_min: number;
+  es_corta: boolean;
+  total_actividades: number;
+  normales: number;
+  cnr_total: number;
+  cnr_falla: number;
+  cnr_hurto: number;
+  vf_total: number;
+  vf_cge: number;
+  vf_no_efectivas: number;
+  mantenimiento: number;
+  efectivas: number;
+  pct_efectividad: number;
+  kwh: number;
+  productividad_hora: number;
+}
+
+export interface JornadaTecnicoDetalle {
+  nombre: string;
+  zona: string;
+  periodo: string;
+  total_dias: number;
+  kpis: {
+    total_dias: number;
+    total_actividades: number;
+    actividades_promedio_dia: number;
+    efectivas_total: number;
+    efectivas_promedio_dia: number;
+    pct_efectividad_global: number;
+    normales: number;
+    cnr_falla: number;
+    cnr_hurto: number;
+    vf_cge: number;
+    vf_no_efectivas: number;
+    mantenimiento: number;
+    duracion_promedio_min: number;
+    hora_inicio_promedio: string;
+    hora_fin_promedio: string;
+    jornadas_cortas: number;
+    productividad_promedio: number;
+    kwh_total: number;
+  };
+  dias: JornadaDiaDetalle[];
+}
+
 export interface DetalleCNR {
   zona: string;
   tipo_cnr: string;

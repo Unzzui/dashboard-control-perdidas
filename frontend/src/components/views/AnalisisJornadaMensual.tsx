@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Filters, AnalisisJornadaMensual as AnalisisJornadaMensualData, JornadaZonaMensual } from '@/types';
 import { getAnalisisJornadaMensual } from '@/lib/api/jornada';
+import JornadaTecnicoModal from './jornada/JornadaTecnicoModal';
 
 interface Props {
   filters: Filters;
@@ -20,6 +21,7 @@ export default function AnalisisJornadaMensual({ filters }: Props) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const [tecnicoSeleccionado, setTecnicoSeleccionado] = useState<string | null>(null);
 
   useEffect(() => {
     setCargando(true);
@@ -139,9 +141,22 @@ export default function AnalisisJornadaMensual({ filters }: Props) {
           </div>
         )}
         {zonasFiltradas.map((zona) => (
-          <ZonaCard key={zona.zona} zona={zona} forceOpen={!!busqueda} />
+          <ZonaCard
+            key={zona.zona}
+            zona={zona}
+            forceOpen={!!busqueda}
+            onSeleccionarTecnico={setTecnicoSeleccionado}
+          />
         ))}
       </div>
+
+      {tecnicoSeleccionado && (
+        <JornadaTecnicoModal
+          nombre={tecnicoSeleccionado}
+          filters={filters}
+          onClose={() => setTecnicoSeleccionado(null)}
+        />
+      )}
     </div>
   );
 }
@@ -170,7 +185,13 @@ function KPI({
   );
 }
 
-function ZonaCard({ zona, forceOpen }: { zona: JornadaZonaMensual; forceOpen?: boolean }) {
+function ZonaCard({
+  zona, forceOpen, onSeleccionarTecnico,
+}: {
+  zona: JornadaZonaMensual;
+  forceOpen?: boolean;
+  onSeleccionarTecnico: (nombre: string) => void;
+}) {
   const [abierto, setAbierto] = useState(false);
   const open = forceOpen || abierto;
 
@@ -223,7 +244,12 @@ function ZonaCard({ zona, forceOpen }: { zona: JornadaZonaMensual; forceOpen?: b
                 const pctTone = t.pct_jornadas_cortas > 30 ? 'text-red-600' : t.pct_jornadas_cortas > 15 ? 'text-amber-600' : 'text-emerald-600';
                 const prodTone = t.productividad_promedio >= 5 ? 'text-emerald-600' : t.productividad_promedio >= 3 ? 'text-slate-700' : 'text-red-600';
                 return (
-                  <tr key={t.nombre} className="border-b border-slate-100 hover:bg-slate-50/80">
+                  <tr
+                    key={t.nombre}
+                    onClick={() => onSeleccionarTecnico(t.nombre)}
+                    className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
+                    title="Click para ver detalle día a día"
+                  >
                     <td className="px-3 py-1.5 font-medium text-slate-800 truncate max-w-[200px]" title={t.nombre}>{t.nombre}</td>
                     <td className="px-2 py-1.5 text-right text-slate-700 tabular-nums">{t.dias_trabajados}</td>
                     <td className="px-2 py-1.5 text-center">

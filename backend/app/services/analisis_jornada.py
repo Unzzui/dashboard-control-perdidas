@@ -207,3 +207,207 @@ def _empty_stats() -> dict:
         "actividades_total": 0,
         "actividades_promedio_jornada": 0.0,
     }
+
+
+# ============================================================================
+# Detalle día a día de un técnico (para modal granular)
+# ============================================================================
+
+DIAS_SEMANA_ES = {
+    0: "lunes", 1: "martes", 2: "miércoles", 3: "jueves",
+    4: "viernes", 5: "sábado", 6: "domingo",
+}
+
+
+def calculate_jornada_tecnico_detalle(filtered: pd.DataFrame, nombre_tecnico: str) -> dict:
+    """
+    Devuelve el detalle día a día de las jornadas de un técnico en el periodo
+    filtrado, con el desglose de inspecciones por categoría.
+    """
+    empty = {
+        "nombre": nombre_tecnico,
+        "zona": "—",
+        "periodo": "Sin datos",
+        "total_dias": 0,
+        "kpis": _empty_kpis_tecnico(),
+        "dias": [],
+    }
+
+    if filtered.empty or "Fecha ejecución" not in filtered.columns:
+        return empty
+
+    df = filtered.copy()
+    df = df[df["Fecha ejecución"].notna()]
+    df["Nombre asignado"] = df["Nombre asignado"].apply(
+        lambda x: normalizar_nombre(x) if isinstance(x, str) else x
+    )
+    df = df[df["Nombre asignado"].str.lower() == nombre_tecnico.lower()]
+    if df.empty:
+        return empty
+
+    # Validar horas
+    df["hora_inicio_valid"] = df["Hora inicio"].apply(_is_valid_time)
+    df["hora_fin_valid"] = df["Hora fin"].apply(_is_valid_time)
+
+    df["fecha_date"] = df["Fecha ejecución"].dt.date
+
+    # Clasificación de resultados (mismo criterio que pago_tecnicos)
+    rv = df["Resultado visita"]
+    rf = df["Resultado final"]
+    tipo_cnr = df.get("Tipo_CNR.Tipo de CNR", pd.Series([""] * len(df), index=df.index))
+
+    df["es_normal"] = (rv == "Normal").astype(int)
+    df["es_cnr"] = (rv == "CNR").astype(int)
+    df["es_cnr_falla"] = ((rv == "CNR") & (tipo_cnr == "CNR Falla")).astype(int)
+    df["es_cnr_hurto"] = ((rv == "CNR") & (tipo_cnr == "CNR Hurto")).astype(int)
+    df["es_vf_total"] = (rv == "Visita fallida").astype(int)
+    df["es_vf_cge"] = (
+        (rv == "Visita fallida") &
+        (
+            rf.isin(["Sitio eriazo", "Sin empalme", "Desconectado en BT/MT"]) |
+            rf.str.contains("Sin acceso medidor", case=False, na=False)
+        )
+    ).astype(int)
+    df["es_mant"] = (rv == "Mantenimiento Medidor").astype(int)
+    df["es_efectiva"] = (
+        df["es_normal"] + df["es_cnr"] + df["es_vf_cge"] + df["es_mant"]
+    ).clip(upper=1)
+    df["kwh"] = df["kWh CNR"].fillna(0) if "kWh CNR" in df.columns else 0
+
+    # Para hora: convertir a minutos solo en filas válidas
+    df["inicio_min"] = df.apply(
+        lambda r: _hora_a_min(r["Hora inicio"]) if r["hora_inicio_valid"] else None,
+        axis=1,
+    )
+    df["fin_min"] = df.apply(
+        lambda r: _hora_a_min(r["Hora fin"]) if r["hora_fin_valid"] else None,
+        axis=1,
+    )
+
+    # Agrupar por día
+    agg = (
+        df.groupby("fecha_date", observed=True)
+        .agg(
+            primera=("inicio_min", "min"),
+            ultima=("fin_min", "max"),
+            total=("Nombre asignado", "count"),
+            normales=("es_normal", "sum"),
+            cnr=("es_cnr", "sum"),
+            cnr_falla=("es_cnr_falla", "sum"),
+            cnr_hurto=("es_cnr_hurto", "sum"),
+            vf_total=("es_vf_total", "sum"),
+            vf_cge=("es_vf_cge", "sum"),
+            mantenimiento=("es_mant", "sum"),
+            efectivas=("es_efectiva", "sum"),
+            kwh=("kwh", "sum"),
+        )
+        .reset_index()
+        .sort_values("fecha_date")
+    )
+    agg["vf_no_efectivas"] = agg["vf_total"] - agg["vf_cge"]
+    agg["duracion_min"] = (agg["ultima"] - agg["primera"]).clip(lower=0).fillna(0)
+    agg["productividad_hora"] = agg.apply(
+        lambda r: r["total"] / (r["duracion_min"] / 60) if r["duracion_min"] > 0 else 0.0,
+        axis=1,
+    )
+    agg["pct_efectividad"] = agg.apply(
+        lambda r: round(r["efectivas"] / r["total"] * 100, 1) if r["total"] > 0 else 0.0,
+        axis=1,
+    )
+
+    # Construir lista de días
+    dias_list = []
+    for _, row in agg.iterrows():
+        fecha = row["fecha_date"]
+        dias_list.append({
+            "fecha": str(fecha),
+            "dia_semana": DIAS_SEMANA_ES[pd.Timestamp(fecha).weekday()],
+            "primera_actividad": _min_a_hora(row["primera"]) if pd.notna(row["primera"]) else "—",
+            "ultima_actividad": _min_a_hora(row["ultima"]) if pd.notna(row["ultima"]) else "—",
+            "duracion_min": float(row["duracion_min"]) if pd.notna(row["duracion_min"]) else 0.0,
+            "es_corta": bool(row["duracion_min"] < 360),
+            "total_actividades": int(row["total"]),
+            "normales": int(row["normales"]),
+            "cnr_total": int(row["cnr"]),
+            "cnr_falla": int(row["cnr_falla"]),
+            "cnr_hurto": int(row["cnr_hurto"]),
+            "vf_total": int(row["vf_total"]),
+            "vf_cge": int(row["vf_cge"]),
+            "vf_no_efectivas": int(row["vf_no_efectivas"]),
+            "mantenimiento": int(row["mantenimiento"]),
+            "efectivas": int(row["efectivas"]),
+            "pct_efectividad": float(row["pct_efectividad"]),
+            "kwh": int(row["kwh"]),
+            "productividad_hora": float(round(row["productividad_hora"], 2)),
+        })
+
+    # KPIs agregados del periodo
+    total_dias = len(agg)
+    total = int(agg["total"].sum())
+    efectivas = int(agg["efectivas"].sum())
+    duracion_validas = agg.loc[agg["duracion_min"] > 0, "duracion_min"]
+    primera_validas = agg["primera"].dropna()
+    ultima_validas = agg["ultima"].dropna()
+
+    kpis = {
+        "total_dias": total_dias,
+        "total_actividades": total,
+        "actividades_promedio_dia": float(round(total / total_dias, 1)) if total_dias else 0.0,
+        "efectivas_total": efectivas,
+        "efectivas_promedio_dia": float(round(efectivas / total_dias, 2)) if total_dias else 0.0,
+        "pct_efectividad_global": float(round(efectivas / total * 100, 1)) if total else 0.0,
+        "normales": int(agg["normales"].sum()),
+        "cnr_falla": int(agg["cnr_falla"].sum()),
+        "cnr_hurto": int(agg["cnr_hurto"].sum()),
+        "vf_cge": int(agg["vf_cge"].sum()),
+        "vf_no_efectivas": int(agg["vf_no_efectivas"].sum()),
+        "mantenimiento": int(agg["mantenimiento"].sum()),
+        "duracion_promedio_min": float(round(duracion_validas.mean(), 1)) if len(duracion_validas) else 0.0,
+        "hora_inicio_promedio": _min_a_hora(primera_validas.mean()) if len(primera_validas) else "—",
+        "hora_fin_promedio": _min_a_hora(ultima_validas.mean()) if len(ultima_validas) else "—",
+        "jornadas_cortas": int(agg["es_corta"] if False else (agg["duracion_min"] < 360).sum()),
+        "productividad_promedio": float(round(agg.loc[agg["duracion_min"] > 0, "productividad_hora"].mean(), 2)) if (agg["duracion_min"] > 0).any() else 0.0,
+        "kwh_total": int(agg["kwh"].sum()),
+    }
+
+    # Zona del técnico (la que más aparece, o zona_tecnico si existe)
+    if "zona_tecnico" in df.columns:
+        zona_serie = df["zona_tecnico"].dropna()
+    else:
+        zona_serie = df["zona"].dropna() if "zona" in df.columns else pd.Series([], dtype=str)
+    zona = str(zona_serie.mode().iloc[0]) if not zona_serie.empty else "—"
+
+    fechas_min = agg["fecha_date"].min()
+    fechas_max = agg["fecha_date"].max()
+    if fechas_min == fechas_max:
+        periodo = fechas_min.strftime("%d-%m-%Y")
+    else:
+        periodo = f"{fechas_min.strftime('%d-%m-%Y')} → {fechas_max.strftime('%d-%m-%Y')} ({total_dias} días)"
+
+    return {
+        "nombre": nombre_tecnico,
+        "zona": zona,
+        "periodo": periodo,
+        "total_dias": total_dias,
+        "kpis": kpis,
+        "dias": dias_list,
+    }
+
+
+def _empty_kpis_tecnico() -> dict:
+    return {
+        "total_dias": 0,
+        "total_actividades": 0,
+        "actividades_promedio_dia": 0.0,
+        "efectivas_total": 0,
+        "efectivas_promedio_dia": 0.0,
+        "pct_efectividad_global": 0.0,
+        "normales": 0, "cnr_falla": 0, "cnr_hurto": 0,
+        "vf_cge": 0, "vf_no_efectivas": 0, "mantenimiento": 0,
+        "duracion_promedio_min": 0.0,
+        "hora_inicio_promedio": "—",
+        "hora_fin_promedio": "—",
+        "jornadas_cortas": 0,
+        "productividad_promedio": 0.0,
+        "kwh_total": 0,
+    }
