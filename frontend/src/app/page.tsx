@@ -20,7 +20,7 @@ import AnalisisComparativo from '@/components/views/AnalisisComparativo';
 import AnalisisJornada from '@/components/views/AnalisisJornada';
 import ControlMetas from '@/components/views/ControlMetas';
 import PresentationMode from '@/components/views/PresentationMode';
-import AnalistasView from '@/components/views/configuracion/AnalistasView';
+import ConfiguracionView from '@/components/views/configuracion/ConfiguracionView';
 import { useFilters } from '@/hooks/useFilters';
 import { useDashboard } from '@/hooks/useDashboard';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
@@ -189,8 +189,8 @@ function DashboardContent() {
             </div>
           </div>
         );
-      case 'analistas':
-        return <AnalistasView />;
+      case 'configuracion':
+        return <ConfiguracionView />;
       default:
         return null;
     }

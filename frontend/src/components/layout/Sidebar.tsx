@@ -84,9 +84,9 @@ const menuSections: MenuSection[] = [
     ],
   },
   {
-    title: 'Configuracion',
+    title: 'Sistema',
     items: [
-      { id: 'analistas', label: 'Analistas', icon: Settings },
+      { id: 'configuracion', label: 'Configuración', icon: Settings },
     ],
   },
 ];
