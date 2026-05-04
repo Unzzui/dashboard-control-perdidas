@@ -46,7 +46,7 @@ export interface ExportOptions {
   periodo?: string;
   calendarioMes?: CalendarioMes | null;
   filters?: Filters;          // si se pasa, se usa para fetchear la hoja Raw Parquet
-  diaMax?: number;            // si se pasa, recorta el raw a días <= diaMax (cierre EDP)
+  mesCierre?: string;         // "YYYY-MM": modo cierre EDP CGE (26 mes-1 → 25 mes)
 }
 
 export async function exportPagoExcel(
@@ -59,7 +59,7 @@ export async function exportPagoExcel(
     periodo = 'Todo el período',
     calendarioMes = null,
     filters,
-    diaMax,
+    mesCierre,
   } = options;
 
   const wb = new ExcelJS.Workbook();
@@ -977,7 +977,7 @@ export async function exportPagoExcel(
   // -------------------------------------------------------------------------
   if (filters) {
     try {
-      const rawData = await getProduccionRaw(filters, diaMax);
+      const rawData = await getProduccionRaw(filters, mesCierre);
       const wsParquet = wb.addWorksheet('Raw Parquet', {
         pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
         views: [{ state: 'frozen', ySplit: 2 }],
@@ -988,7 +988,9 @@ export async function exportPagoExcel(
       wsParquet.mergeCells(1, 1, 1, totalCols);
       const cTitulo = wsParquet.getCell(1, 1);
       cTitulo.value = `Inspecciones crudas del parquet — ${rawData.total.toLocaleString('es-CL')} filas${
-        rawData.dia_max ? ` · días 1–${rawData.dia_max} (cierre EDP)` : ' · mes completo'
+        rawData.rango
+          ? ` · cierre EDP CGE ${rawData.rango.desde} → ${rawData.rango.hasta}`
+          : ' · mes completo (filtros del dashboard)'
       }`;
       cTitulo.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
       cTitulo.fill = headerFill(COLORS.slate800);
@@ -1111,9 +1113,9 @@ export async function exportPagoExcel(
     { text: '   • Raw Tecnicos: un row por técnico con todos los campos del cálculo (sin formato ni agrupación).' },
     { text: '   • Raw Parquet: inspecciones crudas del dataset (un row por inspección). Permite reproducir el cálculo manualmente.' },
     {
-      text: diaMax
-        ? `   • El "Cierre EDP CGE (días 1–${diaMax})" está activo: ambas hojas reflejan SOLO esos días, lo que coincide con el cierre comercial mensual de CGE.`
-        : '   • Si activas "Cierre EDP CGE" en la vista, ambas hojas se recortan a los primeros 25 días del mes.',
+      text: mesCierre
+        ? `   • El "Cierre EDP CGE" está activo (mes destino ${mesCierre}): ambas hojas reflejan el periodo del 26 del mes anterior al 25 del mes destino, que coincide con el ciclo comercial mensual de CGE.`
+        : '   • Si activas "Cierre EDP CGE" en la vista, ambas hojas se recortan al periodo 26 mes-1 → 25 mes destino.',
     },
   ];
 

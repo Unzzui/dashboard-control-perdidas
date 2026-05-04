@@ -29,23 +29,24 @@ async function request<T>(endpoint: string): Promise<T> {
 
 export function getPagoTecnicos(
   filters: Partial<Filters>,
-  diaMax?: number,
+  mesCierre?: string,    // "YYYY-MM": activa modo cierre EDP CGE (26 mes-1 → 25 mes)
 ): Promise<PagoTecnico[]> {
-  const qs = buildQS(filters, { dia_max: diaMax });
+  const qs = buildQS(filters, { mes_cierre: mesCierre });
   return request(`/api/v1/produccion/pago-tecnicos${qs ? `?${qs}` : ''}`);
 }
 
 export interface RawProduccionResponse {
   total: number;
-  dia_max: number | null;
+  mes_cierre: string | null;
+  rango: { desde: string; hasta: string } | null;
   columnas: string[];
   rows: Array<Record<string, string | number | null>>;
 }
 
 export function getProduccionRaw(
   filters: Partial<Filters>,
-  diaMax?: number,
+  mesCierre?: string,
 ): Promise<RawProduccionResponse> {
-  const qs = buildQS(filters, { dia_max: diaMax });
+  const qs = buildQS(filters, { mes_cierre: mesCierre });
   return request(`/api/v1/produccion/raw${qs ? `?${qs}` : ''}`);
 }

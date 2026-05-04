@@ -54,32 +54,78 @@ def get_dashboard(params: FilterParams = Depends()):
     }
 
 
+def _params_sin_periodo(params: FilterParams) -> FilterParams:
+    """Devuelve una copia de params con año/mes/día anulados (para cierre EDP)."""
+    p = FilterParams.__new__(FilterParams)
+    p.año = None
+    p.mes = None
+    p.dia = None
+    p.zona = params.zona
+    p.regional = params.regional
+    p.supervisor = params.supervisor
+    p.estado = params.estado
+    p.tratamiento = params.tratamiento
+    p.tipo_campana = params.tipo_campana
+    p.nombre_asignado = params.nombre_asignado
+    return p
+
+
+def _rango_cierre_edp(mes_cierre: str) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """
+    Devuelve (fecha_inicio, fecha_fin) para el periodo de cierre EDP CGE
+    correspondiente al mes_cierre (formato 'YYYY-MM').
+    Periodo: del día 26 del mes anterior al día 25 del mes_cierre, ambos inclusive.
+    Ejemplo: mes_cierre='2026-04' → (2026-03-26, 2026-04-25).
+    """
+    año, mes = (int(x) for x in mes_cierre.split("-"))
+    fecha_fin = pd.Timestamp(year=año, month=mes, day=25)
+    if mes == 1:
+        fecha_inicio = pd.Timestamp(year=año - 1, month=12, day=26)
+    else:
+        fecha_inicio = pd.Timestamp(year=año, month=mes - 1, day=26)
+    return fecha_inicio, fecha_fin
+
+
+def _aplicar_cierre_edp(df: pd.DataFrame, mes_cierre: str) -> pd.DataFrame:
+    """Filtra df a las filas con Fecha ejecución dentro del rango EDP del mes_cierre."""
+    if "Fecha ejecución" not in df.columns:
+        return df
+    fecha_inicio, fecha_fin = _rango_cierre_edp(mes_cierre)
+    # fin del día 25: 25 23:59:59
+    fecha_fin_inclusive = fecha_fin + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    return df[
+        (df["Fecha ejecución"] >= fecha_inicio) &
+        (df["Fecha ejecución"] <= fecha_fin_inclusive)
+    ]
+
+
 @router.get("/api/v1/produccion/pago-tecnicos")
 def get_pago_tecnicos(
-    dia_max: Optional[int] = Query(
+    mes_cierre: Optional[str] = Query(
         None,
-        ge=1,
-        le=31,
-        description="Si se entrega, recorta el dataframe a inspecciones con día <= dia_max "
-                    "(útil para ver el cierre EDP CGE del 25).",
+        regex=r"^\d{4}-\d{2}$",
+        description="Si se entrega (YYYY-MM), activa el modo cierre EDP CGE: "
+                    "filtra a inspecciones entre el 26 del mes anterior y el 25 del mes_cierre, "
+                    "ignorando los filtros de año/mes/día estándar.",
     ),
     params: FilterParams = Depends(),
 ):
     """Cálculo de pago mensual por técnico (OCA GLOBAL / 1F)."""
     df = get_dataframe()
-    filtered = apply_filters(df, params)
-    if dia_max is not None and "Fecha ejecución" in filtered.columns:
-        filtered = filtered[filtered["Fecha ejecución"].dt.day <= dia_max]
+    if mes_cierre:
+        filtered = apply_filters(df, _params_sin_periodo(params))
+        filtered = _aplicar_cierre_edp(filtered, mes_cierre)
+    else:
+        filtered = apply_filters(df, params)
     return calculate_pago_tecnicos(filtered)
 
 
 @router.get("/api/v1/produccion/raw")
 def get_pago_raw(
-    dia_max: Optional[int] = Query(
+    mes_cierre: Optional[str] = Query(
         None,
-        ge=1,
-        le=31,
-        description="Recorta el dataframe a inspecciones con día <= dia_max.",
+        regex=r"^\d{4}-\d{2}$",
+        description="Si se entrega (YYYY-MM), activa el modo cierre EDP CGE.",
     ),
     params: FilterParams = Depends(),
 ):
@@ -89,9 +135,11 @@ def get_pago_raw(
     hoja Raw del Excel y permitir cruces manuales.
     """
     df = get_dataframe()
-    filtered = apply_filters(df, params)
-    if dia_max is not None and "Fecha ejecución" in filtered.columns:
-        filtered = filtered[filtered["Fecha ejecución"].dt.day <= dia_max]
+    if mes_cierre:
+        filtered = apply_filters(df, _params_sin_periodo(params))
+        filtered = _aplicar_cierre_edp(filtered, mes_cierre)
+    else:
+        filtered = apply_filters(df, params)
 
     cols = [
         "Fecha ejecución", "Nombre asignado",
@@ -113,9 +161,16 @@ def get_pago_raw(
         ).dt.strftime("%Y-%m-%d")
 
     out = out.where(pd.notna(out), None)
+
+    rango = None
+    if mes_cierre:
+        fi, ff = _rango_cierre_edp(mes_cierre)
+        rango = {"desde": fi.strftime("%Y-%m-%d"), "hasta": ff.strftime("%Y-%m-%d")}
+
     return {
         "total": len(out),
-        "dia_max": dia_max,
+        "mes_cierre": mes_cierre,
+        "rango": rango,
         "columnas": cols_present,
         "rows": out.to_dict(orient="records"),
     }
