@@ -16,6 +16,7 @@ from app.services.pago_tecnicos import calculate_pago_tecnicos
 from app.services.resultados_fallidos import calculate_resultados_fallidos, calculate_resultados_fallidos_por_zona
 from app.services.analisis_comparativo import calculate_analisis_comparativo
 from app.services.alertas_operativas import calculate_alertas_operativas
+from app.services.analisis_jornada import calculate_analisis_jornada_mensual
 from app.services.calendario_mes import build_calendario_mes
 from app.services.promedio_efectivas import calculate_promedio_efectivas
 
@@ -190,6 +191,14 @@ def get_analisis_comparativo(params: FilterParams = Depends()):
     meses = params.mes if params.mes else []
 
     return calculate_analisis_comparativo(filtered, año, meses)
+
+
+@router.get("/api/v1/analisis-jornada/mensual")
+def get_analisis_jornada_mensual(params: FilterParams = Depends()):
+    """Análisis de jornada agregado por (técnico, día) y agrupado por zona, sobre el rango filtrado."""
+    df = get_dataframe()
+    filtered = apply_filters(df, params)
+    return calculate_analisis_jornada_mensual(filtered)
 
 
 @router.get("/api/v1/alertas-operativas")

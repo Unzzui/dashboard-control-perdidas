@@ -418,6 +418,53 @@ export interface CierreActividades {
   duracion_jornada: string;
 }
 
+// ----- Análisis de Jornada Mensual (agregado del periodo filtrado) -----
+
+export interface JornadaTecnicoMensual {
+  nombre: string;
+  dias_trabajados: number;
+  duracion_promedio_min: number;
+  productividad_promedio: number;
+  hora_inicio_promedio: string;     // "HH:MM"
+  hora_fin_promedio: string;        // "HH:MM"
+  actividades_total: number;
+  actividades_promedio: number;
+  jornadas_cortas: number;
+  pct_jornadas_cortas: number;
+}
+
+export interface JornadaZonaMensual {
+  zona: string;
+  tecnicos: number;
+  dias_trabajados: number;
+  duracion_promedio_min: number;
+  productividad_promedio: number;
+  hora_inicio_promedio: string;
+  hora_fin_promedio: string;
+  actividades_total: number;
+  jornadas_cortas: number;
+  pct_jornadas_cortas: number;
+  tecnicos_detalle: JornadaTecnicoMensual[];
+}
+
+export interface AnalisisJornadaMensual {
+  periodo: string;
+  total_dias: number;
+  total_jornadas: number;
+  total_tecnicos: number;
+  stats_globales: {
+    duracion_promedio_min: number;
+    productividad_promedio: number;
+    hora_inicio_promedio: string;
+    hora_fin_promedio: string;
+    jornadas_cortas: number;
+    pct_jornadas_cortas: number;
+    actividades_total: number;
+    actividades_promedio_jornada: number;
+  };
+  por_zona: JornadaZonaMensual[];
+}
+
 export interface DetalleCNR {
   zona: string;
   tipo_cnr: string;
