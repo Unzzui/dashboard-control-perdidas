@@ -138,6 +138,11 @@ def calculate_analisis_jornada_mensual(filtered: pd.DataFrame) -> dict:
         por_tecnico["jornadas_cortas"] / por_tecnico["dias_trabajados"] * 100
     ).round(1)
 
+    # Promedios globales (sobre todos los técnicos / todas las jornadas) para
+    # calcular deltas vs el global y poder identificar zonas atípicas.
+    prod_media_global = float(por_tecnico["productividad_promedio"].mean()) if len(por_tecnico) else 0.0
+    cortas_media_global = float(por_tecnico["pct_jornadas_cortas"].mean()) if len(por_tecnico) else 0.0
+
     # Por zona — con detección de outliers (z-score vs su zona)
     por_zona_lista = []
     for zona in sorted(jornadas["zona"].unique()):
@@ -188,21 +193,29 @@ def calculate_analisis_jornada_mensual(filtered: pd.DataFrame) -> dict:
                 "severidad": severidad,
                 "delta_productividad_pct": float(round((prod_val - prod_media) / prod_media * 100, 1)) if prod_media > 0 else 0.0,
                 "delta_jornadas_cortas_pp": float(round(cortas_val - cortas_media, 1)),
+                # Deltas vs el global (todas las zonas)
+                "delta_productividad_global_pct": float(round((prod_val - prod_media_global) / prod_media_global * 100, 1)) if prod_media_global > 0 else 0.0,
+                "delta_jornadas_cortas_global_pp": float(round(cortas_val - cortas_media_global, 1)),
             })
 
+        zona_prod = float(round(zona_jorn["productividad_hora"].mean(), 2))
+        zona_cortas = float(round(zona_jorn["es_corta"].sum() / len(zona_jorn) * 100, 1))
         por_zona_lista.append({
             "zona": str(zona),
             "tecnicos": n_tec,
             "dias_trabajados": int(zona_jorn["fecha_date"].nunique()),
             "duracion_promedio_min": float(round(zona_jorn["duracion_min"].mean(), 1)),
-            "productividad_promedio": float(round(zona_jorn["productividad_hora"].mean(), 2)),
+            "productividad_promedio": zona_prod,
             "hora_inicio_promedio": _min_a_hora(zona_jorn["primera"].mean()),
             "hora_fin_promedio": _min_a_hora(zona_jorn["ultima"].mean()),
             "actividades_total": int(zona_jorn["actividades"].sum()),
             "jornadas_cortas": int(zona_jorn["es_corta"].sum()),
-            "pct_jornadas_cortas": float(round(zona_jorn["es_corta"].sum() / len(zona_jorn) * 100, 1)),
+            "pct_jornadas_cortas": zona_cortas,
             "criticos": n_criticos,
             "alertas": n_alertas,
+            # Deltas de la zona vs el promedio global de zonas
+            "delta_productividad_global_pct": float(round((zona_prod - prod_media_global) / prod_media_global * 100, 1)) if prod_media_global > 0 else 0.0,
+            "delta_jornadas_cortas_global_pp": float(round(zona_cortas - cortas_media_global, 1)),
             "tecnicos_detalle": tecnicos_detalle,
         })
 

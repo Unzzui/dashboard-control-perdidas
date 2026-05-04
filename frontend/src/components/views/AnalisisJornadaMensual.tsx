@@ -262,6 +262,8 @@ function ZonaCard({
   const pctCorto = zona.pct_jornadas_cortas;
   const pctTone = pctCorto > 30 ? 'text-red-600' : pctCorto > 15 ? 'text-amber-600' : 'text-emerald-600';
   const prodTone = zona.productividad_promedio >= 5 ? 'text-emerald-600' : zona.productividad_promedio >= 3 ? 'text-amber-600' : 'text-red-600';
+  const prodVsGlobalTone = deltaTone(zona.delta_productividad_global_pct, false);
+  const cortasVsGlobalTone = deltaTone(zona.delta_jornadas_cortas_global_pp, true);
 
   return (
     <div className="bg-white rounded-lg border border-slate-200/60 overflow-hidden">
@@ -291,8 +293,22 @@ function ZonaCard({
           <Pill label="Jornada" value={formatDuracion(zona.duracion_promedio_min)} />
           <Pill label="Inicio" value={zona.hora_inicio_promedio} />
           <Pill label="Fin" value={zona.hora_fin_promedio} />
-          <Pill label="Prod/h" value={zona.productividad_promedio.toFixed(1)} valueClass={prodTone === 'text-red-600' ? 'text-red-300' : prodTone === 'text-amber-600' ? 'text-amber-300' : 'text-emerald-300'} />
-          <Pill label="Cortas" value={`${zona.jornadas_cortas} (${pctCorto}%)`} valueClass={pctTone === 'text-red-600' ? 'text-red-300' : pctTone === 'text-amber-600' ? 'text-amber-300' : 'text-emerald-300'} />
+          <PillConDelta
+            label="Prod/h"
+            value={zona.productividad_promedio.toFixed(1)}
+            delta={formatDelta(zona.delta_productividad_global_pct, '%')}
+            valueClass={prodTone === 'text-red-600' ? 'text-red-300' : prodTone === 'text-amber-600' ? 'text-amber-300' : 'text-emerald-300'}
+            deltaClass={deltaPillClass(prodVsGlobalTone)}
+            tooltip="Prom de la zona vs prom de todas las zonas"
+          />
+          <PillConDelta
+            label="Cortas"
+            value={`${zona.jornadas_cortas} (${pctCorto}%)`}
+            delta={formatDelta(zona.delta_jornadas_cortas_global_pp, 'pp')}
+            valueClass={pctTone === 'text-red-600' ? 'text-red-300' : pctTone === 'text-amber-600' ? 'text-amber-300' : 'text-emerald-300'}
+            deltaClass={deltaPillClass(cortasVsGlobalTone)}
+            tooltip="% cortas zona vs prom global"
+          />
         </div>
       </button>
 
@@ -309,9 +325,9 @@ function ZonaCard({
                 <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Jornada</th>
                 <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Act. tot</th>
                 <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">Prod/h</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-400">Δ vs zona</th>
+                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-400" title="Δ vs promedio de su zona / Δ vs promedio global">Δ zona/global</th>
                 <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-500">% Cortas</th>
-                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-400">Δ vs zona</th>
+                <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-slate-400" title="Δ vs promedio de su zona / Δ vs promedio global">Δ zona/global</th>
               </tr>
             </thead>
             <tbody>
@@ -357,14 +373,18 @@ function ZonaCard({
                     <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${toneByStatus(t.productividad_status)}`}>
                       {t.productividad_promedio.toFixed(1)}
                     </td>
-                    <td className={`px-2 py-1.5 text-right text-[10px] tabular-nums ${deltaTone(t.delta_productividad_pct, false)}`}>
-                      {formatDelta(t.delta_productividad_pct, '%')}
+                    <td className="px-2 py-1.5 text-right text-[10px] tabular-nums whitespace-nowrap">
+                      <span className={deltaTone(t.delta_productividad_pct, false)}>{formatDelta(t.delta_productividad_pct, '%')}</span>
+                      <span className="text-slate-300 mx-0.5">/</span>
+                      <span className={deltaTone(t.delta_productividad_global_pct, false)}>{formatDelta(t.delta_productividad_global_pct, '%')}</span>
                     </td>
                     <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${toneByStatus(t.jornadas_cortas_status)}`}>
                       {t.pct_jornadas_cortas}%
                     </td>
-                    <td className={`px-2 py-1.5 text-right text-[10px] tabular-nums ${deltaTone(t.delta_jornadas_cortas_pp, true)}`}>
-                      {formatDelta(t.delta_jornadas_cortas_pp, 'pp')}
+                    <td className="px-2 py-1.5 text-right text-[10px] tabular-nums whitespace-nowrap">
+                      <span className={deltaTone(t.delta_jornadas_cortas_pp, true)}>{formatDelta(t.delta_jornadas_cortas_pp, 'pp')}</span>
+                      <span className="text-slate-300 mx-0.5">/</span>
+                      <span className={deltaTone(t.delta_jornadas_cortas_global_pp, true)}>{formatDelta(t.delta_jornadas_cortas_global_pp, 'pp')}</span>
                     </td>
                   </tr>
                 );
@@ -408,4 +428,31 @@ function Pill({ label, value, valueClass = 'text-white' }: { label: string; valu
       <span className={`font-semibold tabular-nums ${valueClass}`}>{value}</span>
     </span>
   );
+}
+
+function PillConDelta({
+  label, value, delta, valueClass, deltaClass, tooltip,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  valueClass: string;
+  deltaClass: string;
+  tooltip?: string;
+}) {
+  return (
+    <span className="flex items-center gap-1" title={tooltip}>
+      <span className="text-slate-400">{label}:</span>
+      <span className={`font-semibold tabular-nums ${valueClass}`}>{value}</span>
+      <span className={`tabular-nums ${deltaClass}`}>{delta}</span>
+    </span>
+  );
+}
+
+function deltaPillClass(deltaToneClass: string): string {
+  // Adapta el tone (que retorna text-X-600 para tabla) al tono apropiado para
+  // pintar sobre fondo oscuro (bg-slate-800).
+  if (deltaToneClass.includes('red')) return 'text-red-300';
+  if (deltaToneClass.includes('emerald')) return 'text-emerald-300';
+  return 'text-slate-400';
 }

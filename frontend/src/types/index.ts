@@ -437,8 +437,10 @@ export interface JornadaTecnicoMensual {
   productividad_status: SeveridadJornada;
   jornadas_cortas_status: SeveridadJornada;
   severidad: SeveridadJornada;
-  delta_productividad_pct: number;       // % vs promedio de la zona
-  delta_jornadas_cortas_pp: number;      // puntos porcentuales vs promedio
+  delta_productividad_pct: number;             // % vs promedio de la zona
+  delta_jornadas_cortas_pp: number;            // puntos porcentuales vs promedio zona
+  delta_productividad_global_pct: number;      // % vs promedio de TODAS las zonas
+  delta_jornadas_cortas_global_pp: number;     // puntos porcentuales vs promedio global
 }
 
 export interface JornadaZonaMensual {
@@ -454,6 +456,8 @@ export interface JornadaZonaMensual {
   pct_jornadas_cortas: number;
   criticos: number;
   alertas: number;
+  delta_productividad_global_pct: number;      // zona vs promedio de zonas
+  delta_jornadas_cortas_global_pp: number;
   tecnicos_detalle: JornadaTecnicoMensual[];
 }
 
