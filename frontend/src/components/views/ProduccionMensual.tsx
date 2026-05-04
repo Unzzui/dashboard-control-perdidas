@@ -1,14 +1,18 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { PagoTecnico, CalendarioMes } from '@/types';
+import { useEffect, useMemo, useState } from 'react';
+import { PagoTecnico, CalendarioMes, Filters } from '@/types';
 import { exportPagoExcel } from '@/lib/exportPagoExcel';
+import { getPagoTecnicos, getProduccionRaw } from '@/lib/api/produccion';
 
 interface ProduccionMensualProps {
   pagoTecnicos: PagoTecnico[];
   mesesSeleccionados?: string[];
   calendarioMes?: CalendarioMes | null;
+  filters: Filters;
 }
+
+const DIA_CIERRE_EDP = 25;
 
 // Fallback solo si el backend no entrega meta dinámica.
 // La meta real viene del backend: 8 ef/día × días hábiles del mes visualizado.
@@ -102,21 +106,45 @@ const computeFaltanteEfHabiles = (t: PagoTecnico): number =>
   Math.max(0, metaDe(t) - t.efectivas_habiles);
 
 
-export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, calendarioMes }: ProduccionMensualProps) {
+export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, calendarioMes, filters }: ProduccionMensualProps) {
   const [vistaActiva, setVistaActiva] = useState<FiltroVista>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [vistaDetalle, setVistaDetalle] = useState<VistaDetalle | null>(null);
 
+  // Modo cierre EDP CGE: recorta a los primeros 25 días del mes
+  const [cierreEdp, setCierreEdp] = useState(false);
+  const [pagoLocal, setPagoLocal] = useState<PagoTecnico[] | null>(null);
+  const [cargandoEdp, setCargandoEdp] = useState(false);
+
+  useEffect(() => {
+    if (!cierreEdp) {
+      setPagoLocal(null);
+      return;
+    }
+    let cancelled = false;
+    setCargandoEdp(true);
+    getPagoTecnicos(filters, DIA_CIERRE_EDP)
+      .then((data) => { if (!cancelled) setPagoLocal(data); })
+      .catch((err) => {
+        console.error('Error fetch pago dia_max=25:', err);
+        if (!cancelled) setPagoLocal([]);
+      })
+      .finally(() => { if (!cancelled) setCargandoEdp(false); });
+    return () => { cancelled = true; };
+  }, [cierreEdp, filters]);
+
+  const pagoData = pagoLocal ?? pagoTecnicos;
+
   // Aplica búsqueda y filtro de cumplimiento
   const tecnicosFiltrados = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
-    return pagoTecnicos.filter((t) => {
+    return pagoData.filter((t) => {
       if (term && !t.nombre.toLowerCase().includes(term)) return false;
       if (vistaActiva === 'cumple' && !t.cumple_meta) return false;
       if (vistaActiva === 'no_cumple' && t.cumple_meta) return false;
       return true;
     });
-  }, [pagoTecnicos, busqueda, vistaActiva]);
+  }, [pagoData, busqueda, vistaActiva]);
 
   // Agrupa por zona (para grid de tarjetas)
   const { porZona, zonasOrdenadas } = useMemo(() => {
@@ -132,7 +160,7 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, ca
   }, [tecnicosFiltrados]);
 
   // KPIs globales (sobre el total sin filtros para contexto general)
-  const stats = useMemo(() => agregar(pagoTecnicos), [pagoTecnicos]);
+  const stats = useMemo(() => agregar(pagoData), [pagoData]);
 
   // Estadísticas por zona (para header de cada tarjeta y para el panel de brecha)
   const statsPorZona = useMemo(() => {
@@ -205,22 +233,47 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, ca
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Producción y Pago Mensual</h2>
           <p className="text-sm text-slate-500">
             Meta {calendarioMes?.meta_efectivas ?? META_EFECTIVAS_FALLBACK} efectivas · OCA Global · 1F · {periodo}
+            {cierreEdp && <span className="ml-2 text-amber-700 font-semibold">· Cierre EDP CGE (días 1–{DIA_CIERRE_EDP})</span>}
           </p>
         </div>
-        <button
-          onClick={() => exportPagoExcel(tecnicosFiltrados, { scope: 'global', periodo, calendarioMes })}
-          className="text-[11px] px-3 py-1.5 bg-slate-800 text-white rounded hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Descargar Excel
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCierreEdp(!cierreEdp)}
+            disabled={cargandoEdp}
+            className={`text-[11px] px-3 py-1.5 rounded border transition-colors flex items-center gap-1.5 ${
+              cierreEdp
+                ? 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'
+                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+            } ${cargandoEdp ? 'opacity-50 cursor-wait' : ''}`}
+            title={`Recorta los datos a los primeros ${DIA_CIERRE_EDP} días del mes (cierre EDP CGE)`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {cargandoEdp ? 'Cargando…' : cierreEdp ? `Cierre EDP (1–${DIA_CIERRE_EDP})` : `Ver cierre EDP (1–${DIA_CIERRE_EDP})`}
+          </button>
+          <button
+            onClick={() => exportPagoExcel(tecnicosFiltrados, {
+              scope: 'global',
+              periodo,
+              calendarioMes,
+              filters,
+              diaMax: cierreEdp ? DIA_CIERRE_EDP : undefined,
+            })}
+            className="text-[11px] px-3 py-1.5 bg-slate-800 text-white rounded hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Descargar Excel
+          </button>
+        </div>
       </div>
 
       {/* 5 KPIs estilo Control de Metas */}
@@ -507,6 +560,8 @@ export default function ProduccionMensual({ pagoTecnicos, mesesSeleccionados, ca
           onSeleccionarTecnico={(t) => setVistaDetalle({ tipo: 'tecnico', tecnico: t })}
           periodo={periodo}
           calendarioMes={calendarioMes}
+          filters={filters}
+          diaMaxExport={cierreEdp ? DIA_CIERRE_EDP : undefined}
         />
       )}
     </div>
@@ -524,9 +579,11 @@ interface DetalleModalProps {
   onSeleccionarTecnico: (t: PagoTecnico) => void;
   periodo?: string;
   calendarioMes?: CalendarioMes | null;
+  filters?: Filters;
+  diaMaxExport?: number;
 }
 
-function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo, calendarioMes }: DetalleModalProps) {
+function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo, calendarioMes, filters, diaMaxExport }: DetalleModalProps) {
   const isTecnico = vista.tipo === 'tecnico';
 
   // Header data
@@ -582,6 +639,8 @@ function DetalleModal({ vista, onClose, onNavegar, onSeleccionarTecnico, periodo
                   zonaNombre: vista.tipo === 'zona' ? vista.zona : '',
                   periodo,
                   calendarioMes,
+                  filters,
+                  diaMax: diaMaxExport,
                 })}
                 className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded transition-colors flex items-center gap-1.5 border-r border-slate-600 pr-3"
               >

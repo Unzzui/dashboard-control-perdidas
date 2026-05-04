@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
-import { PagoTecnico, CalendarioMes } from '@/types';
+import { PagoTecnico, CalendarioMes, Filters } from '@/types';
+import { getProduccionRaw } from '@/lib/api/produccion';
 
 // Fallback estático. La meta real es dinámica: 8 ef/día × días hábiles del mes.
 const META_FALLBACK = 160;
@@ -44,13 +45,22 @@ export interface ExportOptions {
   zonaNombre?: string;
   periodo?: string;
   calendarioMes?: CalendarioMes | null;
+  filters?: Filters;          // si se pasa, se usa para fetchear la hoja Raw Parquet
+  diaMax?: number;            // si se pasa, recorta el raw a días <= diaMax (cierre EDP)
 }
 
 export async function exportPagoExcel(
   pagoTecnicos: PagoTecnico[],
   options: ExportOptions = {}
 ): Promise<void> {
-  const { scope = 'global', zonaNombre = '', periodo = 'Todo el período', calendarioMes = null } = options;
+  const {
+    scope = 'global',
+    zonaNombre = '',
+    periodo = 'Todo el período',
+    calendarioMes = null,
+    filters,
+    diaMax,
+  } = options;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dashboard Control de Pérdidas';
@@ -884,9 +894,9 @@ export async function exportPagoExcel(
   }
 
   // -------------------------------------------------------------------------
-  // Hoja: RAW (todos los campos del cálculo, sin formato)
+  // Hoja: RAW TÉCNICOS (un row por técnico con todos los campos del cálculo)
   // -------------------------------------------------------------------------
-  const wsRaw = wb.addWorksheet('Raw', {
+  const wsRaw = wb.addWorksheet('Raw Tecnicos', {
     pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
     views: [{ state: 'frozen', ySplit: 1 }],
   });
@@ -963,6 +973,80 @@ export async function exportPagoExcel(
   wsRaw.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: rawCols.length } };
 
   // -------------------------------------------------------------------------
+  // Hoja: RAW PARQUET (inspecciones crudas del dataset, para auditoría)
+  // -------------------------------------------------------------------------
+  if (filters) {
+    try {
+      const rawData = await getProduccionRaw(filters, diaMax);
+      const wsParquet = wb.addWorksheet('Raw Parquet', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+        views: [{ state: 'frozen', ySplit: 2 }],
+      });
+
+      // Fila 1: encabezado contextual
+      const totalCols = Math.max(rawData.columnas.length, 1);
+      wsParquet.mergeCells(1, 1, 1, totalCols);
+      const cTitulo = wsParquet.getCell(1, 1);
+      cTitulo.value = `Inspecciones crudas del parquet — ${rawData.total.toLocaleString('es-CL')} filas${
+        rawData.dia_max ? ` · días 1–${rawData.dia_max} (cierre EDP)` : ' · mes completo'
+      }`;
+      cTitulo.font = { name: 'Inter', size: 10, bold: true, color: { argb: COLORS.white } };
+      cTitulo.fill = headerFill(COLORS.slate800);
+      cTitulo.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      cTitulo.border = border('medium', COLORS.slate800);
+      wsParquet.getRow(1).height = 22;
+
+      // Fila 2: headers de columnas
+      rawData.columnas.forEach((colName, i) => {
+        const cell = wsParquet.getCell(2, i + 1);
+        cell.value = colName;
+        cell.font = { name: 'Inter', size: 9, bold: true, color: { argb: COLORS.white } };
+        cell.fill = headerFill(COLORS.slate500);
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = border('thin', COLORS.slate200);
+      });
+      wsParquet.getRow(2).height = 18;
+
+      // Filas: data
+      rawData.rows.forEach((row, idx) => {
+        const r = idx + 3;
+        rawData.columnas.forEach((colName, i) => {
+          const cell = wsParquet.getCell(r, i + 1);
+          const val = row[colName];
+          cell.value = val === null || val === undefined ? '' : val;
+          cell.font = { name: 'Inter', size: 9, color: { argb: COLORS.slate800 } };
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: typeof val === 'number' ? 'right' : 'left',
+          };
+          cell.border = border('thin', COLORS.slate100);
+        });
+      });
+
+      // Anchos heurísticos por nombre
+      rawData.columnas.forEach((colName, i) => {
+        const lower = colName.toLowerCase();
+        let w = 14;
+        if (lower.includes('nombre') || lower.includes('direcc')) w = 28;
+        else if (lower.includes('comuna') || lower.includes('zona') || lower.includes('regional')) w = 18;
+        else if (lower.includes('aviso') || lower.includes('id medida')) w = 14;
+        else if (lower.includes('hora')) w = 8;
+        else if (lower.includes('kwh')) w = 10;
+        else if (lower.includes('resultado') || lower.includes('tipo')) w = 22;
+        wsParquet.getColumn(i + 1).width = w;
+      });
+
+      wsParquet.autoFilter = {
+        from: { row: 2, column: 1 },
+        to: { row: 2, column: rawData.columnas.length },
+      };
+    } catch (err) {
+      console.error('No se pudo cargar Raw Parquet:', err);
+      // No abortamos el export — el resto de hojas se entrega igual
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Hoja: METODOLOGÍA
   // -------------------------------------------------------------------------
   const wsMeta = wb.addWorksheet('Metodología', {
@@ -1023,9 +1107,14 @@ export async function exportPagoExcel(
     { text: '   • Pie: número de brigadas operativas por cada día del mes visualizado.' },
     { text: '   • Mes visualizado: el último mes del período filtrado con al menos un registro.' },
     { text: '' },
-    { title: '7. Hoja Raw' },
-    { text: '   • Volcado plano de todos los técnicos seleccionados con cada campo del cálculo.' },
-    { text: '   • Sin formato ni agrupaciones: pensada para análisis adicional (filtros, pivotes, fórmulas).' },
+    { title: '7. Hojas Raw (auditoría / cruces)' },
+    { text: '   • Raw Tecnicos: un row por técnico con todos los campos del cálculo (sin formato ni agrupación).' },
+    { text: '   • Raw Parquet: inspecciones crudas del dataset (un row por inspección). Permite reproducir el cálculo manualmente.' },
+    {
+      text: diaMax
+        ? `   • El "Cierre EDP CGE (días 1–${diaMax})" está activo: ambas hojas reflejan SOLO esos días, lo que coincide con el cierre comercial mensual de CGE.`
+        : '   • Si activas "Cierre EDP CGE" en la vista, ambas hojas se recortan a los primeros 25 días del mes.',
+    },
   ];
 
   let mr = 1;

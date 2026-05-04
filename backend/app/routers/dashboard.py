@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+import pandas as pd
+from fastapi import APIRouter, Depends, Query
 from app.dependencies import get_dataframe, apply_filters
 from app.models.filters import FilterParams
 from app.services.kpis import calculate_kpis
@@ -53,11 +55,70 @@ def get_dashboard(params: FilterParams = Depends()):
 
 
 @router.get("/api/v1/produccion/pago-tecnicos")
-def get_pago_tecnicos(params: FilterParams = Depends()):
+def get_pago_tecnicos(
+    dia_max: Optional[int] = Query(
+        None,
+        ge=1,
+        le=31,
+        description="Si se entrega, recorta el dataframe a inspecciones con día <= dia_max "
+                    "(útil para ver el cierre EDP CGE del 25).",
+    ),
+    params: FilterParams = Depends(),
+):
     """Cálculo de pago mensual por técnico (OCA GLOBAL / 1F)."""
     df = get_dataframe()
     filtered = apply_filters(df, params)
+    if dia_max is not None and "Fecha ejecución" in filtered.columns:
+        filtered = filtered[filtered["Fecha ejecución"].dt.day <= dia_max]
     return calculate_pago_tecnicos(filtered)
+
+
+@router.get("/api/v1/produccion/raw")
+def get_pago_raw(
+    dia_max: Optional[int] = Query(
+        None,
+        ge=1,
+        le=31,
+        description="Recorta el dataframe a inspecciones con día <= dia_max.",
+    ),
+    params: FilterParams = Depends(),
+):
+    """
+    Devuelve las filas crudas del parquet correspondientes al filtro actual
+    (con columnas relevantes para auditoría). Pensado para volcar a una
+    hoja Raw del Excel y permitir cruces manuales.
+    """
+    df = get_dataframe()
+    filtered = apply_filters(df, params)
+    if dia_max is not None and "Fecha ejecución" in filtered.columns:
+        filtered = filtered[filtered["Fecha ejecución"].dt.day <= dia_max]
+
+    cols = [
+        "Fecha ejecución", "Nombre asignado",
+        "zona_tecnico", "regional_tecnico",
+        "zona_inspeccion", "regional_inspeccion",
+        "Comuna", "Dirección Servicio",
+        "Aviso", "ID Medida",
+        "Resultado visita", "Resultado final", "Tipo_CNR.Tipo de CNR",
+        "Hora inicio", "Hora fin",
+        "kWh CNR",
+        "Supervisor", "Estado", "Tratamiento", "Tipo de Campaña",
+    ]
+    cols_present = [c for c in cols if c in filtered.columns]
+    out = filtered[cols_present].copy()
+
+    if "Fecha ejecución" in out.columns:
+        out["Fecha ejecución"] = pd.to_datetime(
+            out["Fecha ejecución"], errors="coerce"
+        ).dt.strftime("%Y-%m-%d")
+
+    out = out.where(pd.notna(out), None)
+    return {
+        "total": len(out),
+        "dia_max": dia_max,
+        "columnas": cols_present,
+        "rows": out.to_dict(orient="records"),
+    }
 
 
 @router.get("/api/v1/analisis-comparativo")
