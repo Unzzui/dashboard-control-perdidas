@@ -7,7 +7,7 @@ class FilterParams:
         self,
         año: Optional[int] = Query(None),
         mes: Optional[str] = Query(None),
-        dia: Optional[int] = Query(None),
+        dia: Optional[str] = Query(None),
         zona: Optional[str] = Query(None),
         regional: Optional[str] = Query(None),
         supervisor: Optional[str] = Query(None),

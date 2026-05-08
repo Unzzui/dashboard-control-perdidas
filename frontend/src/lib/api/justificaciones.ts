@@ -112,7 +112,11 @@ export function getResumenPersona(
   filters: Partial<Filters>
 ): Promise<ResumenMesPersona> {
   const enc = encodeURIComponent(tecnicoNombre);
-  const filterQs = buildFilterQS(filters);
+  // El path ya define el período (mes). Excluimos mes/año/dia del filtro global
+  // para evitar colisión con el query param `mes` del endpoint.
+  const { mes: _m, año: _y, dia: _d, ...filtersSinPeriodo } = filters;
+  void _m; void _y; void _d;
+  const filterQs = buildFilterQS(filtersSinPeriodo);
   const sep = filterQs ? '&' : '';
   return request(
     `/api/v1/justificaciones/persona/${enc}/resumen?mes=${mes}${sep}${filterQs}`

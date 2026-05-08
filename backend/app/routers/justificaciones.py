@@ -13,7 +13,7 @@ from app.services.justificaciones import repository as repo
 from app.services.justificaciones import service
 from app.services.justificaciones.catalogos import get_catalogos
 from app.services.justificaciones.db import get_conn
-from app.config import EFECTIVAS_POR_DIA, FERIADOS_CL
+from app.config import EFECTIVAS_POR_DIA, FERIADOS_CL, MESES_MAP
 
 router = APIRouter()
 
@@ -151,11 +151,18 @@ def get_resumen_persona(
     params: FilterParams = Depends(),
     conn: sqlite3.Connection = Depends(get_conn_dep),
 ):
+    año, mes_num = (int(x) for x in mes.split("-"))
+    # El período del resumen lo define el path `mes` (YYYY-MM). Sobrescribimos los
+    # filtros temporales globales para que apply_filters use el mes correcto y no
+    # colisione con el query param `mes` que comparte nombre con el path.
+    params.año = año
+    params.mes = MESES_MAP[mes_num]
+    params.dia = None
+
     df = get_dataframe()
     filtered = apply_filters(df, params)
     cal = calculate_detalle_tecnico_diario(filtered, tecnico_nombre, None)
 
-    año, mes_num = (int(x) for x in mes.split("-"))
     feriados = FERIADOS_CL.get(año, set())
     import calendar as cal_mod
     _, dias_en_mes = cal_mod.monthrange(año, mes_num)

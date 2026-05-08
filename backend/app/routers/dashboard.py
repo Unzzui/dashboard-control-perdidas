@@ -104,7 +104,7 @@ def _aplicar_cierre_edp(df: pd.DataFrame, mes_cierre: str) -> pd.DataFrame:
 def get_pago_tecnicos(
     mes_cierre: Optional[str] = Query(
         None,
-        regex=r"^\d{4}-\d{2}$",
+        pattern=r"^\d{4}-\d{2}$",
         description="Si se entrega (YYYY-MM), activa el modo cierre EDP CGE: "
                     "filtra a inspecciones entre el 26 del mes anterior y el 25 del mes_cierre, "
                     "ignorando los filtros de año/mes/día estándar.",
@@ -125,7 +125,7 @@ def get_pago_tecnicos(
 def get_pago_raw(
     mes_cierre: Optional[str] = Query(
         None,
-        regex=r"^\d{4}-\d{2}$",
+        pattern=r"^\d{4}-\d{2}$",
         description="Si se entrega (YYYY-MM), activa el modo cierre EDP CGE.",
     ),
     params: FilterParams = Depends(),

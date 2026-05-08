@@ -19,6 +19,7 @@ import { listAnalistas } from '@/lib/api/analistas';
 import CalendarioMes, { DiaCalendario } from './CalendarioMes';
 import ResumenMes from './ResumenMes';
 import DiaPanel from './DiaPanel';
+import TablaDetalleDia from './TablaDetalleDia';
 
 export interface BrigadaSeleccionada {
   nombre: string;
@@ -171,50 +172,64 @@ export default function PersonaModal({
           </div>
         </div>
 
-        {/* Body 2 columnas */}
-        <div className="flex-1 overflow-hidden grid grid-cols-[60%_40%]">
-          {/* Calendario */}
-          <div className="overflow-y-auto p-4 border-r border-slate-200">
-            {cargando && !detalle ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-oca-blue" />
-              </div>
-            ) : detalle && catalogos ? (
-              <CalendarioMes
+        {/* Body con scroll vertical único */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Grid 2 columnas: calendario + panel */}
+          <div className="grid grid-cols-[60%_40%]">
+            {/* Calendario */}
+            <div className="p-4 border-r border-slate-200">
+              {cargando && !detalle ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-oca-blue" />
+                </div>
+              ) : detalle && catalogos ? (
+                <CalendarioMes
+                  detalle={detalle}
+                  justificaciones={justificaciones}
+                  metaDiaria={catalogos.meta_diaria}
+                  umbralBajaProduccion={catalogos.umbral_baja_produccion}
+                  diaSeleccionado={diaSeleccionado}
+                  onSeleccionarDia={setDiaSeleccionado}
+                />
+              ) : (
+                <p className="text-slate-400 text-sm">Sin datos</p>
+              )}
+            </div>
+
+            {/* Panel derecho */}
+            <div className="p-4">
+              {diaCalData && catalogos ? (
+                <DiaPanel
+                  dia={diaCalData}
+                  tecnicoNombre={brigada.nombre}
+                  zonaOrigen={brigada.zona}
+                  catalogos={catalogos}
+                  analistas={analistas}
+                  motivosLabel={motivosLabel}
+                  onCambioJustificacion={refetchJustificaciones}
+                />
+              ) : (
+                <ResumenMes
+                  resumen={resumen}
+                  cargando={cargando}
+                  diasTrabajados={brigada.diasTrabajados}
+                  efectivasDia={brigada.efectivasDia}
+                  metaDiaria={catalogos?.meta_diaria ?? 8}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Tabla detalle por día (full width) */}
+          {detalle && (
+            <div className="border-t border-slate-200 p-4 bg-slate-50/40">
+              <TablaDetalleDia
                 detalle={detalle}
-                justificaciones={justificaciones}
-                metaDiaria={catalogos.meta_diaria}
-                umbralBajaProduccion={catalogos.umbral_baja_produccion}
                 diaSeleccionado={diaSeleccionado}
                 onSeleccionarDia={setDiaSeleccionado}
               />
-            ) : (
-              <p className="text-slate-400 text-sm">Sin datos</p>
-            )}
-          </div>
-
-          {/* Panel derecho */}
-          <div className="overflow-y-auto p-4">
-            {diaCalData && catalogos ? (
-              <DiaPanel
-                dia={diaCalData}
-                tecnicoNombre={brigada.nombre}
-                zonaOrigen={brigada.zona}
-                catalogos={catalogos}
-                analistas={analistas}
-                motivosLabel={motivosLabel}
-                onCambioJustificacion={refetchJustificaciones}
-              />
-            ) : (
-              <ResumenMes
-                resumen={resumen}
-                cargando={cargando}
-                diasTrabajados={brigada.diasTrabajados}
-                efectivasDia={brigada.efectivasDia}
-                metaDiaria={catalogos?.meta_diaria ?? 8}
-              />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

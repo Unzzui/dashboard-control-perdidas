@@ -807,6 +807,9 @@ export interface ResumenMesPersona {
   efectivas_ajustadas: number;
   cumplimiento_real: number;          // 0..1
   cumplimiento_ajustado: number;      // 0..1
+  dias_habiles_mes: number;
+  meta_total: number;
+  meta_ajustada: number;
 }
 
 export interface AuditEntry {

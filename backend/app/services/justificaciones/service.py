@@ -247,4 +247,7 @@ def calcular_resumen(
         "efectivas_ajustadas": round(efectivas_ajustadas, 2),
         "cumplimiento_real": cumplimiento_real,
         "cumplimiento_ajustado": cumplimiento_ajustado,
+        "dias_habiles_mes": dias_habiles_mes,
+        "meta_total": meta_total,
+        "meta_ajustada": meta_ajustada,
     }
