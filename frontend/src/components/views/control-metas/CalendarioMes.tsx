@@ -79,7 +79,7 @@ export default function CalendarioMes({
             key={d.fecha}
             dia={d}
             seleccionado={d.fecha === diaSeleccionado}
-            onClick={() => d.esJustificable || d.justificacion ? onSeleccionarDia(d.fecha) : undefined}
+            onClick={() => (d.esJustificable || d.justificacion || d.estado === 'trabajado_ok') ? onSeleccionarDia(d.fecha) : undefined}
           />
         ))}
       </div>
@@ -97,7 +97,7 @@ function CeldaDia({
   onClick: () => void;
 }) {
   const styles = estiloPorEstado(dia.estado);
-  const cursor = (dia.esJustificable || dia.justificacion) ? 'cursor-pointer' : 'cursor-default';
+  const cursor = (dia.esJustificable || dia.justificacion || dia.estado === 'trabajado_ok') ? 'cursor-pointer' : 'cursor-default';
   const ring = seleccionado ? 'ring-2 ring-slate-800' : '';
   const justifBorde = dia.justificacion ? 'border-dashed' : '';
 
