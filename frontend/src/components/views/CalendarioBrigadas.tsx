@@ -6,6 +6,7 @@ import { PagoTecnico, CalendarioMes } from '@/types';
 interface CalendarioBrigadasProps {
   pagoTecnicos: PagoTecnico[];
   calendario: CalendarioMes;
+  onSeleccionarBrigada?: (nombre: string, zona: string) => void;
 }
 
 type TipoDia = 'habil' | 'sabado' | 'domingo' | 'feriado';
@@ -33,6 +34,7 @@ function tipoDia(
 export default function CalendarioBrigadas({
   pagoTecnicos,
   calendario,
+  onSeleccionarBrigada,
 }: CalendarioBrigadasProps) {
   const sabadosSet = useMemo(() => new Set(calendario.sabados), [calendario.sabados]);
   const domingosSet = useMemo(() => new Set(calendario.domingos), [calendario.domingos]);
@@ -299,8 +301,15 @@ export default function CalendarioBrigadas({
                           className="border-b border-slate-50 hover:bg-slate-50/50"
                         >
                           <td
-                            className="sticky left-0 z-10 bg-white px-3 py-1 text-[11px] text-slate-700 truncate max-w-[180px]"
+                            className={`sticky left-0 z-10 bg-white px-3 py-1 text-[11px] text-slate-700 truncate max-w-[180px] ${
+                              onSeleccionarBrigada ? 'cursor-pointer hover:text-oca-blue hover:underline' : ''
+                            }`}
                             title={t.nombre}
+                            onClick={
+                              onSeleccionarBrigada
+                                ? () => onSeleccionarBrigada(t.nombre, t.zona)
+                                : undefined
+                            }
                           >
                             {t.nombre}
                           </td>
