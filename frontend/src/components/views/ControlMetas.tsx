@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { TecnicoRanking, Filters, CalendarioMes, KPIData } from '@/types';
 import PersonaModal, { BrigadaSeleccionada } from './control-metas/PersonaModal';
 import { calcularDiasRestantes } from './control-metas/calcularDiasRestantes';
+import { buildBrigadaSeleccionada, BrigadaMeta, EstadoMeta } from './control-metas/buildBrigadaSeleccionada';
 
 interface ControlMetasProps {
   tecnicos: TecnicoRanking[];
@@ -14,21 +15,10 @@ interface ControlMetasProps {
 
 // Fallback estático. La meta real es dinámica (8 ef/día × días hábiles del mes)
 // y viene del backend en `calendarioMes.meta_efectivas`.
-const META_EFECTIVAS_FALLBACK = 160;
+export const META_EFECTIVAS_FALLBACK = 160;
 const META_EFECTIVAS_DIA = 8;
 
-type EstadoMeta = 'cumplida' | 'en_camino' | 'no_alcanzara';
 type FiltroVista = 'todos' | 'cumplida' | 'en_camino' | 'no_alcanzara';
-
-interface BrigadaMeta extends BrigadaSeleccionada {
-  faltanParaMeta: number;
-  cnrDia: number;
-  // Campos globales para técnicos multi-zona
-  efectivasGlobal: number;
-  efectivasDiaGlobal: number;
-  diasGlobal: number;
-  cumpleMetaGlobal: boolean;
-}
 
 export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }: ControlMetasProps) {
   const metaEfectivasMes = calendarioMes?.meta_efectivas ?? META_EFECTIVAS_FALLBACK;
@@ -49,46 +39,7 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
     const zonasStats: Record<string, { total: number; cumpliran: number; noAlcanzara: number; pctAvancePromedio: number }> = {};
 
     tecnicos.forEach(t => {
-      const trabajaEnMultiplesZonas = t.cantidad_zonas > 1;
-
-      // IMPORTANTE: Para técnicos que trabajan en múltiples zonas,
-      // usar los totales GLOBALES para evaluar meta (la meta es global, no por zona)
-      const efectivasTotal = trabajaEnMultiplesZonas ? t.efectivas_global : t.efectivas;
-      const efectivasDia = trabajaEnMultiplesZonas ? t.promedio_efectivas_global : t.promedio_efectivas;
-      const diasTrabajados = trabajaEnMultiplesZonas ? t.dias_global : (t.dias_trabajados || 1);
-
-      const proyeccion = Math.round(efectivasTotal + (efectivasDia * diasRestantes));
-      const faltanParaMeta = Math.max(0, metaEfectivasMes - efectivasTotal);
-      const pctAvance = Math.min(100, (efectivasTotal / metaEfectivasMes) * 100);
-
-      let estado: EstadoMeta;
-      if (efectivasTotal >= metaEfectivasMes) {
-        estado = 'cumplida';
-      } else if (diasRestantes > 0 && proyeccion >= metaEfectivasMes) {
-        estado = 'en_camino';
-      } else {
-        estado = 'no_alcanzara';
-      }
-
-      const brigada: BrigadaMeta = {
-        nombre: t.nombre,  // Mantener nombre original para API
-        zona: t.zona,
-        diasTrabajados,
-        efectivasTotal,
-        efectivasDia,
-        proyeccion,
-        faltanParaMeta,
-        estado,
-        cnrDia: t.promedio_cnr,
-        pctAvance,
-        kwhRecuperado: trabajaEnMultiplesZonas ? t.kwh_global : t.kwh_recuperado,
-        // Campos globales
-        trabajaEnMultiplesZonas,
-        efectivasGlobal: t.efectivas_global,
-        efectivasDiaGlobal: t.promedio_efectivas_global,
-        diasGlobal: t.dias_global,
-        cumpleMetaGlobal: t.cumple_meta_global,
-      };
+      const brigada = buildBrigadaSeleccionada(t, metaEfectivasMes, diasRestantes);
 
       if (!porZona[t.zona]) {
         porZona[t.zona] = [];
@@ -97,8 +48,8 @@ export default function ControlMetas({ tecnicos, filters, calendarioMes, kpis }:
 
       porZona[t.zona].push(brigada);
       zonasStats[t.zona].total++;
-      if (estado === 'cumplida' || estado === 'en_camino') zonasStats[t.zona].cumpliran++;
-      if (estado === 'no_alcanzara') zonasStats[t.zona].noAlcanzara++;
+      if (brigada.estado === 'cumplida' || brigada.estado === 'en_camino') zonasStats[t.zona].cumpliran++;
+      if (brigada.estado === 'no_alcanzara') zonasStats[t.zona].noAlcanzara++;
     });
 
     // Calcular promedio de avance por zona y ordenar brigadas
