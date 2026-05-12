@@ -8,8 +8,9 @@ import {
   Analista,
   CatalogosJustificacion,
   ResumenMesPersona,
+  InspeccionesDia,
 } from '@/types';
-import { getDetalleTecnicoDiario } from '@/lib/api';
+import { getDetalleTecnicoDiario, getInspeccionesDia } from '@/lib/api';
 import {
   getCatalogos,
   getJustificacionesPersona,
@@ -20,6 +21,7 @@ import CalendarioMes, { DiaCalendario } from './CalendarioMes';
 import ResumenMes from './ResumenMes';
 import DiaPanel from './DiaPanel';
 import TablaDetalleDia from './TablaDetalleDia';
+import InspeccionesDiaModal from '@/components/ui/InspeccionesDiaModal';
 
 export interface BrigadaSeleccionada {
   nombre: string;
@@ -53,12 +55,50 @@ export default function PersonaModal({
   const [analistas, setAnalistas] = useState<Analista[]>([]);
   const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [inspeccionesDia, setInspeccionesDia] = useState<InspeccionesDia | null>(null);
+  const [cargandoInspecciones, setCargandoInspecciones] = useState(false);
+
+  const cargarInspeccionesDia = useCallback(async (fecha: string) => {
+    setCargandoInspecciones(true);
+    // Placeholder con header (nombre/zona/fecha) y totales en 0 mientras carga
+    setInspeccionesDia({
+      nombre: brigada.nombre,
+      zona: brigada.zona,
+      fecha,
+      total_inspecciones: 0,
+      efectivas: 0,
+      cnr: 0,
+      normal: 0,
+      mantenimiento: 0,
+      vf_cge_pagable: 0,
+      vf_no_efectiva: 0,
+      inspecciones: [],
+    });
+    try {
+      const data = await getInspeccionesDia(brigada.nombre, brigada.zona, fecha, filters);
+      setInspeccionesDia(data);
+    } catch (err) {
+      console.error('Error cargando inspecciones del día:', err);
+      setInspeccionesDia(null);
+    } finally {
+      setCargandoInspecciones(false);
+    }
+  }, [brigada.nombre, brigada.zona, filters]);
 
   // Suppress unused variable warnings for props used only in child usage patterns
   void metaEfectivasMes;
   void todasLasBrigadas;
 
   const mes = useMemo(() => deducirMes(detalle), [detalle]);
+
+  const handleSeleccionarDia = useCallback((fecha: string) => {
+    setDiaSeleccionado(fecha);
+    // Solo abrir el sub-modal si el día tiene trabajo registrado
+    const c = detalle?.calendario.find(x => x.fecha === fecha);
+    if (c?.trabajo) {
+      cargarInspeccionesDia(fecha);
+    }
+  }, [detalle, cargarInspeccionesDia]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -88,6 +128,7 @@ export default function PersonaModal({
 
   useEffect(() => {
     setDiaSeleccionado(null);
+    setInspeccionesDia(null);
     cargar();
   }, [brigada.nombre]);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,6 +179,7 @@ export default function PersonaModal({
   }, [diaSeleccionado, detalle, catalogos, justificaciones]);
 
   return (
+    <>
     <div
       className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
       onClick={onClose}
@@ -189,7 +231,7 @@ export default function PersonaModal({
                   metaDiaria={catalogos.meta_diaria}
                   umbralBajaProduccion={catalogos.umbral_baja_produccion}
                   diaSeleccionado={diaSeleccionado}
-                  onSeleccionarDia={setDiaSeleccionado}
+                  onSeleccionarDia={handleSeleccionarDia}
                 />
               ) : (
                 <p className="text-slate-400 text-sm">Sin datos</p>
@@ -226,13 +268,21 @@ export default function PersonaModal({
               <TablaDetalleDia
                 detalle={detalle}
                 diaSeleccionado={diaSeleccionado}
-                onSeleccionarDia={setDiaSeleccionado}
+                onSeleccionarDia={handleSeleccionarDia}
               />
             </div>
           )}
         </div>
       </div>
     </div>
+    {inspeccionesDia && (
+      <InspeccionesDiaModal
+        inspecciones={inspeccionesDia}
+        cargando={cargandoInspecciones}
+        onClose={() => setInspeccionesDia(null)}
+      />
+    )}
+    </>
   );
 }
 
