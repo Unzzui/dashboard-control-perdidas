@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { TecnicoRanking, Filters, CalendarioMes, KPIData } from '@/types';
-import PersonaModal, { BrigadaSeleccionada } from './control-metas/PersonaModal';
+import PersonaModal from './control-metas/PersonaModal';
 import { calcularDiasRestantes } from './control-metas/calcularDiasRestantes';
-import { buildBrigadaSeleccionada, BrigadaMeta, EstadoMeta } from './control-metas/buildBrigadaSeleccionada';
+import { buildBrigadaSeleccionada, BrigadaMeta } from './control-metas/buildBrigadaSeleccionada';
 
 interface ControlMetasProps {
   tecnicos: TecnicoRanking[];
