@@ -82,6 +82,7 @@ function DashboardContent() {
             filters={filters}
             pagoTecnicos={data.pago_tecnicos}
             calendarioMes={data.calendario_mes}
+            tecnicos={data.tecnicos}
           />
         );
       case 'control-diario':

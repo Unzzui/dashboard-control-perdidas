@@ -1,22 +1,42 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Filters, AlertasOperativasData, TecnicoInactivo, MetaNoCompida, ProblemaJornada, AltaVisitaFallida, PagoTecnico, CalendarioMes } from '@/types';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  Filters,
+  AlertasOperativasData,
+  TecnicoInactivo,
+  MetaNoCompida,
+  ProblemaJornada,
+  AltaVisitaFallida,
+  PagoTecnico,
+  CalendarioMes,
+  TecnicoRanking,
+} from '@/types';
 import { getAlertasOperativas } from '@/lib/api';
 import CalendarioBrigadas from './CalendarioBrigadas';
 import DetalleTecnicoDiarioModal from '@/components/ui/DetalleTecnicoDiarioModal';
+import PersonaModal from './control-metas/PersonaModal';
+import { buildBrigadaSeleccionada, BrigadaMeta } from './control-metas/buildBrigadaSeleccionada';
+import { calcularDiasRestantes } from './control-metas/calcularDiasRestantes';
+import { META_EFECTIVAS_FALLBACK } from './ControlMetas';
 
 interface AlertasOperativasProps {
   filters: Filters;
   pagoTecnicos?: PagoTecnico[];
   calendarioMes?: CalendarioMes | null;
+  tecnicos?: TecnicoRanking[];
 }
 
 function getFilterKey(filters: Filters): string {
   return `${filters.año}-${filters.mes.join(',')}-${filters.zona.join(',')}`;
 }
 
-export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes }: AlertasOperativasProps) {
+export default function AlertasOperativas({
+  filters,
+  pagoTecnicos,
+  calendarioMes,
+  tecnicos,
+}: AlertasOperativasProps) {
   const [data, setData] = useState<AlertasOperativasData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [tecnicoDetalle, setTecnicoDetalle] = useState<{
@@ -24,6 +44,42 @@ export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes
     data: TecnicoInactivo | MetaNoCompida | ProblemaJornada | AltaVisitaFallida;
   } | null>(null);
   const lastFilterKey = useRef<string>('');
+
+  const [brigadaSeleccionada, setBrigadaSeleccionada] = useState<BrigadaMeta | null>(null);
+
+  const metaEfectivasMes = calendarioMes?.meta_efectivas ?? META_EFECTIVAS_FALLBACK;
+  const diasRestantes = useMemo(() => calcularDiasRestantes(calendarioMes), [calendarioMes]);
+
+  // Lista ordenada como en el calendario: zona alfabética + días trabajados desc.
+  const todasLasBrigadas = useMemo<BrigadaMeta[]>(() => {
+    if (!tecnicos) return [];
+    const arr = tecnicos.map(t => buildBrigadaSeleccionada(t, metaEfectivasMes, diasRestantes));
+    arr.sort((a, b) => {
+      if (a.zona !== b.zona) return a.zona.localeCompare(b.zona);
+      return b.diasTrabajados - a.diasTrabajados;
+    });
+    return arr;
+  }, [tecnicos, metaEfectivasMes, diasRestantes]);
+
+  const abrirModalBrigada = useCallback((nombre: string, zona: string) => {
+    if (!tecnicos) return;
+    const t = tecnicos.find(x => x.nombre === nombre && x.zona === zona);
+    if (!t) return;
+    setBrigadaSeleccionada(buildBrigadaSeleccionada(t, metaEfectivasMes, diasRestantes));
+  }, [tecnicos, metaEfectivasMes, diasRestantes]);
+
+  const navegarTrabajador = useCallback((direccion: 'anterior' | 'siguiente') => {
+    if (!brigadaSeleccionada || todasLasBrigadas.length === 0) return;
+    const indiceActual = todasLasBrigadas.findIndex(
+      b => b.nombre === brigadaSeleccionada.nombre && b.zona === brigadaSeleccionada.zona,
+    );
+    if (indiceActual === -1) return;
+    const len = todasLasBrigadas.length;
+    const nuevoIndice = direccion === 'anterior'
+      ? (indiceActual === 0 ? len - 1 : indiceActual - 1)
+      : (indiceActual === len - 1 ? 0 : indiceActual + 1);
+    setBrigadaSeleccionada(todasLasBrigadas[nuevoIndice]);
+  }, [brigadaSeleccionada, todasLasBrigadas]);
 
   const fetchData = useCallback(async () => {
     const currentKey = getFilterKey(filters);
@@ -170,6 +226,7 @@ export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes
         <CalendarioBrigadas
           pagoTecnicos={pagoTecnicos}
           calendario={calendarioMes}
+          onSeleccionarBrigada={tecnicos ? abrirModalBrigada : undefined}
         />
       )}
 
@@ -681,6 +738,17 @@ export default function AlertasOperativas({ filters, pagoTecnicos, calendarioMes
           />
         );
       })()}
+
+      {brigadaSeleccionada && (
+        <PersonaModal
+          brigada={brigadaSeleccionada}
+          filters={filters}
+          metaEfectivasMes={metaEfectivasMes}
+          todasLasBrigadas={todasLasBrigadas}
+          onClose={() => setBrigadaSeleccionada(null)}
+          onNavegar={navegarTrabajador}
+        />
+      )}
     </div>
   );
 }
