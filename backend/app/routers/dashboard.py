@@ -13,6 +13,7 @@ from app.services.normalizaciones import calculate_normalizaciones
 from app.services.visitas_fallidas import calculate_visitas_fallidas
 from app.services.produccion import calculate_produccion
 from app.services.pago_tecnicos import calculate_pago_tecnicos
+from app.services.tecnicos import normalizar_nombre
 from app.services.resultados_fallidos import calculate_resultados_fallidos, calculate_resultados_fallidos_por_zona
 from app.services.analisis_comparativo import calculate_analisis_comparativo
 from app.services.alertas_operativas import calculate_alertas_operativas
@@ -131,9 +132,13 @@ def get_pago_raw(
     params: FilterParams = Depends(),
 ):
     """
-    Devuelve las filas crudas del parquet correspondientes al filtro actual
-    (con columnas relevantes para auditoría). Pensado para volcar a una
-    hoja Raw del Excel y permitir cruces manuales.
+    Devuelve TODAS las columnas del parquet para las filas filtradas.
+    Es la fuente única que respalda el cálculo de pago en el Excel:
+    el usuario puede reproducir manualmente cualquier conteo desde aquí.
+
+    Las columnas clave que necesita el cálculo (Fecha ejecución, Nombre
+    asignado, Resultado visita, Resultado final, Tipo_CNR.Tipo de CNR)
+    se ordenan al inicio para mayor visibilidad.
     """
     df = get_dataframe()
     if mes_cierre:
@@ -142,38 +147,64 @@ def get_pago_raw(
     else:
         filtered = apply_filters(df, params)
 
-    cols = [
+    # Orden: columnas clave del cálculo primero, luego el resto en su orden original.
+    CLAVE = [
         "Fecha ejecución", "Nombre asignado",
+        "Resultado visita", "Resultado final", "Tipo_CNR.Tipo de CNR",
+        "Tipo de CNR",
         "zona_tecnico", "regional_tecnico",
         "zona_inspeccion", "regional_inspeccion",
         "Comuna", "Dirección Servicio",
         "Aviso", "ID Medida",
-        "Resultado visita", "Resultado final", "Tipo_CNR.Tipo de CNR",
-        "Hora inicio", "Hora fin",
         "kWh CNR",
-        "Supervisor", "Estado", "Tratamiento", "Tipo de Campaña",
+        "Tratamiento", "Tipo de Campaña", "Estado",
+        "Hora inicio", "Hora fin", "Supervisor",
     ]
-    cols_present = [c for c in cols if c in filtered.columns]
+    presentes = list(filtered.columns)
+    ordenadas = [c for c in CLAVE if c in presentes]
+    resto = [c for c in presentes if c not in ordenadas]
+    cols_present = ordenadas + resto
+
     out = filtered[cols_present].copy()
 
-    if "Fecha ejecución" in out.columns:
-        out["Fecha ejecución"] = pd.to_datetime(
-            out["Fecha ejecución"], errors="coerce"
-        ).dt.strftime("%Y-%m-%d")
+    # Normaliza "Nombre asignado" con .strip().title() — MISMA lógica que
+    # pago_tecnicos.calculate_pago_tecnicos. Sin esto, los COUNTIFS del Excel
+    # contra Raw Parquet fallan cuando el nombre original tiene espacios al
+    # final o casing distinto (Detalle Técnicos usa la versión normalizada).
+    if "Nombre asignado" in out.columns:
+        out["Nombre asignado"] = out["Nombre asignado"].apply(
+            lambda v: normalizar_nombre(v) if isinstance(v, str) else v
+        )
 
-    out = out.where(pd.notna(out), None)
+    # Normaliza todas las columnas datetime a string YYYY-MM-DD (compatibles
+    # con JSON y con las fórmulas de Excel que parten del string).
+    for col in out.columns:
+        if pd.api.types.is_datetime64_any_dtype(out[col]):
+            out[col] = pd.to_datetime(out[col], errors="coerce").dt.strftime("%Y-%m-%d")
+
+    # Convierte NaN/NaT/Inf a None para que JSON los serialice. Reemplazar
+    # SOLO con .where no es suficiente porque las columnas float mantienen NaN.
+    out = out.replace([float("inf"), float("-inf")], None)
 
     rango = None
     if mes_cierre:
         fi, ff = _rango_cierre_edp(mes_cierre)
         rango = {"desde": fi.strftime("%Y-%m-%d"), "hasta": ff.strftime("%Y-%m-%d")}
 
+    # Construye los rows limpiando NaN/NaT por valor (más robusto que .where
+    # para dataframes con dtypes mixtos como objet/float/datetime).
+    records = out.to_dict(orient="records")
+    clean_rows = [
+        {k: (None if pd.isna(v) else v) for k, v in row.items()}
+        for row in records
+    ]
+
     return {
         "total": len(out),
         "mes_cierre": mes_cierre,
         "rango": rango,
         "columnas": cols_present,
-        "rows": out.to_dict(orient="records"),
+        "rows": clean_rows,
     }
 
 

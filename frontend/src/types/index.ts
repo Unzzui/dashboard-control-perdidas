@@ -188,12 +188,14 @@ export interface PagoTecnico {
   cnr_medida_mes: number;
   cnr_intervencion_mes: number;
   vf_cge_mes: number;
+  mantenimiento_mes: number;
   efectivas_mes: number;
   pct_efectividad: number;
   normales_sabado: number;
   cnr_medida_sabado: number;
   cnr_intervencion_sabado: number;
   vf_cge_sabado: number;
+  mantenimiento_sabado: number;
   efectivas_sabado: number;
   efectivas_habiles: number;
   concatenar: string;
@@ -206,6 +208,7 @@ export interface PagoTecnico {
   dias_trabajados: number[];
   dias_trabajados_count: number;
   sabados_trabajados_count: number;
+  fechas_trabajadas?: string[];  // ISO YYYY-MM-DD; presente sólo si backend lo entrega
 }
 
 export interface FilterOptions {
